@@ -18,27 +18,36 @@ The repo lives on the Linux filesystem (`~/projects/woocommerce-mcp`), because b
 |---|---|---|---|---|
 | store | mariadb | StatefulSet | PVC 2Gi | internal (wordpress, wp-init only) |
 | store | wordpress | Deployment | PVC 2Gi (`/var/www/html`) | Ingress `store.<domain>` |
-| store | wp-init | Job (Helm hook) | — | — |
+| store | wp-init-<revision> | Job (one per Helm revision, idempotent) | — | — |
 | store | woo-mcp | Deployment | — | internal (gateway only) |
 | platform | postgres | StatefulSet | PVC 1Gi | internal (gateway only) |
 | platform | gateway | Deployment | — | Ingress `app.<domain>/api`, `/mcp` |
 | platform | dashboard | Deployment | — | Ingress `app.<domain>/` |
 | platform | everything-mcp | Deployment | — | internal (gateway only) |
 
-## 3. Local (k3d) — planned commands
+## 3. Local (k3d)
 ```bash
-scripts/cluster-up.sh          # k3d cluster create mcp --config k3d/cluster.yaml (ports 80/443)
-cp .env.example .env && $EDITOR .env
-scripts/make-secrets.sh        # creates K8s Secrets from .env + random values (idempotent)
-scripts/build-images.sh        # docker build + k3d image import
-helm upgrade --install platform charts/platform -f charts/platform/values-local.yaml --wait
+scripts/up.sh                  # cluster-up → make-secrets → build-images → deploy local → wait
 ```
+which runs, step by step (each script is idempotent and can be rerun on its own):
+```bash
+scripts/cluster-up.sh          # k3d cluster create --config k3d/cluster.yaml (host ports 80/443)
+scripts/make-secrets.sh        # K8s Secrets from random values + .env (never overwrites, never prints)
+scripts/build-images.sh        # docker build, content-addressed tag, k3d image import → .images.env
+scripts/deploy.sh local        # helm upgrade --install … -f values-local.yaml --wait --wait-for-jobs
+```
+Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
+
 Local domains: `http://store.127.0.0.1.nip.io`, `http://app.127.0.0.1.nip.io`. nip.io resolves `*.127.0.0.1.nip.io` to 127.0.0.1, so no hosts-file edits are needed. Fallback: add both hosts to `/etc/hosts` and `C:\Windows\System32\drivers\etc\hosts`.
+
+WordPress admin: `http://store.127.0.0.1.nip.io/wp-admin`, user `admin`, password via `kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' | base64 -d`.
+
+Teardown: `scripts/down.sh` removes the release but keeps namespaces, Secrets and PVCs; `scripts/down.sh --all` deletes the cluster and all data.
 
 ## 4. Secrets
 Never in git or values files. `scripts/make-secrets.sh` creates:
-- `store/mariadb-secrets` (root and user passwords), `store/wordpress-admin`, `store/woo-api` (created by the wp-init Job)
-- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (seed admin email and password), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (GitHub PAT)
+- `store/mariadb-secrets` (root and user passwords), `store/wordpress-admin`, `store/woo-api` (consumer key/secret; the wp-init Job registers its hash in WooCommerce), `store/woo-mcp-auth` (token the gateway presents to woo-mcp)
+- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (seed admin email and password), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
 
 ## 5. VPS (k3s) — planned
 **Choosing a VPS (P0-03).** Needs ≥4 GB RAM, ≥2 vCPU, ≥20 GB disk, Ubuntu LTS.

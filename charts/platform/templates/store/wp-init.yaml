@@ -1,0 +1,79 @@
+{{- if .Values.store.enabled }}
+{{- $ns := .Values.global.namespaces.store }}
+{{- $i := .Values.store.init }}
+{{- $ctx := dict "root" . "app" "wp-init" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wp-init-script
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+data:
+  wp-init.sh: |
+{{ .Files.Get "files/wp-init.sh" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # A regular Job, not a post-install hook: `helm --wait` waits for woo-mcp readiness, which needs
+  # the store installed, so the Job must run alongside the other resources. One Job per release
+  # revision because Job specs are immutable; the script is idempotent, and Helm removes the old one.
+  name: wp-init-{{ .Release.Revision }}
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 33       # www-data of the Debian-based Apache image, which owns the files
+        runAsGroup: 33
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: wp-cli
+          image: {{ $i.image }}
+          imagePullPolicy: IfNotPresent
+          command: [sh, /scripts/wp-init.sh]
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: WORDPRESS_DB_HOST, value: mariadb }
+            - { name: WORDPRESS_DB_NAME, value: wordpress }
+            - { name: WORDPRESS_DB_USER, value: wordpress }
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.store.mariadb.existingSecret }}, key: mariadb-password } }
+            - { name: SITE_URL, value: {{ include "platform.url" (dict "root" . "host" .Values.store.host) | quote }} }
+            - { name: TITLE, value: {{ $i.title | quote }} }
+            - { name: WC_VERSION, value: {{ $i.woocommerceVersion | quote }} }
+            - { name: STORE_CURRENCY, value: {{ $i.currency | quote }} }
+            - { name: STORE_TIMEZONE, value: {{ $i.timezone | quote }} }
+            - { name: STORE_COUNTRY, value: {{ $i.country | quote }} }
+            - name: ADMIN_USER
+              valueFrom: { secretKeyRef: { name: {{ $i.adminSecret }}, key: admin-user } }
+            - name: ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $i.adminSecret }}, key: admin-password } }
+            - name: ADMIN_EMAIL
+              valueFrom: { secretKeyRef: { name: {{ $i.adminSecret }}, key: admin-email } }
+            - name: WOO_CONSUMER_KEY
+              valueFrom: { secretKeyRef: { name: {{ $i.apiSecret }}, key: consumer-key } }
+            - name: WOO_CONSUMER_SECRET
+              valueFrom: { secretKeyRef: { name: {{ $i.apiSecret }}, key: consumer-secret } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /var/www/html }
+            - { name: script, mountPath: /scripts }
+          resources: {{- include "platform.resources" (dict "name" "wp-init" "resources" $i.resources) | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: wordpress-data }
+        - name: script
+          configMap: { name: wp-init-script }
+{{- end }}

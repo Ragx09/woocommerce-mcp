@@ -1,0 +1,124 @@
+{{- if .Values.store.enabled }}
+{{- $ns := .Values.global.namespaces.store }}
+{{- $w := .Values.store.wordpress }}
+{{- $ctx := dict "root" . "app" "wordpress" }}
+{{- $home := include "platform.url" (dict "root" . "host" .Values.store.host) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-data
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.global.storageClass }}
+  resources:
+    requests: { storage: {{ $w.storage }} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # ReadWriteOnce volume
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 33
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: wordpress
+          image: {{ $w.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 80 }
+          env:
+            - { name: WORDPRESS_DB_HOST, value: mariadb }
+            - { name: WORDPRESS_DB_NAME, value: wordpress }
+            - { name: WORDPRESS_DB_USER, value: wordpress }
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.store.mariadb.existingSecret }}, key: mariadb-password } }
+            - { name: WP_HOME, value: {{ $home | quote }} }
+            # Pin the canonical URL to the Ingress host (no redirect loops when reached via the
+            # internal Service) and trust X-Forwarded-Proto from Traefik for HTTPS on the VPS.
+            - name: WORDPRESS_CONFIG_EXTRA
+              value: |
+                define('WP_HOME', getenv('WP_HOME'));
+                define('WP_SITEURL', getenv('WP_HOME'));
+                if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') { $_SERVER['HTTPS'] = 'on'; }
+                define('DISALLOW_FILE_EDIT', true);
+          # Apache's entrypoint starts as root and drops to www-data, so the root filesystem stays
+          # writable and only the capabilities it needs are kept.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID, NET_BIND_SERVICE, KILL]
+          volumeMounts:
+            - { name: data, mountPath: /var/www/html }
+          startupProbe:
+            httpGet: { path: /wp-includes/images/blank.gif, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            # 200 once installed, 302 to install.php before that; 500 when the database is down.
+            httpGet: { path: /wp-login.php, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /wp-includes/images/blank.gif, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources: {{- include "platform.resources" (dict "name" "wordpress" "resources" $w.resources) | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: wordpress-data }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: store
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  {{- if .Values.global.tls.enabled }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.tls.clusterIssuer }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.ingressClassName }}
+  {{- if .Values.global.tls.enabled }}
+  tls:
+    - hosts: [{{ include "platform.host" (dict "root" . "host" .Values.store.host) }}]
+      secretName: store-tls
+  {{- end }}
+  rules:
+    - host: {{ include "platform.host" (dict "root" . "host" .Values.store.host) }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: wordpress, port: { name: http } } }
+{{- end }}

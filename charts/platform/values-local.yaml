@@ -1,0 +1,5 @@
+# Local k3d. Images are built locally and imported with `k3d image import`.
+global:
+  domain: 127.0.0.1.nip.io
+  scheme: http
+  imagePullPolicy: Never

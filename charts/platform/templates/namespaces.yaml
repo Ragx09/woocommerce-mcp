@@ -1,0 +1,15 @@
+{{- range $key, $ns := .Values.global.namespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: platform
+    # Enforce the restricted-ish baseline; WordPress needs root for Apache, so "baseline" not "restricted".
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    # Uninstalling the release must not delete namespaces (and with them the PVCs).
+    helm.sh/resource-policy: keep
+---
+{{- end }}

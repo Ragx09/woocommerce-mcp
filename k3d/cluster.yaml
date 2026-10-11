@@ -1,0 +1,21 @@
+# Local cluster: k3s in Docker, same distribution as the VPS (D-010).
+# Traefik, local-path storage and the NetworkPolicy controller are k3s defaults and stay on.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: mcp
+servers: 1
+agents: 0
+image: rancher/k3s:v1.35.5-k3s1   # keep in sync with scripts/vps-install-k3s.sh
+ports:
+  - port: 80:80
+    nodeFilters: [loadbalancer]
+  - port: 443:443
+    nodeFilters: [loadbalancer]
+options:
+  k3d:
+    wait: true
+    timeout: 240s
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true

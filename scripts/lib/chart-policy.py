@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Policy checks on rendered manifests (stdin): every container has requests+limits; long-running
+containers have readiness+liveness probes; no Secret objects carry literal data; Services are ClusterIP;
+pods do not mount service-account tokens. Exit 1 on any violation."""
+import sys, yaml
+
+docs = [d for d in yaml.safe_load_all(sys.stdin) if d]
+errors = []
+for d in docs:
+    kind, name = d.get("kind"), d.get("metadata", {}).get("name")
+    ref = f"{kind}/{name}"
+    if kind == "Secret":
+        errors.append(f"{ref}: chart must not render Secrets (use existingSecret / scripts/make-secrets.sh)")
+    if kind == "Service" and d["spec"].get("type", "ClusterIP") != "ClusterIP":
+        errors.append(f"{ref}: type {d['spec']['type']} (only ClusterIP; Traefik is the only public entry)")
+    if kind not in ("Deployment", "StatefulSet", "Job"):
+        continue
+    pod = d["spec"]["template"]["spec"]
+    if pod.get("automountServiceAccountToken") is not False:
+        errors.append(f"{ref}: automountServiceAccountToken must be false")
+    for c in pod.get("containers", []) + pod.get("initContainers", []):
+        cref = f"{ref}[{c['name']}]"
+        r = c.get("resources") or {}
+        if not r.get("requests") or not r.get("limits"):
+            errors.append(f"{cref}: missing resources.requests/limits")
+        if kind != "Job":
+            for p in ("readinessProbe", "livenessProbe"):
+                if p not in c:
+                    errors.append(f"{cref}: missing {p}")
+        sc = c.get("securityContext") or {}
+        if sc.get("allowPrivilegeEscalation") is not False:
+            errors.append(f"{cref}: allowPrivilegeEscalation must be false")
+        if "ALL" not in (sc.get("capabilities") or {}).get("drop", []):
+            errors.append(f"{cref}: capabilities.drop must include ALL")
+        for e in c.get("env", []):
+            if any(w in e["name"].upper() for w in ("PASSWORD", "SECRET", "TOKEN", "_KEY")) and "value" in e:
+                errors.append(f"{cref}: env {e['name']} has a literal value (use secretKeyRef)")
+
+for e in errors:
+    print(f"FAIL  {e}")
+print(f"policy: {len(docs)} objects, {len(errors)} violations")
+sys.exit(1 if errors else 0)

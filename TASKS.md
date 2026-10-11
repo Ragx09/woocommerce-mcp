@@ -412,7 +412,7 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 
 ### INF-01 — Monorepo layout
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** P0-12
 - **Requirements:** REQ-DEL-04
@@ -421,12 +421,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** `npm install && npm run build && npm test` succeed on empty skeletons.
 - **Tests:** TC-INF-01-1: fresh clone → install/build/test → exit 0.
 - **Command:** `npm ci && npm run build && npm test`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: root `package.json` workspaces `services/*` (gateway joins at GW-01, dashboard at UI-01), `tsconfig.base.json` (strict, nodenext), TypeScript 7.0.2, vitest 5.0.3. `npm install && npm run build && npm test` exit 0 (26 unit tests). Deviation: no eslint; `tsc --noEmit` in strict mode is the lint gate (`npm run typecheck`).
 - **Regression risk:** Low.
 
 ### INF-02 — k3d cluster config
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** P0-02
 - **Requirements:** REQ-K8S-01
@@ -435,12 +435,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** Cluster Ready; Traefik running; `curl http://anything.127.0.0.1.nip.io` → 404 from Traefik.
 - **Tests:** TC-INF-02-1: script → `kubectl get pods -n kube-system` shows traefik Running.
 - **Command:** `scripts/cluster-up.sh && kubectl -n kube-system get pods`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `k3d/cluster.yaml` (1 server, k3s v1.35.5+k3s1, host 80/443 → loadbalancer) + `scripts/cluster-up.sh` (idempotent, waits for Traefik) / `cluster-down.sh`. Cluster Ready, traefik rolled out.
 - **Regression risk:** Port 80 conflict on Windows host.
 
 ### INF-03 — Umbrella Helm chart skeleton
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-01
 - **Requirements:** REQ-K8S-03
@@ -449,12 +449,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** `helm lint charts/platform` passes.
 - **Tests:** TC-INF-03-1: lint → 0 failures.
 - **Command:** `helm lint charts/platform`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `charts/platform` (single chart with per-component toggles `store.enabled`, `wooMcp.enabled`; helpers for labels, selectors, required resources, hosts/URLs, image names, hardened securityContext). `helm lint` 0 failures (local + prod). Deviation from plan: one chart with component folders instead of subcharts (less indirection, same values-only environment diff) — recorded in D-011.
 - **Regression risk:** —
 
 ### INF-04 — values-local and values-prod
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-02, REQ-K8S-03
@@ -463,12 +463,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** `helm template` succeeds for both; diff shows only expected keys.
 - **Tests:** TC-INF-04-1: template both → kubeconform valid.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `values.yaml` (shared), `values-local.yaml` (domain 127.0.0.1.nip.io, http, pullPolicy Never), `values-prod.yaml` (domain, https + cert-manager issuer, ghcr.io registry, larger storage/resources). `scripts/check-chart.sh`: both render, kubeconform 16/16 valid, diff check → only image/pull policy/storage/resources/URL/TLS lines differ.
 - **Regression risk:** —
 
 ### INF-05 — Namespaces
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-04
@@ -477,12 +477,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** Both namespaces exist after install.
 - **Tests:** TC-INF-05-1: `kubectl get ns store platform`.
 - **Command:** `kubectl get ns store platform`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: chart renders Namespaces `store` and `platform` with `helm.sh/resource-policy: keep` and Pod Security `enforce: baseline` / `warn: restricted`; `make-secrets.sh` pre-creates them with Helm ownership metadata so Helm adopts them. `kubectl get ns store platform` → Active.
 - **Regression risk:** —
 
 ### INF-06 — Secrets strategy
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-05
 - **Requirements:** REQ-K8S-09, REQ-CHAT-04
@@ -491,12 +491,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** `grep -ri password charts/` shows no literal values; secrets exist in the cluster.
 - **Tests:** TC-INF-06-1: run script → `kubectl get secret -n platform gateway-secrets`. TC-INF-06-2: secret scan → none.
 - **Command:** `scripts/make-secrets.sh && kubectl get secrets -A | grep -E 'gateway|store'`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `scripts/make-secrets.sh` creates store/{mariadb-secrets, wordpress-admin, woo-api, woo-mcp-auth} and platform/upstream-seed from random values (+ `GITHUB_MCP_PAT` from .env), via `--from-env-file=<(…)` (no secrets in argv), never printed. TC-INF-06-1 PASS (5 created; rerun → 5× `exists (kept)`). TC-INF-06-2 PASS — chart policy check fails on any rendered Secret or literal *PASSWORD/SECRET/TOKEN/_KEY env value → 0 violations.
 - **Regression risk:** Running the script twice must not rotate DB passwords on existing PVCs (idempotent: skip if exists).
 
 ### INF-07 — Test workload through Ingress
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-02, INF-03
 - **Requirements:** REQ-K8S-06
@@ -505,12 +505,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** `curl http://whoami.127.0.0.1.nip.io` → 200.
 - **Tests:** TC-INF-07-1: curl → 200.
 - **Command:** `curl -s -o /dev/null -w '%{http_code}' http://whoami.127.0.0.1.nip.io`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: whoami Deployment + Ingress `smoke.127.0.0.1.nip.io` returned the pod's response through Traefik (P0-02 smoke cluster, then deleted); the real store Ingress now serves `store.127.0.0.1.nip.io` → 200.
 - **Regression risk:** —
 
 ### INF-08 — Requests/limits convention
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-08
@@ -519,12 +519,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** TC-K8S-02 jq check passes.
 - **Tests:** TC-INF-08-1: `helm template | scripts/check-resources.sh` → 0 missing.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `platform.resources` helper fails the render without requests+limits; `scripts/lib/chart-policy.py` also checks every container (0 violations over 16 objects).
 - **Regression risk:** —
 
 ### INF-09 — Probes convention
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-07
@@ -533,12 +533,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** TC-K8S-02 passes for probes.
 - **Tests:** TC-INF-09-1: check script → 0 containers missing probes.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: mariadb (exec healthcheck.sh startup/readiness/liveness), wordpress (HTTP startup/readiness `/wp-login.php`/liveness), woo-mcp (`/readyz` signed store call, `/healthz`). TC-INF-09-1 PASS (policy check); TC-INF-13-2 negative test: removing the woo-mcp liveness probe → `FAIL Deployment/woo-mcp[woo-mcp]: missing livenessProbe`, exit 1.
 - **Regression risk:** Liveness too aggressive on WordPress first boot → use startupProbe.
 
 ### INF-10 — Services
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-04
@@ -547,12 +547,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** No NodePort/LoadBalancer except Traefik.
 - **Tests:** TC-INF-10-1: `kubectl get svc -A` → types checked.
 - **Command:** `kubectl get svc -A`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: ClusterIP Services mariadb:3306, wordpress:80, woo-mcp:80→8080; policy check rejects any non-ClusterIP Service in the chart.
 - **Regression risk:** —
 
 ### INF-11 — Ingress hosts
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 2
 - **Depends on:** INF-07
 - **Requirements:** REQ-K8S-06
@@ -561,12 +561,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** TC-K8S-04 passes.
 - **Tests:** TC-INF-11-1: curl each host/path → expected code.
 - **Command:** `scripts/k8s-checks.sh ingress`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: store Ingress `store.<domain>` (Traefik, optional TLS via cert-manager annotation) → `/`, `/shop/` 200; no public route to woo-mcp (404). `app.<domain>` (dashboard + `/api` + `/mcp`) lands with GW-01/UI-20.
 - **Regression risk:** —
 
 ### INF-12 — Persistent volumes
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-03
 - **Requirements:** REQ-K8S-05
@@ -575,12 +575,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** PVCs Bound.
 - **Tests:** TC-INF-12-1: `kubectl get pvc -A` → Bound.
 - **Command:** `kubectl get pvc -A`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: PVCs `data-mariadb-0` (StatefulSet volumeClaimTemplate, retention Retain) and `wordpress-data` (`helm.sh/resource-policy: keep`) both Bound on `local-path`. Postgres PVC follows the same pattern in GW-02.
 - **Regression risk:** `helm uninstall` must keep PVCs (`helm.sh/resource-policy: keep`).
 
 ### INF-13 — Chart validation script
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-04
 - **Requirements:** REQ-K8S-03, REQ-K8S-07, REQ-K8S-08
@@ -589,12 +589,12 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** Exit 0 on a good chart; non-zero when a probe is removed (negative test).
 - **Tests:** TC-INF-13-1: good → 0. TC-INF-13-2: remove probe → fails.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `scripts/check-chart.sh` = helm lint ×2, helm template ×2, kubeconform v0.8.0 (k8s 1.35 schemas, strict) 16/16 valid ×2, policy check (resources, probes, allowPrivilegeEscalation=false, drop ALL, no SA token, no Secrets, ClusterIP only) 0 violations, values-diff guard. TC-INF-13-1 PASS (exit 0); TC-INF-13-2 PASS (missing probe → exit 1).
 - **Regression risk:** —
 
 ### INF-14 — Install/upgrade idempotency
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-11, INF-12
 - **Requirements:** REQ-K8S-02
@@ -603,7 +603,7 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** Pod restart counts and ages unchanged.
 - **Tests:** TC-INF-14-1: upgrade twice → `kubectl get pods` ages unchanged.
 - **Command:** `scripts/deploy.sh local && scripts/deploy.sh local`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: no-op `helm upgrade` (rev 2→3) → mariadb-0, wordpress, woo-mcp restart counts 0 and start times identical (diff empty); `wp-init-3` reran as a no-op (`rest key up to date`, no `sample products created`). Content-addressed image tags (`scripts/build-images.sh`) keep upgrades restart-free when code is unchanged.
 - **Regression risk:** Random values in templates (use `lookup` or external secrets).
 
 ### INF-15 — One-command up/down scripts
@@ -627,7 +627,7 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 
 ### WC-01 — MariaDB StatefulSet
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-06, INF-12
 - **Requirements:** REQ-STORE-01, REQ-K8S-05
@@ -636,12 +636,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Pod Ready; PVC Bound.
 - **Tests:** TC-WC-01-1: `kubectl -n store wait --for=condition=Ready pod -l app=mariadb`.
 - **Command:** same
-- **Evidence:** —
+- **Evidence:** 2026-10-11: StatefulSet `mariadb` (`mariadb:11.8.9`, runAsUser 999, drop ALL, passwords from `mariadb-secrets`), PVC Bound, startup/readiness/liveness via `healthcheck.sh`. Pod Ready.
 - **Regression risk:** —
 
 ### WC-02 — WordPress Deployment
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-01, INF-11
 - **Requirements:** REQ-STORE-01, REQ-K8S-05, REQ-K8S-06
@@ -650,12 +650,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** `http://store.127.0.0.1.nip.io` loads without redirect loops.
 - **Tests:** TC-WC-02-1: curl → 200 or a single expected 302.
 - **Command:** `curl -sI http://store.127.0.0.1.nip.io`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: Deployment `wordpress` (`wordpress:7.1.3-php8.3-apache`, Recreate, PVC `/var/www/html`, WP_HOME/WP_SITEURL pinned to the Ingress URL, X-Forwarded-Proto → HTTPS, DISALLOW_FILE_EDIT; caps dropped except the 7 Apache needs). TC-WC-02-1 PASS — `/`, `/shop/`, `/product/urumi-mug/`, `/cart/` → 200, `/checkout/` with empty cart → single 302 to `/cart/` (no loop); `/wp-json/` home = `http://store.127.0.0.1.nip.io`.
 - **Regression risk:** siteurl mismatch.
 
 ### WC-03 — wp-init Job
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-02, ARC-14
 - **Requirements:** REQ-STORE-01, REQ-STORE-02, REQ-GW-10
@@ -664,12 +664,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Job Completed; re-running is a no-op; Secret `woo-api` exists.
 - **Tests:** TC-WC-03-1: install → Job Succeeded. TC-WC-03-2: helm upgrade → Job succeeds without duplicate products or keys.
 - **Command:** `kubectl -n store get jobs && kubectl -n store get secret woo-api`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: Job `wp-init-<revision>` (wp-cli 2.12.0, uid 33) runs `charts/platform/files/wp-init.sh`: core install, WooCommerce 11.2.1, currency/timezone/country, COD on, guest checkout, 3 products, `mcp-service` shop_manager + REST key from Secret `woo-api` (hash stored, rotation supported). TC-WC-03-1 PASS (Complete). TC-WC-03-2 PASS (upgrade → `rest key up to date`, still 3 seed products). Changed from post-install hook to a revisioned Job: the hook deadlocked `helm --wait` (woo-mcp readiness needs the installed store).
 - **Regression risk:** Non-idempotent init duplicating data.
 
 ### WC-04 — Storefront checkout (manual)
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-03
 - **Requirements:** REQ-STORE-02, REQ-STORE-03, REQ-DOD-01, REQ-DOD-02
@@ -678,12 +678,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Order exists with status Processing (or On hold).
 - **Tests:** TC-WC-04-1: manual runbook step → order present; also `wp wc shop_order list` via kubectl exec.
 - **Command:** `kubectl -n store exec deploy/wordpress -- wp wc shop_order list --user=admin --allow-root` (or REST)
-- **Evidence:** —
+- **Evidence:** 2026-10-11: real-browser checkout via `scripts/e2e-checkout.sh` (Playwright 1.64 in Docker): Urumi Mug → cart → block checkout (guest, address) → Cash on delivery → **order #14**, $12.00, `order-received` page (screenshot `docs/evidence/wc-04-order-received.png`). Order visible through woo-mcp `list_orders date=today` and `get_order` (WC-15).
 - **Regression risk:** Block-based checkout needs the COD gateway enabled.
 
 ### WC-05 — Persistence test
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-04
 - **Requirements:** REQ-K8S-05
@@ -691,13 +691,13 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Output:** Evidence.
 - **Acceptance:** Previous order and products still present.
 - **Tests:** TC-PER-01.
-- **Command:** `kubectl -n store delete pod -l app=mariadb -l app=wordpress && scripts/k8s-checks.sh store-data`
-- **Evidence:** —
+- **Command:** `kubectl -n store delete pod -l 'app in (mariadb,wordpress)' && kubectl -n store wait --for=condition=Ready pod -l 'app in (mariadb,wordpress)' && scripts/woo-int.sh`
+- **Evidence:** 2026-10-11: TC-PER-01 PASS — deleted mariadb-0 and wordpress pod, both recreated Ready, then `scripts/woo-int.sh` 7/7: seeded products present, today's storefront order still listed and readable.
 - **Regression risk:** —
 
 ### WC-06 — woo-mcp skeleton
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-01, ARC-13
 - **Requirements:** REQ-MCP-01, REQ-MCP-02
@@ -706,12 +706,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Builds; container starts.
 - **Tests:** TC-WC-06-1: `docker run` → `/healthz` 200.
 - **Command:** `npm run build -w services/woo-mcp && docker build -t woo-mcp:dev services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `services/woo-mcp` (TS, config validation fails fast, pino with redaction), multi-stage Dockerfile (node:24.19.0-alpine3.24, prod deps only, uid 1000). TC-WC-06-1 PASS — `docker run --read-only --cap-drop ALL` → `/healthz` 200, `id` → uid=1000, no token → 401.
 - **Regression risk:** —
 
 ### WC-07 — Streamable HTTP endpoint + health
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-06
 - **Requirements:** REQ-MCP-02
@@ -720,12 +720,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Inspector CLI lists tools.
 - **Tests:** TC-WC-07-1: Inspector `tools/list` → 5 tools.
 - **Command:** `npx @modelcontextprotocol/inspector --cli http://localhost:8080/mcp --transport http --method tools/list`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: stateless Streamable HTTP `POST /mcp` (fresh server+transport per request, JSON responses, 1 MB body limit, bearer = `woo-mcp-auth` token compared via SHA-256 digests in constant time), `GET /mcp` → 405, `/healthz`, `/readyz` (signed store call, cached 5 s). TC-WC-07-1 PASS — in cluster via port-forward, Inspector CLI 2.10.1 `tools/list` → list_products, create_product, list_orders, get_order, update_order_status; no token → 401.
 - **Regression risk:** —
 
 ### WC-08 — Tool: list_products
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07
 - **Requirements:** REQ-MCP-03
@@ -734,12 +734,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Returns sample products.
 - **Tests:** TC-WC-08-1: store seeded → call → ≥3 products.
 - **Command:** `npm test -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-WC-08-1 PASS — Inspector `tools/call list_products` in cluster → 3 products (Urumi Sticker Pack 5.00, T-Shirt 25.00, Mug 12.00); unit test checks mapping and that the call goes to the internal URL with an HMAC-SHA256 signature.
 - **Regression risk:** —
 
 ### WC-09 — Tool: create_product
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07
 - **Requirements:** REQ-MCP-04, REQ-DOD-03
@@ -748,12 +748,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Product visible on the storefront.
 - **Tests:** TC-WC-09-1: call → product id; curl permalink → 200.
 - **Command:** `npm run test:int -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-WC-09-1 PASS — `INT_PUBLISH=1 scripts/woo-int.sh`: created `Integration Product <ts>` 7.50, found via list_products, permalink fetched through the Ingress → 200 containing the name.
 - **Regression risk:** —
 
 ### WC-10 — Tool: list_orders
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07
 - **Requirements:** REQ-MCP-05, REQ-DOD-04
@@ -762,12 +762,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** "today" returns orders created today (store timezone).
 - **Tests:** TC-WC-10-1: place order → list today → contains it.
 - **Command:** `npm run test:int -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-WC-10-1 PASS — `list_orders date=today` returns the storefront order; 'today' uses the store timezone from `/wp-json/` (unit test: 20:00 UTC → 2026-10-12 for Asia/Kolkata).
 - **Regression risk:** Timezone boundaries.
 
 ### WC-11 — Tool: get_order
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07
 - **Requirements:** REQ-MCP-06
@@ -776,12 +776,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Correct order returned; unknown id → clear error.
 - **Tests:** TC-WC-11-1: existing id → detail. TC-WC-11-2: 999999 → isError "order not found".
 - **Command:** `npm run test:int -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-WC-11-1 PASS (detail incl. `payment_method: Cash on delivery`, no transaction_id/payment token/meta_data/phone); TC-WC-11-2 PASS (`999999` → isError `Order 999999 not found.`).
 - **Regression risk:** —
 
 ### WC-12 — Tool: update_order_status
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07
 - **Requirements:** REQ-MCP-07
@@ -790,12 +790,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** Status changes in wp-admin.
 - **Tests:** TC-WC-12-1: set completed → get_order shows completed. TC-WC-12-2: invalid status → validation error.
 - **Command:** `npm run test:int -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-WC-12-1 PASS — processing → completed (get_order confirms) → restored; TC-WC-12-2 PASS — `shipped` → validation error.
 - **Regression risk:** —
 
 ### WC-13 — Validation and error mapping
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-08..WC-12
 - **Requirements:** REQ-MCP-03..07
@@ -804,12 +804,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** TC-UNIT-07 passes.
 - **Tests:** TC-UNIT-07.
 - **Command:** `npm test -w services/woo-mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: TC-UNIT-07 PASS — invalid inputs rejected before any store call (5 cases); 401/500/network/timeout map to fixed safe messages that never contain the consumer key/secret, `oauth_` params or internal hostnames (4 cases); redirects not followed (`redirect: 'error'`).
 - **Regression risk:** —
 
 ### WC-14 — Internal-only exposure (NetworkPolicy)
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-07, INF-10
 - **Requirements:** REQ-MCP-08
@@ -818,12 +818,12 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Acceptance:** TC-SEC-02 and TC-SEC-03 pass.
 - **Tests:** TC-SEC-02, TC-SEC-03.
 - **Command:** `scripts/k8s-checks.sh netpol`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: default-deny ingress in `store`; mariadb ← wordpress/wp-init; wordpress ← Traefik/woo-mcp; woo-mcp ← platform/app=gateway only, egress → wordpress:80 + DNS only. `scripts/k8s-checks.sh netpol` 8/8 PASS (TC-SEC-02a–d, TC-SEC-03a–c, wordpress from platform CLOSED). First run had 2 false results from the probe harness (connecting before kube-router programmed the new pod IP; output lost to a PodSecurity warning) → probe waits 3 s, uses a restricted securityContext, retries once.
 - **Regression risk:** Breaks the gateway if labels mismatch.
 
 ### WC-15 — woo-mcp integration tests against the real store
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** WC-08..WC-12
 - **Requirements:** REQ-MCP-03..07
@@ -831,8 +831,8 @@ Exit criterion: all required tools work against the real store; woo-mcp is reach
 - **Output:** `services/woo-mcp/test/int.test.ts`.
 - **Acceptance:** All green against k3d.
 - **Tests:** TC-INT-01.
-- **Command:** `scripts/port-forward.sh woo-mcp & npm run test:int -w services/woo-mcp`
-- **Evidence:** —
+- **Command:** `scripts/woo-int.sh` (`INT_PUBLISH=1` for the storefront check)
+- **Evidence:** 2026-10-11: TC-INT-01 PASS — 7/7 (list → create → list today → get → unknown id → update round trip → invalid status) against k3d via port-forward, MCP SDK client with the token from the Secret.
 - **Regression risk:** —
 
 ---

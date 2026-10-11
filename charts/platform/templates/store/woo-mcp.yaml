@@ -1,0 +1,64 @@
+{{- if .Values.wooMcp.enabled }}
+{{- $ns := .Values.global.namespaces.store }}
+{{- $v := .Values.wooMcp }}
+{{- $ctx := dict "root" . "app" "woo-mcp" }}
+# No Ingress on purpose: woo-mcp is reachable only from the gateway (see networkpolicies.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: woo-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: woo-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ $v.replicas }}
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: woo-mcp
+          image: {{ include "platform.image" (dict "root" . "image" $v.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: PORT, value: "8080" }
+            - { name: WOO_BASE_URL, value: "http://wordpress.{{ $ns }}.svc.cluster.local" }
+            - { name: WOO_SIGNING_URL, value: {{ include "platform.url" (dict "root" . "host" .Values.store.host) | quote }} }
+            - name: WOO_CONSUMER_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.store.init.apiSecret }}, key: consumer-key } }
+            - name: WOO_CONSUMER_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .Values.store.init.apiSecret }}, key: consumer-secret } }
+            - name: MCP_AUTH_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $v.authSecret }}, key: token } }
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources: {{- include "platform.resources" (dict "name" "woo-mcp" "resources" $v.resources) | nindent 12 }}
+{{- end }}
