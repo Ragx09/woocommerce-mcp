@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Gateway Tracker</title>
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --surface-2: #f0efeb; --border: #e2e0da;
+  --text: #1d1d1b; --muted: #6b6a65; --accent: #3b5bdb; --accent-soft: #e7ecff;
+  --done: #2f9e44; --done-soft: #e6f6ea; --prog: #e8890c; --prog-soft: #fff3e0;
+  --blocked: #e03131; --blocked-soft: #ffe9e9; --todo: #868e96; --todo-soft: #f1f3f5;
+  --ready: #1c7ed6; --ready-soft: #e3f1ff;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413; --surface: #1d1d1b; --surface-2: #262624; --border: #34332f;
+    --text: #ecebe6; --muted: #a09e96; --accent: #7b93ff; --accent-soft: #252c48;
+    --done: #51cf66; --done-soft: #1d3324; --prog: #ffa94d; --prog-soft: #3a2c17;
+    --blocked: #ff6b6b; --blocked-soft: #3e1d1d; --todo: #adb5bd; --todo-soft: #2a2b2d;
+    --ready: #4dabf7; --ready-soft: #18304a; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413; --surface: #1d1d1b; --surface-2: #262624; --border: #34332f;
+  --text: #ecebe6; --muted: #a09e96; --accent: #7b93ff; --accent-soft: #252c48;
+  --done: #51cf66; --done-soft: #1d3324; --prog: #ffa94d; --prog-soft: #3a2c17;
+  --blocked: #ff6b6b; --blocked-soft: #3e1d1d; --todo: #adb5bd; --todo-soft: #2a2b2d;
+  --ready: #4dabf7; --ready-soft: #18304a; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+code, pre { font-family: var(--mono); font-size: 13px; }
+code { overflow-wrap: anywhere; }
+.app { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 100vh; }
+nav.side { border-right: 1px solid var(--border); background: var(--surface); padding: 20px 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.brand { font-weight: 700; font-size: 15px; margin: 0 6px 4px; }
+.brand-sub { color: var(--muted); font-size: 12px; margin: 0 6px 18px; }
+nav.side button.tab { display: flex; justify-content: space-between; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+nav.side button.tab:hover { background: var(--surface-2); }
+nav.side button.tab.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+nav.side .count { color: var(--muted); font-size: 12px; font-weight: 400; }
+.side-foot { margin-top: 18px; padding: 0 6px; color: var(--muted); font-size: 12px; }
+.side-foot button { margin-top: 8px; }
+main { padding: 28px 32px 60px; max-width: 1180px; width: 100%; min-width: 0; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 28px 0 12px; }
+h3 { font-size: 15px; margin: 0 0 8px; }
+.lead { color: var(--muted); margin: 0 0 20px; }
+.grid { display: grid; gap: 14px; }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
+.stat .v { font-size: 26px; font-weight: 700; }
+.stat .l { color: var(--muted); font-size: 13px; }
+.bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; display: flex; }
+.bar span { display: block; height: 100%; }
+.bar .d { background: var(--done); } .bar .p { background: var(--prog); } .bar .b { background: var(--blocked); }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.s-Done, .s-Verified, .s-Understood { background: var(--done-soft); color: var(--done); }
+.s-In-Progress, .s-Learning { background: var(--prog-soft); color: var(--prog); }
+.s-Blocked { background: var(--blocked-soft); color: var(--blocked); }
+.s-Not-Started, .s-Unknown, .s-Proposed { background: var(--todo-soft); color: var(--todo); }
+.s-Accepted { background: var(--done-soft); color: var(--done); }
+.s-Ready { background: var(--ready-soft); color: var(--ready); }
+.pri { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+.pri-P0 { color: var(--blocked); } .pri-P1 { color: var(--prog); } .pri-P2 { color: var(--accent); } .pri-P3 { color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; background: var(--surface); position: sticky; top: 0; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.detail td { background: var(--surface-2); }
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; font-size: 14px; }
+.kv dt { color: var(--muted); font-weight: 600; }
+.kv dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+select, input[type=search], button.btn { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+input[type=search] { flex: 1; min-width: 180px; }
+button.btn { cursor: pointer; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.mono { font-family: var(--mono); }
+.md { overflow-wrap: anywhere; }
+.md table { margin: 10px 0; display: block; overflow-x: auto; }
+.md pre { background: var(--surface-2); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.md code { background: var(--surface-2); padding: 1px 4px; border-radius: 4px; }
+.md pre code { background: none; padding: 0; }
+.md h1 { font-size: 22px; } .md h2 { font-size: 18px; } .md h3 { font-size: 15px; }
+.mermaid-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; overflow-x: auto; }
+.mermaid-box svg { max-width: 100%; height: auto; }
+.timeline { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.day { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-width: 150px; }
+.day.today { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.day .d-head { font-weight: 700; }
+.day .d-focus { color: var(--muted); font-size: 12px; margin: 4px 0 8px; min-height: 36px; }
+.tchip { display: block; font-size: 12px; padding: 4px 6px; margin-bottom: 4px; border-radius: 6px; border-left: 3px solid var(--todo); background: var(--surface-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tchip.Done { border-color: var(--done); } .tchip.In-Progress { border-color: var(--prog); } .tchip.Blocked { border-color: var(--blocked); } .tchip.Ready { border-color: var(--ready); }
+.layer { display: flex; gap: 12px; align-items: flex-start; }
+.layer .n { flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; }
+.warn { border-left: 3px solid var(--prog); }
+.gap { color: var(--blocked); font-weight: 600; }
+ul.clean { margin: 0; padding-left: 18px; }
+.doclist button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 8px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; }
+.doclist button.active { background: var(--accent-soft); color: var(--accent); }
+.docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
+.countdown { font-size: 13px; color: var(--muted); }
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .hide-sm { display: none; }
+  select { max-width: 100%; }
+  nav.side { position: static; height: auto; display: flex; overflow-x: auto; gap: 4px; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--border); }
+  nav.side .brand, nav.side .brand-sub, nav.side .side-foot { display: none; }
+  nav.side button.tab { width: auto; white-space: nowrap; }
+  nav.side .count { display: none; }
+  main { padding: 18px 16px 48px; }
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3, .g2, .docs-layout { grid-template-columns: 1fr; }
+  .kv { grid-template-columns: 1fr; }
+  .kv dt { margin-top: 6px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" id="nav"></nav>
+  <main id="main"><p class="muted">Loading…</p></main>
+</div>
+
+<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  const D = window.TRACKER_DATA;
+  const main = document.getElementById('main');
+  const nav = document.getElementById('nav');
+  if (!D) {
+    main.innerHTML = '<div class="card warn"><h3>No data</h3><p>Run <code>npm run tracker</code> in the repo root to generate <code>tracker/data.js</code>, then reload.</p></div>';
+    return;
+  }
+
+  // ---------- utils ----------
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const cls = (s) => String(s || 'Unknown').replace(/\s+/g, '-');
+  const chip = (s) => `<span class="chip s-${cls(s)}">${esc(s)}</span>`;
+  const docHref = (href) => (/^(https?:|#)/.test(href) ? href : '#docs/' + encodeURIComponent(href.replace(/^(\.\.\/|\.\/)+/, '').split('#')[0]));
+  const inlineMd = (s) => esc(s)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, h) => `<a href="${docHref(h)}">${t}</a>`)
+    .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const resolvePath = (base, href) => {
+    const parts = (base ? base.split('/') : []);
+    for (const seg of href.split('#')[0].split('/')) { if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); }
+    return parts.join('/');
+  };
+  // Render markdown; relative links to repo files open inside the Docs tab.
+  const md = (s, base = '') => {
+    const html = window.marked ? window.marked.parse(s || '') : `<pre>${esc(s)}</pre>`;
+    return html.replace(/href="(?!https?:|#|mailto:)([^"]+)"/g, (_, h) => {
+      const target = resolvePath(base, h);
+      return /\.md$/i.test(target) ? `href="#docs/${encodeURIComponent(target)}"` : `href="../${target}"`;
+    });
+  };
+  const store = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem('tracker:' + k)) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('tracker:' + k, JSON.stringify(v)); } catch {} },
+  };
+  const taskById = Object.fromEntries(D.tasks.map((t) => [t.id, t]));
+  const effStatus = (t) => (t.ready ? 'Ready' : t.status);
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const today = new Date();
+  const toDate = (s) => new Date(s + 'T00:00:00');
+  const dayIndex = Math.floor((today - toDate(D.project.start)) / 86400000) + 1;
+
+  function progressBar(tasks) {
+    const n = tasks.length || 1;
+    const d = tasks.filter((t) => t.status === 'Done').length;
+    const p = tasks.filter((t) => t.status === 'In Progress').length;
+    const b = tasks.filter((t) => t.status === 'Blocked').length;
+    return `<div class="bar" title="${d} done, ${p} in progress, ${b} blocked of ${tasks.length}"><span class="d" style="width:${(d / n) * 100}%"></span><span class="p" style="width:${(p / n) * 100}%"></span><span class="b" style="width:${(b / n) * 100}%"></span></div>`;
+  }
+
+  async function renderMermaid(root) {
+    if (!window.mermaid) return;
+    const dark = document.documentElement.dataset.theme === 'dark' ||
+      (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+    window.mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral', securityLevel: 'strict' });
+    const nodes = root.querySelectorAll('.mermaid-src');
+    let i = 0;
+    for (const el of nodes) {
+      try {
+        const { svg } = await window.mermaid.render('mmd' + Date.now() + i++, el.textContent);
+        el.outerHTML = `<div class="mermaid-box">${svg}</div>`;
+      } catch (e) { /* leave source visible */ }
+    }
+  }
+  const mermaidBlock = (src) => `<pre class="mermaid-src">${esc(src)}</pre>`;
+
+  // ---------- views ----------
+  const views = {
+    overview() {
+      const o = D.overview;
+      const end = toDate(D.project.deadline); end.setHours(23, 59, 59);
+      const daysLeft = Math.ceil((end - today) / 86400000);
+      return `
+        <h1>${esc(D.project.name)}</h1>
+        <p class="lead">${inlineMd(o.mission.replace(/\n/g, ' '))}</p>
+        <div class="grid g4">
+          <div class="card stat"><div class="v">${dayIndex < 1 ? '–' : Math.min(dayIndex, 7)}/7</div><div class="l">Current day (${esc(D.project.start)} → ${esc(D.project.deadline)})</div></div>
+          <div class="card stat"><div class="v">${daysLeft > 0 ? daysLeft : 0}</div><div class="l">Days left until deadline</div></div>
+          <div class="card stat"><div class="v">${pct(D.summary.byStatus.Done, D.summary.tasks)}%</div><div class="l">Tasks done (${D.summary.byStatus.Done}/${D.summary.tasks})</div></div>
+          <div class="card stat"><div class="v">${D.summary.reqVerified}/${D.summary.requirements}</div><div class="l">Requirements verified</div></div>
+        </div>
+        <h2>The problem</h2>
+        <div class="card md">${md(o.problem)}</div>
+        <h2>The four layers</h2>
+        <div class="grid g2">${o.layers.map((l) => `
+          <div class="card layer"><div class="n">${esc(l['#'])}</div><div><h3>${esc(l['Layer'])}</h3>
+          <div class="small muted mono">${inlineMd(l['Component'])}</div><div class="small">${inlineMd(l['Responsibility'])}</div></div></div>`).join('')}
+        </div>
+        <h2>Architecture</h2>
+        ${o.diagram ? mermaidBlock(o.diagram) : '<p class="muted">No diagram found.</p>'}
+        <h2>Users and roles</h2>
+        <div class="table-wrap"><table><thead><tr><th>Role</th><th>Can</th><th>Cannot</th></tr></thead><tbody>
+          ${o.roles.map((r) => `<tr><td><strong>${inlineMd(r['Role'])}</strong></td><td>${inlineMd(r['Can'])}</td><td>${inlineMd(r['Cannot'])}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h2>Workflows</h2>
+        <div class="card md">${md(o.workflows)}</div>
+        <h2>What is public and what is internal</h2>
+        <div class="table-wrap"><table><thead><tr><th>Exposed via Ingress</th><th>Internal only</th></tr></thead><tbody>
+          ${o.publicInternal.map((r) => `<tr><td>${inlineMd(r['Exposed via Ingress'])}</td><td>${inlineMd(r['Internal only (ClusterIP + NetworkPolicy)'])}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h2>Assumptions</h2>
+        <div class="card md">${md(o.assumptions)}</div>`;
+    },
+
+    status() {
+      const P = D.progress;
+      const ready = D.tasks.filter((t) => t.ready);
+      const blocked = D.tasks.filter((t) => t.status === 'Blocked');
+      const inprog = D.tasks.filter((t) => t.status === 'In Progress');
+      return `
+        <h1>Status</h1>
+        <p class="lead">Generated ${esc(new Date(D.generatedAt).toLocaleString())} from the Markdown docs. Run <code>npm run tracker</code> to refresh.</p>
+        <div class="grid g4">
+          <div class="card stat"><div class="v">${D.summary.byStatus.Done}</div><div class="l">Done</div></div>
+          <div class="card stat"><div class="v">${D.summary.byStatus['In Progress']}</div><div class="l">In progress</div></div>
+          <div class="card stat"><div class="v">${D.summary.byStatus.Blocked}</div><div class="l">Blocked</div></div>
+          <div class="card stat"><div class="v">${D.summary.p0.done}/${D.summary.p0.total}</div><div class="l">P0 (mandatory) tasks done</div></div>
+        </div>
+        <div class="grid g2" style="margin-top:14px">
+          <div class="card"><h3>Current phase</h3><div class="md">${md(P['Current phase'])}</div><h3>Current task</h3><div class="md">${md(P['Current task'])}</div></div>
+          <div class="card"><h3>Next recommended task</h3><div class="md">${md(P['Next recommended task'])}</div>
+            <h3>Ready to start (dependencies done)</h3>${ready.length ? ready.map((t) => `<div class="small"><a href="#tasks/${t.id}">${esc(t.id)}</a> ${esc(t.title)} <span class="pri pri-${t.priority}">${t.priority}</span></div>`).join('') : '<span class="muted small">none</span>'}</div>
+        </div>
+        <h2>Phases</h2>
+        <div class="grid g3">${D.phases.map((p) => {
+          const ts = p.taskIds.map((id) => taskById[id]);
+          const done = ts.filter((t) => t.status === 'Done').length;
+          return `<div class="card"><h3>Phase ${p.num} — ${esc(p.name)}</h3>${progressBar(ts)}
+            <div class="small muted" style="margin-top:6px">${done}/${ts.length} done · ${pct(done, ts.length)}%</div>
+            <div class="small" style="margin-top:6px">${inlineMd(p.exit)}</div></div>`;
+        }).join('')}</div>
+        <h2>Blockers</h2>
+        <div class="card warn md">${md(P['Blockers'])}</div>
+        ${blocked.length ? `<div class="small muted" style="margin-top:6px">Blocked tasks: ${blocked.map((t) => `<a href="#tasks/${t.id}">${t.id}</a>`).join(', ')}</div>` : ''}
+        ${inprog.length ? `<h2>In progress</h2><div class="card">${inprog.map((t) => `<div><a href="#tasks/${t.id}">${t.id}</a> ${esc(t.title)}</div>`).join('')}</div>` : ''}
+        <h2>Recently completed</h2>
+        <div class="card md">${md(P['Recently completed'])}</div>
+        <h2>Risks</h2>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Risk</th><th>Mitigation</th><th>Owner</th></tr></thead><tbody>
+          ${D.risks.map((r) => `<tr><td>${esc(r.id)}</td><td>${inlineMd(r.risk)}</td><td>${inlineMd(r.mitigation)}</td><td class="mono small">${esc(r.owner)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h2>Important decisions</h2>
+        <div class="card md">${md(P['Important decisions'])}</div>
+        ${D.warnings.length ? `<h2>Tracker warnings</h2><div class="card warn"><ul class="clean small">${D.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}`;
+    },
+
+    timeline() {
+      return `
+        <h1>7-day timeline</h1>
+        <p class="lead">Tasks grouped by their planned day. Colour = status (blue = ready to start). Click a task to open it.</p>
+        <div class="timeline">${D.schedule.map((s) => {
+          const ts = D.tasks.filter((t) => String(t.day).split(/[–-]/)[0].trim() === String(s.day));
+          return `<div class="day ${+s.day === dayIndex ? 'today' : ''}">
+            <div class="d-head">Day ${esc(s.day)} <span class="muted small">${esc(s.date)}</span></div>
+            <div class="d-focus">${esc(s.focus)}</div>
+            ${progressBar(ts)}
+            <div class="small muted" style="margin:6px 0">${ts.filter((t) => t.status === 'Done').length}/${ts.length} done</div>
+            ${ts.map((t) => `<a class="tchip ${cls(effStatus(t))}" href="#tasks/${t.id}" title="${esc(t.id + ' — ' + t.title + ' (' + effStatus(t) + ')')}">${esc(t.id)} ${esc(t.title)}</a>`).join('')}
+            <div class="small" style="margin-top:8px"><strong>Gate:</strong> ${esc(s.gate)}</div>
+          </div>`;
+        }).join('')}</div>`;
+    },
+
+    tasks(param) {
+      const f = store.get('taskFilters', { phase: '', status: '', priority: '', day: '', q: '' });
+      const opt = (vals, cur) => vals.map((v) => `<option value="${esc(v[0])}" ${v[0] === cur ? 'selected' : ''}>${esc(v[1])}</option>`).join('');
+      const html = `
+        <h1>Tasks</h1>
+        <p class="lead">${D.summary.tasks} tasks from <code>TASKS.md</code>. Click a row for acceptance criteria, tests and evidence.</p>
+        <div class="filters">
+          <select id="f-phase">${opt([['', 'All phases'], ...D.phases.map((p) => [String(p.num), 'Phase ' + p.num + ' — ' + p.name])], f.phase)}</select>
+          <select id="f-status">${opt([['', 'All statuses'], ['Ready', 'Ready'], ['Not Started', 'Not Started'], ['In Progress', 'In Progress'], ['Blocked', 'Blocked'], ['Done', 'Done']], f.status)}</select>
+          <select id="f-priority">${opt([['', 'All priorities'], ['P0', 'P0'], ['P1', 'P1'], ['P2', 'P2'], ['P3', 'P3']], f.priority)}</select>
+          <select id="f-day">${opt([['', 'All days'], ...[1, 2, 3, 4, 5, 6, 7].map((d) => [String(d), 'Day ' + d])], f.day)}</select>
+          <input type="search" id="f-q" placeholder="Search id, title, description…" value="${esc(f.q)}">
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Task</th><th>Pri</th><th>Day</th><th>Status</th><th class="hide-sm">Depends on</th></tr></thead><tbody id="task-body"></tbody></table></div>`;
+      setTimeout(() => {
+        const body = document.getElementById('task-body');
+        let open = param || null;
+        const draw = () => {
+          const cur = { phase: val('f-phase'), status: val('f-status'), priority: val('f-priority'), day: val('f-day'), q: val('f-q') };
+          store.set('taskFilters', cur);
+          const q = cur.q.toLowerCase();
+          const rows = D.tasks.filter((t) =>
+            (!cur.phase || String(t.phase) === cur.phase) &&
+            (!cur.status || effStatus(t) === cur.status || (cur.status === 'Not Started' && t.status === 'Not Started')) &&
+            (!cur.priority || t.priority === cur.priority) &&
+            (!cur.day || String(t.day).split(/[–-]/)[0].trim() === cur.day) &&
+            (!q || (t.id + ' ' + t.title + ' ' + t.description + ' ' + t.requirements).toLowerCase().includes(q)));
+          body.innerHTML = rows.map((t) => `
+            <tr class="clickable" data-id="${t.id}"><td class="mono">${t.id}</td><td>${esc(t.title)}</td>
+              <td><span class="pri pri-${t.priority}">${esc(t.priority)}</span></td><td>${esc(t.day)}</td><td>${chip(effStatus(t))}</td>
+              <td class="small mono hide-sm">${esc(t.dependsOn)}</td></tr>
+            ${open === t.id ? `<tr class="detail"><td colspan="6"><dl class="kv">
+              <dt>Description</dt><dd>${inlineMd(t.description)}</dd>
+              <dt>Requirements</dt><dd class="mono small">${esc(t.requirements)}</dd>
+              <dt>Expected output</dt><dd>${inlineMd(t.output)}</dd>
+              <dt>Acceptance</dt><dd>${inlineMd(t.acceptance)}</dd>
+              <dt>Tests</dt><dd>${inlineMd(t.tests)}</dd>
+              <dt>Command</dt><dd>${/`/.test(t.command) ? inlineMd(t.command) : `<code>${esc(t.command)}</code>`}</dd>
+              <dt>Evidence</dt><dd>${inlineMd(t.evidence)}</dd>
+              <dt>Regression risk</dt><dd>${inlineMd(t.risk)}</dd>
+              <dt>Dependencies</dt><dd>${t.deps.length ? t.deps.map((d) => `<a href="#tasks/${d}">${d}</a> ${chip(taskById[d]?.status || 'Unknown')}`).join(' ') : '—'}</dd>
+            </dl></td></tr>` : ''}`).join('') || '<tr><td colspan="6" class="muted">No tasks match the filters.</td></tr>';
+          body.querySelectorAll('tr.clickable').forEach((tr) => tr.addEventListener('click', () => { open = open === tr.dataset.id ? null : tr.dataset.id; draw(); }));
+          if (param) { const el = body.querySelector(`[data-id="${param}"]`); if (el) el.scrollIntoView({ block: 'center' }); param = null; }
+        };
+        const val = (id) => document.getElementById(id).value;
+        if (param) { for (const id of ['f-phase', 'f-status', 'f-priority', 'f-day', 'f-q']) document.getElementById(id).value = ''; }
+        ['f-phase', 'f-status', 'f-priority', 'f-day'].forEach((id) => document.getElementById(id).addEventListener('change', draw));
+        document.getElementById('f-q').addEventListener('input', draw);
+        draw();
+      });
+      return html;
+    },
+
+    requirements() {
+      const groups = {};
+      for (const r of D.requirements) (groups[r.id.split('-')[1]] ||= []).push(r);
+      const names = { STORE: 'Store', MCP: 'WooCommerce MCP server', GW: 'Gateway', AUTH: 'Team & access', CHAT: 'Chat agent', K8S: 'Kubernetes & Helm', DOD: 'Definition of done', DEL: 'Deliverables' };
+      return `
+        <h1>Requirements coverage</h1>
+        <p class="lead">Every mandatory requirement from <code>SPEC.md</code> traced to tasks and tests (<code>docs/REQUIREMENTS_TRACEABILITY.md</code>). A requirement counts as verified only with evidence.</p>
+        <div class="grid g4">
+          <div class="card stat"><div class="v">${D.summary.requirements}</div><div class="l">Mandatory requirements</div></div>
+          <div class="card stat"><div class="v">${D.summary.reqVerified}</div><div class="l">Verified with evidence</div></div>
+          <div class="card stat"><div class="v ${D.summary.reqGaps ? 'gap' : ''}">${D.summary.reqGaps}</div><div class="l">With traceability gaps</div></div>
+          <div class="card stat"><div class="v ${D.summary.unmapped ? 'gap' : ''}">${D.summary.unmapped}</div><div class="l">In SPEC but unmapped</div></div>
+        </div>
+        ${Object.entries(groups).map(([g, rs]) => `
+          <h2>${esc(names[g] || g)} <span class="muted small">${rs.filter((r) => r.status === 'Verified').length}/${rs.length} verified</span></h2>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Requirement</th><th>Tasks</th><th>Tests</th><th>Status</th><th>Evidence</th></tr></thead><tbody>
+          ${rs.map((r) => `<tr><td class="mono small">${esc(r.id)}</td><td>${inlineMd(r.specText || r.text)}${r.gaps.length ? `<div class="gap small">Gap: ${esc(r.gaps.join(', '))}</div>` : ''}</td>
+            <td class="small">${r.tasks.map((t) => `<a class="mono" href="#tasks/${t}">${t}</a> ${chip(taskById[t]?.status || 'Unknown')}`).join('<br>')}</td>
+            <td class="small mono">${esc(r.tests)}</td><td>${chip(r.status)}</td><td class="small">${inlineMd(r.evidence)}</td></tr>`).join('')}
+          </tbody></table></div>`).join('')}`;
+    },
+
+    dod() {
+      const dod = D.requirements.filter((r) => r.id.startsWith('REQ-DOD'));
+      const passed = dod.filter((r) => r.status === 'Verified').length;
+      return `
+        <h1>Definition of done</h1>
+        <p class="lead">The demo checks from the brief, which must pass end to end with two users. ${passed}/${dod.length} verified.</p>
+        <div class="card" style="margin-bottom:14px">${progressBar(dod.map((r) => ({ status: r.status === 'Verified' ? 'Done' : r.status })))}</div>
+        <div class="grid g2">${dod.map((r) => `
+          <div class="card"><div style="display:flex;justify-content:space-between;gap:8px"><span class="mono small muted">${esc(r.id)}</span>${chip(r.status)}</div>
+          <h3 style="margin-top:6px">${inlineMd(r.specText || r.text)}</h3>
+          <div class="small">Tasks: ${r.tasks.map((t) => `<a class="mono" href="#tasks/${t}">${t}</a>`).join(', ')} · Tests: <span class="mono">${esc(r.tests)}</span></div>
+          <div class="small muted" style="margin-top:4px">Evidence: ${inlineMd(r.evidence)}</div></div>`).join('')}
+        </div>`;
+    },
+
+    decisions() {
+      return `
+        <h1>Decisions</h1>
+        <p class="lead">Architecture decision log from <code>DECISIONS.md</code>. "Proposed" decisions are validated by an experiment or an implementation before they become "Accepted".</p>
+        <div class="grid g2">${D.decisions.map((d) => `
+          <div class="card"><div style="display:flex;justify-content:space-between;gap:8px"><span class="mono small muted">${esc(d.id)} · ${esc(d.date)}</span>${chip(d.status.split(' ')[0])}</div>
+          <h3 style="margin-top:6px">${esc(d.title)}</h3>
+          ${d.status.includes('(') ? `<div class="small muted">${esc(d.status)}</div>` : ''}
+          <dl class="kv small" style="margin-top:8px">
+            ${d.context ? `<dt>Context</dt><dd>${inlineMd(d.context)}</dd>` : ''}
+            ${d.options ? `<dt>Options</dt><dd>${inlineMd(d.options)}</dd>` : ''}
+            <dt>Choice</dt><dd>${inlineMd(d.choice)}</dd>
+            ${d.why ? `<dt>Why</dt><dd>${inlineMd(d.why)}</dd>` : ''}
+            ${d.tradeoffs ? `<dt>Trade-offs</dt><dd>${inlineMd(d.tradeoffs)}</dd>` : ''}
+          </dl></div>`).join('')}
+        </div>`;
+    },
+
+    learning() {
+      const c = D.concepts;
+      const n = (s) => c.filter((x) => x.status === s).length;
+      return `
+        <h1>Learning</h1>
+        <p class="lead">Concepts this project teaches (<code>knowledge/CONCEPTS_INDEX.md</code>). Each note covers: what it is, why it exists, why we need it, how it works, where it is in our code, alternatives, debugging and a self-test.</p>
+        <div class="grid g3">
+          <div class="card stat"><div class="v">${n('Understood')}</div><div class="l">Understood</div></div>
+          <div class="card stat"><div class="v">${n('Learning')}</div><div class="l">Learning</div></div>
+          <div class="card stat"><div class="v">${n('Not Started')}</div><div class="l">Not started</div></div>
+        </div>
+        <h2>Concepts</h2>
+        <div class="table-wrap"><table><thead><tr><th>Concept</th><th>Status</th><th>Note</th><th>Tasks</th></tr></thead><tbody>
+          ${c.map((x) => {
+            const m = x.note.match(/\[([^\]]+)\]\(([^)#]+)(#[^)]*)?\)/);
+            const file = m ? 'knowledge/' + m[2] : 'knowledge/' + x.note.trim();
+            return `<tr><td>${esc(x.concept)}</td><td>${chip(x.status)}</td><td><a href="#docs/${encodeURIComponent(file)}">${esc(m ? m[1] : x.note)}</a></td><td class="small mono">${esc(x.tasks)}</td></tr>`;
+          }).join('')}
+        </tbody></table></div>`;
+    },
+
+    docs(param) {
+      const cur = param ? decodeURIComponent(param) : store.get('doc', 'README.md');
+      const doc = D.docs.find((d) => d.path === cur) || D.docs[0];
+      store.set('doc', doc.path);
+      setTimeout(() => renderMermaid(main));
+      let content = md(doc.content, doc.path.includes('/') ? doc.path.slice(0, doc.path.lastIndexOf('/')) : '');
+      // Turn ```mermaid code blocks into renderable diagrams.
+      content = content.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (_, src) => `<pre class="mermaid-src">${src}</pre>`);
+      return `
+        <h1>Docs</h1>
+        <p class="lead">Every Markdown file in the repo, rendered. The files on disk are the source of truth.</p>
+        <div class="docs-layout">
+          <div class="card doclist">${D.docs.map((d) => `<button class="${d.path === doc.path ? 'active' : ''}" onclick="location.hash='docs/${encodeURIComponent(d.path)}'">${esc(d.path)}</button>`).join('')}</div>
+          <div class="card md"><div class="small muted mono">${esc(doc.path)} · updated ${esc(new Date(doc.mtime).toLocaleString())}</div>${content}</div>
+        </div>`;
+    },
+  };
+
+  const tabs = [
+    ['overview', 'Overview', ''],
+    ['status', 'Status', `${D.summary.byStatus.Done}/${D.summary.tasks}`],
+    ['timeline', '7-day timeline', ''],
+    ['tasks', 'Tasks', D.summary.tasks],
+    ['requirements', 'Requirements', `${D.summary.reqVerified}/${D.summary.requirements}`],
+    ['dod', 'Definition of done', ''],
+    ['decisions', 'Decisions', D.decisions.length],
+    ['learning', 'Learning', D.concepts.length],
+    ['docs', 'Docs', D.docs.length],
+  ];
+
+  function renderNav(active) {
+    nav.innerHTML = `<div class="brand">MCP Gateway</div><div class="brand-sub">Project tracker</div>` +
+      tabs.map(([id, label, count]) => `<button class="tab ${id === active ? 'active' : ''}" onclick="location.hash='${id}'"><span>${label}</span><span class="count">${count}</span></button>`).join('') +
+      `<div class="side-foot">Data generated<br>${esc(new Date(D.generatedAt).toLocaleString())}<br><button class="btn" id="theme">Toggle theme</button></div>`;
+    const tb = document.getElementById('theme');
+    if (tb) tb.onclick = () => {
+      const dark = document.documentElement.dataset.theme === 'dark' ||
+        (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+      store.set('theme', document.documentElement.dataset.theme);
+      route();
+    };
+  }
+
+  function route() {
+    const [view, param] = (location.hash.slice(1) || store.get('view', 'overview')).split('/');
+    const v = views[view] ? view : 'overview';
+    store.set('view', v);
+    renderNav(v);
+    main.innerHTML = views[v](param);
+    if (v === 'overview') renderMermaid(main);
+    window.scrollTo(0, 0);
+  }
+
+  const savedTheme = store.get('theme', null);
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>

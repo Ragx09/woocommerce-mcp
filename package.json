@@ -1,0 +1,12 @@
+{
+  "name": "woocommerce-mcp-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WooCommerce hosting on Kubernetes with a team MCP gateway, dashboard and chat agent",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "workspaces": [],
+  "scripts": {
+    "tracker": "node tracker/build.mjs"
+  }
+}

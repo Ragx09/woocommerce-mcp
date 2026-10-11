@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.local.yaml
+secrets/
+.kube/
+*.log
+.DS_Store
+.vite/
