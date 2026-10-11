@@ -7,6 +7,7 @@ Phase 0 — Repository assessment and requirements (Day 1, 2026-10-11)
 ARC-13 — Experiment: MCP SDK v1 stateless Streamable HTTP server ↔ Inspector / Claude Code / SDK client (Phase 0 closed except blockers P0-03 and P0-04)
 
 ## Recently completed
+- 2026-10-11: P0-04 (partial) — Groq key verified, tool calling works with `openai/gpt-oss-120b` (`scripts/llm-smoke.mjs`).
 - 2026-10-11: P0-12 plan review checkpoint — user go-ahead.
 - 2026-10-11: P0-03 prep — `scripts/vps-preflight.sh`, `scripts/vps-install-k3s.sh` (k3s v1.35.5+k3s1, API via SSH tunnel); VPS itself still blocked.
 - 2026-10-11: P0-02 — helm v3.22.0 + k3d v5.9.0 installed (checksums verified); smoke cluster, nip.io Ingress and NetworkPolicy enforcement verified, cluster deleted.
@@ -23,7 +24,7 @@ ARC-13 — Experiment: MCP SDK v1 stateless Streamable HTTP server ↔ Inspector
 
 ## Blockers
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
-- **Credentials needed from user**: Groq API key (+ optional OpenRouter), GitHub fine-grained PAT → P0-04.
+- **GitHub fine-grained PAT** still needed in `.env` (`GITHUB_MCP_PAT`) → P0-04, blocks ARC-15. Groq key verified 2026-10-11; OpenRouter key optional.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
 
 ## Important decisions

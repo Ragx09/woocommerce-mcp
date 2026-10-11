@@ -66,7 +66,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 
 ### P0-04 — Obtain LLM and GitHub credentials
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 1
 - **Depends on:** P0-01
 - **Requirements:** REQ-CHAT-01, REQ-CHAT-04, REQ-GW-08
@@ -74,8 +74,8 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Output:** `.env` with keys (never printed or committed).
 - **Acceptance:** `.env` exists, ignored; a smoke request to Groq chat completions with a tool definition returns a `tool_calls` response.
 - **Tests:** TC-P0-04-1: key present → `scripts/llm-smoke.mjs` → response contains tool_calls.
-- **Command:** `node scripts/llm-smoke.mjs`
-- **Evidence:** —
+- **Command:** `node scripts/llm-smoke.mjs groq` (or `openrouter`)
+- **Evidence:** 2026-10-11: `.env` present, gitignored, mode 600; format check (no values printed): `LLM_API_KEY` set (gsk_ prefix), `OPENROUTER_API_KEY` empty (optional), `GITHUB_MCP_PAT` empty. TC-P0-04-1 PASS — `node scripts/llm-smoke.mjs groq` → HTTP 200 in 652 ms, `finish_reason=tool_calls`, `woo__list_orders {"after":"2026-10-11T00:00:00Z","status":"processing"}`. Groq `/models` lists `openai/gpt-oss-120b` (also gpt-oss-20b, qwen3.8-27b); free tier limit 1000 requests/day. Remaining: GitHub PAT (needed by ARC-15); OpenRouter key optional.
 - **Regression risk:** Free-tier limits.
 
 ### P0-05 — Extract requirement IDs
