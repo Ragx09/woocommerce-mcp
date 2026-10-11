@@ -4,9 +4,21 @@
   "version": "0.1.0",
   "description": "WooCommerce hosting on Kubernetes with a team MCP gateway, dashboard and chat agent",
   "type": "module",
-  "engines": { "node": ">=24" },
-  "workspaces": [],
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "services/*"
+  ],
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "tracker": "node tracker/build.mjs"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "@types/node": "24.19.2",
+    "vitest": "5.0.3"
   }
 }
