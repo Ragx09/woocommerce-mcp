@@ -1,0 +1,10 @@
+{
+  "name": "exp-upstreams",
+  "private": true,
+  "type": "module",
+  "description": "ARC-15: gateway-side SDK client against third-party upstreams",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/server-everything": "2026.8.31"
+  }
+}

@@ -37,6 +37,7 @@
 | T-12 | CSRF on the dashboard API | SameSite=Strict cookie + `Origin` check on mutating requests | Planned |
 | T-13 | Brute force on login | argon2id; basic per-IP rate limit on `/api/auth/login` | Planned |
 | T-14 | Container breakout or privilege | `runAsNonRoot` where images allow, `allowPrivilegeEscalation: false`, dropped capabilities, no service-account token for our pods | Planned |
+| T-15 | A third-party upstream leaks its own environment (server-everything has a `get-env` tool) | Upstream pods get no Secrets or env credentials; only non-sensitive config; separate ServiceAccount without token | Planned |
 
 ## 4. Required threat-model questions (REQ-DEL-07)
 1. **Shared upstream credentials: what can a member do with a credential they never see?** They can make the gateway use it for any tool the upstream allows, within the PAT's or key's scope. The credential itself can't be extracted. Limits: minimal-scope credentials; per-user attribution in the audit log; key revocation; disabling a server. Stand-out item: per-role tool permissions.

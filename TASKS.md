@@ -365,7 +365,7 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 
 ### ARC-13 — Experiment: MCP SDK v1 stateless Streamable HTTP vs real clients
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** P0-01
 - **Requirements:** REQ-MCP-02, REQ-GW-12, REQ-DOD-05
@@ -374,12 +374,12 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 - **Acceptance:** All three clients list and call the tool; a request without the bearer → 401.
 - **Tests:** TC-ARC-13-1: server running → Inspector CLI `tools/list` → 1 tool. TC-ARC-13-2: Claude Code connected → call tool → result. TC-ARC-13-3: no header → 401.
 - **Command:** `npx @modelcontextprotocol/inspector --cli http://localhost:3999/mcp --transport http --header "Authorization: Bearer test" --method tools/list`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `experiments/mcp-hello` (SDK `@modelcontextprotocol/sdk@1.32.1`, zod 4.6.6, stateless `sessionIdGenerator: undefined`, `enableJsonResponse: true`, fresh server+transport per request). TC-ARC-13-1 PASS — Inspector CLI 2.10.1 `tools/list` → `greet`; `tools/call greet name=Inspector` → `Hello, Inspector!`. TC-ARC-13-2 PASS — `claude mcp add --transport http --scope local hello … --header 'Authorization: Bearer test'` → `claude mcp list` `✔ Connected`; `claude -p … --allowedTools mcp__hello__greet` → `Hello, Claude Code!` (registration removed afterwards). SDK client (`client.mjs`) → protocol `2025-11-25`, no session id, list + call OK, invalid args → `isError: true`. TC-ARC-13-3 PASS — no header → 401, wrong token → 401.
 - **Regression risk:** If it fails, revisit D-002 (SDK v2 or a sessionful transport).
 
 ### ARC-14 — Experiment: WooCommerce REST with OAuth1 from Node
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** P0-01
 - **Requirements:** REQ-MCP-09, REQ-STORE-01
@@ -388,12 +388,12 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 - **Acceptance:** 200 with JSON products; a bad signature → 401.
 - **Tests:** TC-ARC-14-1: store up → signed GET → 200. TC-ARC-14-2: tampered secret → 401.
 - **Command:** `node experiments/woo-auth/smoke.mjs`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `experiments/woo-auth` — compose with `mariadb:11.8.9`, `wordpress:7.1.3-php8.3-apache`, `wordpress:cli-2.12.0-php8.3` (run as uid 33: the Alpine cli image's www-data is 82), WooCommerce 11.2.1. `wp-init.sh` installs core, WooCommerce, COD, 3 products, `mcp-service` (shop_manager) + read_write REST key via `wp eval` (`wc_api_hash`); re-run → `rest key exists`, product count still 3 (idempotent). `node smoke.mjs` 8/8 PASS: TC-ARC-14-1 signed GET → 200 (3 products); encoded search `a b+c ~*é` → 200; signed POST (JSON body) → 201; DELETE → 200; TC-ARC-14-2 tampered secret → 401; signing against the request host instead of the WP home URL → 401; bad key → 401. First signer attempt failed on encoding → fixed by reading WC 11.2.1 `check_oauth_signature` (sort raw keys, double-encode pairs). Stack torn down (`down -v`), throwaway key deleted.
 - **Regression risk:** If OAuth1 fails, fall back to an HTTPS-terminated internal call or the `HTTPS` server var override.
 
 ### ARC-15 — Experiment: additional upstreams reachable
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 1
 - **Depends on:** ARC-13, P0-04
 - **Requirements:** REQ-GW-08
@@ -401,8 +401,8 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 - **Output:** Confirmed image/command and URL; D-013 updated.
 - **Acceptance:** `tools/list` works for both.
 - **Tests:** TC-ARC-15-1: everything container → list → tools. TC-ARC-15-2: GitHub with PAT → list → tools; without PAT → 401.
-- **Command:** `node experiments/upstreams/list.mjs`
-- **Evidence:** —
+- **Command:** `node experiments/upstreams/probe.mjs <url> [TOKEN_ENV_VAR]` (`experiments/upstreams/ev.sh start` runs server-everything on :3001)
+- **Evidence:** 2026-10-11: TC-ARC-15-1 PASS — `@modelcontextprotocol/server-everything@2026.8.31` (`dist/index.js streamableHttp`, PORT env) → SDK client: protocol 2025-11-25, **sessionful** (issues `Mcp-Session-Id`), 13 tools, all names valid for `slug__tool`; `echo` call → `Echo: via gateway client`. Restart test: stale session → `StreamableHTTPError` (-32000), fresh connect → 13 tools ⇒ GW-04 must reconnect once on session errors. TC-ARC-15-2 partial — GitHub `https://api.githubcopilot.com/mcp/` without token → 401 + `WWW-Authenticate: Bearer`; listing with PAT **pending `GITHUB_MCP_PAT`**. DeepWiki fallback unreachable from this network (TCP timeout); the timeout hung ~20 s despite the SDK `timeout` option ⇒ GW-09 must abort the transport fetch itself. Security: server-everything has a `get-env` tool that returns its process env ⇒ its pod must carry no secrets (T-15).
 - **Regression risk:** GitHub unreachable → DeepWiki fallback.
 
 ---

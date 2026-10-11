@@ -1,0 +1,38 @@
+# ARC-14 experiment: official images only. Throwaway credentials, local use only.
+name: arc14
+services:
+  db:
+    image: mariadb:11.8.9
+    environment:
+      MARIADB_DATABASE: wp
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: exp-only-db-pass
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      retries: 40
+  wordpress:
+    image: wordpress:7.1.3-php8.3-apache
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8088:80"]
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: exp-only-db-pass
+      WORDPRESS_DB_NAME: wp
+    volumes: [wp:/var/www/html]
+  wpcli:
+    image: wordpress:cli-2.12.0-php8.3
+    user: "33:33"   # match www-data in the Apache image (the Alpine cli image uses uid 82)
+    depends_on: { db: { condition: service_healthy } }
+    profiles: [tools]
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: exp-only-db-pass
+      WORDPRESS_DB_NAME: wp
+      HOME: /tmp
+    volumes: [wp:/var/www/html, ./wp-init.sh:/wp-init.sh:ro]
+volumes:
+  wp: {}

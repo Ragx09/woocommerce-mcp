@@ -14,22 +14,24 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 
 ## D-002 — MCP SDK and protocol version
 - **Date:** 2026-10-11
-- **Status:** Proposed (validate in ARC-13)
+- **Status:** Accepted (ARC-13 passed 2026-10-11: `@modelcontextprotocol/sdk@1.32.1`, negotiated protocol 2025-11-25, works with Inspector CLI 2.10.1, Claude Code and the SDK client)
 - **Context:** Spec 2026-07-28 (stateless, no `initialize`) is new; TS SDK v2 (`@modelcontextprotocol/server` / `client`) is new. Claude Code, Cursor and Inspector all support 2025-11-25.
 - **Options:** SDK v1.x (`@modelcontextprotocol/sdk`) with Streamable HTTP; SDK v2.
 - **Choice:** `@modelcontextprotocol/sdk` v1.x, pinned exactly; Streamable HTTP in **stateless** mode (`sessionIdGenerator: undefined`, a new transport per request).
 - **Why:** Mature, widely documented, compatible with every client we must demo. Stateless mode removes session affinity, so multiple gateway replicas work.
 - **Trade-offs:** No server→client requests or notifications (sampling, list_changed). Clients re-list tools when they reconnect. A move to v2 later would be a contained migration.
+- **Findings (ARC-13/15):** Our servers are stateless, but third-party upstreams may be sessionful (server-everything is). The gateway client therefore keeps one connected `Client` per upstream, reconnects once on a session error (stale `Mcp-Session-Id` after an upstream restart), and wraps fetch in its own `AbortSignal` timeout, because the SDK request timeout does not bound the TCP connect.
 - **Revisit:** If ARC-13 shows a client incompatibility.
 
 ## D-003 — WooCommerce integration method
 - **Date:** 2026-10-11
-- **Status:** Proposed (validate in ARC-14)
+- **Status:** Accepted (ARC-14 passed 2026-10-11 against WooCommerce 11.2.1)
 - **Context:** woo-mcp must read and write products and orders. The in-cluster call is plain HTTP.
 - **Options:** WC REST API with OAuth 1.0a (HTTP); WC REST with Basic auth (HTTPS-only); WP Application Passwords (HTTPS-only); WP-CLI via `kubectl exec`; direct SQL.
 - **Choice:** WooCommerce REST API v3 over the internal Service, authenticated with a consumer key/secret using **OAuth 1.0a one-legged HMAC-SHA256** signing.
 - **Why:** Versioned, validated, and it runs WooCommerce business logic (stock, totals, hooks). The key is owned by a dedicated service user, so it is revocable and least-privilege. No exec privileges or DB credentials are needed in the MCP server. OAuth1 is the documented method for non-HTTPS.
 - **Trade-offs:** The signing code must be correct (unit-tested). The REST round-trip is a bit slower than SQL.
+- **Findings (ARC-14):** (1) WooCommerce signs against `get_home_url()` + route, so woo-mcp needs **two URLs**: `WOO_BASE_URL` (where it connects, the internal Service) and `WOO_SIGNING_URL` (the WP home URL, the public store host). (2) WC 11.2.1 sorts raw keys and double-encodes `k=v` pairs. (3) Query-parameter names must stay plain (PHP mangles `+`, spaces, dots). (4) Nonces are single-use within 15 minutes, so each request needs a fresh nonce. (5) The REST key is created with `wp eval` (WP-CLI has no API-key command).
 - **Revisit:** No.
 
 ## D-004 — Gateway shape
