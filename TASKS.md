@@ -24,7 +24,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 
 ### P0-01 — Move repo to Linux FS, init git, create GitHub repo
 - **Priority:** P0
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** —
 - **Requirements:** REQ-DEL-04, REQ-DEL-10
@@ -33,12 +33,12 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Acceptance:** `git log` shows the initial commit; `git remote -v` points to GitHub; `.env` ignored.
 - **Tests:** TC-P0-01-1: repo exists → `git status` → clean tree. TC-P0-01-2: create `.env` → `git check-ignore .env` → ignored.
 - **Command:** `git -C ~/projects/woocommerce-mcp status && git check-ignore .env`
-- **Evidence:** 2026-10-11: repo created at `~/projects/woocommerce-mcp`, `git init -b main` done. GitHub repo pending user confirmation.
+- **Evidence:** 2026-10-11: TC-P0-01-1 PASS — `git status -sb` → `## main...origin/main`, clean; remote `origin https://github.com/Ragx09/woocommerce-mcp.git` (created with `gh repo create --private`, initial commit pushed). TC-P0-01-2 PASS — `git check-ignore -v .env` → `.gitignore:5:.env`. Pre-push secret scan (`git grep` for gsk_/sk-/ghp_/github_pat_/AKIA/BEGIN key patterns) → no matches. Repo is **private**; make it public or add reviewers at submission (REL-17).
 - **Regression risk:** Low.
 
 ### P0-02 — Install helm and k3d
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** —
 - **Requirements:** REQ-K8S-01, REQ-K8S-03
@@ -47,7 +47,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Acceptance:** `helm version`, `k3d version` succeed; `k3d cluster create smoke` → `kubectl get nodes` Ready → deleted.
 - **Tests:** TC-P0-02-1: tools installed → `k3d cluster create smoke --wait` → node Ready.
 - **Command:** `helm version && k3d version && k3d cluster create smoke --wait && kubectl get nodes && k3d cluster delete smoke`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: helm v3.22.0 (sha256 verified against get.helm.sh) and k3d v5.9.0 (sha256 verified against release checksums.txt) installed to `~/.local/bin`. TC-P0-02-1 PASS — `k3d cluster create smoke --wait -p 18080:80@loadbalancer` → node `k3d-smoke-server-0` Ready, k3s v1.35.5+k3s1, StorageClass `local-path (default)`, Traefik rolled out. Extra checks: Ingress `smoke.127.0.0.1.nip.io:18080` → whoami response from pod (nip.io + Traefik work from host); NetworkPolicy test → unlabelled busybox pod BLOCKED, `role=allowed` pod REACHABLE (k3s enforces NetworkPolicy on k3d, closes R7). Cluster deleted afterwards. Helm 4 exists (v4.3.0); v3.22 kept per D-010 — charts use apiVersion v2 and work on both.
 - **Regression risk:** Low.
 
 ### P0-03 — Confirm VPS availability
@@ -56,12 +56,12 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Day:** 4
 - **Depends on:** —
 - **Requirements:** REQ-K8S-02
-- **Description:** User provisions a VPS / free tier (≥4 GB RAM, Ubuntu LTS, ports 80/443 open). Record provider, size and SSH alias (not secrets).
+- **Description:** User provisions a VPS / free tier (≥4 GB RAM, Ubuntu LTS, ports 80/443 open). Record provider, size and SSH alias (not secrets). Preparation done: `scripts/vps-preflight.sh` (read-only capability check) and `scripts/vps-install-k3s.sh` (k3s pinned to the local k3d version, API via SSH tunnel).
 - **Output:** SSH access confirmed; facts recorded in `docs/DEPLOYMENT.md`.
-- **Acceptance:** `ssh <alias> 'free -g; nproc; lsb_release -a'` shows ≥4 GB RAM.
+- **Acceptance:** `scripts/vps-preflight.sh` run on the VPS exits 0 (RAM ≥3.8 GB, ≥2 CPU, ≥20 GB disk, amd64/arm64, systemd, 80/443 free, outbound HTTPS).
 - **Tests:** TC-P0-03-1: VPS exists → ssh command → prints specs.
-- **Command:** `ssh <alias> 'free -g && nproc'`
-- **Evidence:** Blocked: user will obtain a new VPS (decision 2026-10-11).
+- **Command:** `ssh <alias> 'bash -s' < scripts/vps-preflight.sh`
+- **Evidence:** Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
 - **Regression risk:** High schedule risk if it slips past Day 5.
 
 ### P0-04 — Obtain LLM and GitHub credentials
@@ -178,16 +178,16 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 
 ### P0-12 — Plan review checkpoint
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 1
-- **Depends on:** P0-01..P0-11, ARC-13, ARC-14, ARC-15
+- **Depends on:** P0-01, P0-02, P0-05..P0-11
 - **Requirements:** —
 - **Description:** Present the assessment, experiment results and roadmap to the user for approval before Phase 2.
 - **Output:** User approval noted in PROGRESS.md.
 - **Acceptance:** Explicit user go-ahead.
 - **Tests:** n/a
 - **Command:** —
-- **Evidence:** —
+- **Evidence:** 2026-10-11: checkpoint presented; user go-ahead ("Do P0-01,02,03,12"). ARC-13/14/15 were not run before the checkpoint; they remain the next tasks and still gate WC-03, WC-06, GW-04 and GW-13 directly, so no gate is weakened. P0-03 (VPS) and P0-04 (credentials) stay open as tracked blockers.
 - **Regression risk:** —
 
 ---

@@ -7,8 +7,8 @@
 |---|---|---|
 | Docker Desktop (WSL2) | 29.x | installed |
 | kubectl | 1.36 | installed |
-| helm | 3.x | **to install (P0-02)** |
-| k3d | 5.x | **to install (P0-02)** |
+| helm | v3.22.0 (`~/.local/bin`, sha256-verified) | installed (P0-02) |
+| k3d | v5.9.0 → k3s v1.35.5+k3s1 (`~/.local/bin`, sha256-verified) | installed (P0-02) |
 | Node.js / npm | 24 / 11 | installed |
 
 The repo lives on the Linux filesystem (`~/projects/woocommerce-mcp`), because builds on `/mnt/c` are much slower.
@@ -41,12 +41,19 @@ Never in git or values files. `scripts/make-secrets.sh` creates:
 - `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (seed admin email and password), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (GitHub PAT)
 
 ## 5. VPS (k3s) — planned
-1. VPS ≥4 GB RAM, Ubuntu LTS, ports 22/80/443 open.
-2. `curl -sfL https://get.k3s.io | sh -` (Traefik + local-path included).
-3. Copy the kubeconfig (via an SSH tunnel or with the server address rewritten) → context `vps`.
-4. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard}:<tag>` (multi-arch if the VPS is arm64).
-5. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
-6. Optional TLS: cert-manager + Let's Encrypt (REL-04).
+**Choosing a VPS (P0-03).** Needs ≥4 GB RAM, ≥2 vCPU, ≥20 GB disk, Ubuntu LTS.
+- Free option: Oracle Cloud *Always Free* Ampere A1 is the only common free tier with enough RAM. It is **arm64**, so images must be built multi-arch (R6), and A1 capacity is often unavailable in busy regions.
+- AWS, GCP and Azure free tiers give about 1 GB of RAM, which is too small for WordPress + MariaDB + Postgres + 4 services.
+- Otherwise use any small paid 4 GB amd64 VPS.
+
+Steps:
+1. Open TCP 22/80/443 in the provider firewall. Keep 6443 closed.
+2. Preflight (read-only): `ssh <alias> 'bash -s' < scripts/vps-preflight.sh` must exit 0.
+3. Install k3s, pinned to the local k3d version: `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
+4. Kubeconfig over an SSH tunnel (the script prints the exact commands) → `~/.kube/vps.yaml`, never committed.
+5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard}:<tag>` (multi-arch if the VPS is arm64).
+6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
+7. Optional TLS: cert-manager + Let's Encrypt (REL-04).
 
 ## 6. Upgrade and rollback (planned)
 `helm upgrade platform … --set gateway.image.tag=<new>` → `helm history platform` → `helm rollback platform <rev>`. DB migrations are forward-only and additive, so a rollback of the app image stays compatible.
