@@ -1,0 +1,87 @@
+{{- if .Values.gateway.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $v := .Values.gateway }}
+{{- $ctx := dict "root" . "app" "gateway" }}
+{{- $host := include "platform.host" (dict "root" . "host" $v.host) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ $v.replicas }}
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: gateway
+          image: {{ include "platform.image" (dict "root" . "image" $v.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: PORT, value: "8080" }
+            - { name: LOG_LEVEL, value: {{ $v.logLevel | quote }} }
+            - { name: TRUST_PROXY_HOPS, value: "1" }   # Traefik
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources: {{- include "platform.resources" (dict "name" "gateway" "resources" $v.resources) | nindent 12 }}
+---
+# Only /api and /mcp are public; the probes (/healthz, /readyz) are not routed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  {{- if .Values.global.tls.enabled }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.tls.clusterIssuer }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.ingressClassName }}
+  {{- if .Values.global.tls.enabled }}
+  tls:
+    - hosts: [{{ $host }}]
+      secretName: app-tls
+  {{- end }}
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { name: http } } }
+          - path: /mcp
+            pathType: Exact
+            backend: { service: { name: gateway, port: { name: http } } }
+{{- end }}

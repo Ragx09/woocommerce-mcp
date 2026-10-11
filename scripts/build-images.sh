@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 : > .images.env
-for svc in ${SERVICES:-woo-mcp}; do
+for svc in ${SERVICES:-woo-mcp gateway}; do
   docker build -q -t "$svc:build" -f "services/$svc/Dockerfile" . >/dev/null
   tag="sha-$(docker image inspect --format '{{.Id}}' "$svc:build" | cut -d: -f2 | cut -c1-12)"
   docker tag "$svc:build" "$svc:$tag"

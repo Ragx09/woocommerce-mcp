@@ -53,3 +53,15 @@ wooMcp:
   resources:
     requests: { cpu: 50m, memory: 96Mi }
     limits: { memory: 256Mi }
+
+gateway:
+  enabled: true
+  host: app                                  # → app.<domain>: /api and /mcp (dashboard / lands with UI-20)
+  image:
+    repository: gateway
+    tag: dev
+  replicas: 1
+  logLevel: info
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 384Mi }

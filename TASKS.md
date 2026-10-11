@@ -561,7 +561,7 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** TC-K8S-04 passes.
 - **Tests:** TC-INF-11-1: curl each host/path → expected code.
 - **Command:** `scripts/k8s-checks.sh ingress`
-- **Evidence:** 2026-10-11: store Ingress `store.<domain>` (Traefik, optional TLS via cert-manager annotation) → `/`, `/shop/` 200; no public route to woo-mcp (404). `app.<domain>` (dashboard + `/api` + `/mcp`) lands with GW-01/UI-20.
+- **Evidence:** 2026-10-11: store Ingress `store.<domain>` (Traefik, optional TLS via cert-manager annotation) → `/`, `/shop/` 200; no public route to woo-mcp (404). `app.<domain>`: `/api` (Prefix) and `/mcp` (Exact) → gateway verified with GW-01 (JSON 404 from gateway; probes not routed). Dashboard `/` lands with UI-20.
 - **Regression risk:** —
 
 ### INF-12 — Persistent volumes
@@ -842,7 +842,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-01 — Gateway skeleton
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-01
 - **Requirements:** REQ-DEL-04
@@ -851,7 +851,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** Container healthy.
 - **Tests:** TC-GW-01-1: `/healthz` → 200.
 - **Command:** `npm run build -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-11: `npm test -w services/gateway` → 7 passed (TC-GW-01-1 `/healthz` 200; `/readyz` 200/503 naming failed checks; JSON 404/500 without leaking internals; 413 body limit; secrets in headers/fields redacted in logs; config validation). `docker run --read-only --user 1000:1000 gateway:build` → `/healthz` 200 `{"status":"ok"}`, SIGTERM → exit 0. k3d: `pod/gateway` 1/1 Running; `curl app.127.0.0.1.nip.io/api/me` → 404 `{"error":"not_found"}` from gateway, `/healthz` not routed (Traefik 404); pod in `default` ns → gateway: timeout (NetworkPolicy). `scripts/check-chart.sh` → lint/kubeconform/policy pass, 21 objects.
 - **Regression risk:** —
 
 ### GW-02 — Postgres + upstream model

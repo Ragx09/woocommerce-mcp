@@ -6,7 +6,7 @@ scripts/cluster-up.sh
 scripts/make-secrets.sh
 scripts/build-images.sh
 scripts/deploy.sh local
-kubectl wait --for=condition=Ready pod -l app.kubernetes.io/part-of=platform -A --timeout=300s
+kubectl wait --for=condition=Ready pod -l 'app.kubernetes.io/part-of=platform,app!=wp-init' -A --timeout=300s
 echo
 echo "Store:      http://store.127.0.0.1.nip.io"
 echo "WP admin:   http://store.127.0.0.1.nip.io/wp-admin  (user: admin; password:"
