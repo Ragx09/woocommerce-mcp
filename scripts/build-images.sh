@@ -3,12 +3,13 @@
 # to .images.env (sourced by deploy.sh). Same code → same tag → helm upgrade restarts nothing.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-: > .images.env
+touch .images.env   # keep tags of services not rebuilt this time (SERVICES=gateway …)
 for svc in ${SERVICES:-woo-mcp gateway}; do
   docker build -q -t "$svc:build" -f "services/$svc/Dockerfile" . >/dev/null
   tag="sha-$(docker image inspect --format '{{.Id}}' "$svc:build" | cut -d: -f2 | cut -c1-12)"
   docker tag "$svc:build" "$svc:$tag"
   k3d image import "$svc:$tag" -c mcp >/dev/null 2>&1
-  echo "${svc//-/_}_tag=$tag" >> .images.env
+  var="${svc//-/_}_tag"
+  { grep -v "^$var=" .images.env || true; echo "$var=$tag"; } > .images.env.tmp && mv .images.env.tmp .images.env
   echo "image $svc:$tag imported"
 done

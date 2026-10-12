@@ -22,6 +22,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Trade-offs:** No server→client requests or notifications (sampling, list_changed). Clients re-list tools when they reconnect. A move to v2 later would be a contained migration.
 - **Findings (ARC-13/15):** Our servers are stateless, but third-party upstreams may be sessionful (server-everything is). The gateway client therefore keeps one connected `Client` per upstream, reconnects once on a session error (stale `Mcp-Session-Id` after an upstream restart), and wraps fetch in its own `AbortSignal` timeout, because the SDK request timeout does not bound the TCP connect.
 - **Revisit:** If ARC-13 shows a client incompatibility.
+- **Implementation (GW-04, 2026-10-12):** `UpstreamPool` uses the SDK `fetch` option with `undici@8.11.2` (`Agent({connect:{timeout:2000}, bodyTimeout:0})`) so TCP connect is bounded; request budgets use the SDK `timeout` option (GW-09).
 
 ## D-003 — WooCommerce integration method
 - **Date:** 2026-10-11

@@ -1,0 +1,175 @@
+// GW-04: one connected MCP client per enabled upstream (D-002 findings).
+// - Lazy: a client connects on first use; concurrent callers share the same connect attempt.
+// - Credentials are decrypted only here, in memory, and sent as headers to that upstream only.
+//   Nothing from the inbound request (e.g. the user's API key) is ever forwarded (T-04).
+// - Rebuilt when the upstream row changes (URL, auth, credential, enable flag); closed when removed.
+// - Sessionful upstreams (server-everything) lose their session when they restart, so a request that
+//   fails at the transport level is retried once on a fresh connection.
+// - TCP connect is bounded by undici's connect timeout (the SDK request timeout does not cover it).
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { McpError } from '@modelcontextprotocol/sdk/types.js';
+import { Agent, fetch as undiciFetch } from 'undici';
+import type { Upstream } from '../db/schema.js';
+import { decryptCredential, type CredentialKey } from '../crypto/credentials.js';
+
+export const CLIENT_INFO = { name: 'mcp-gateway', version: '0.1.0' };
+
+export interface PoolOptions {
+  key: CredentialKey;
+  /** TCP connect + MCP initialize budget (docs/MCP_DESIGN.md §6: 2 s). */
+  connectTimeoutMs?: number;
+  log?: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void };
+}
+
+/** Thrown for problems reaching an upstream; message is safe to show (no URL secrets, no credentials). */
+export class UpstreamUnavailableError extends Error {
+  constructor(public readonly slug: string, reason: string) {
+    super(`upstream ${slug} unreachable: ${reason}`);
+  }
+}
+
+interface Entry {
+  row: Upstream;
+  version: string;
+  client?: Client;
+  connecting?: Promise<Client>;
+}
+
+/** Everything that, when changed, requires a new connection. */
+const versionOf = (u: Upstream) =>
+  JSON.stringify([u.url, u.authType, u.authHeader, u.credentialEnc?.ciphertext ?? null, u.updatedAt.toISOString()]);
+
+/** Errors that mean "the connection/session is bad", as opposed to the upstream answering with an error. */
+export function isTransportError(e: unknown): boolean {
+  if (e instanceof McpError) return false; // a JSON-RPC error *from* the upstream: it is alive
+  if (e instanceof StreamableHTTPError) return true; // HTTP-level, e.g. 404 "session not found"
+  return e instanceof TypeError || (e instanceof Error && /fetch failed|ECONN|socket|closed|terminated/i.test(e.message));
+}
+
+export class UpstreamPool {
+  private readonly entries = new Map<string, Entry>();
+  private readonly dispatcher: Agent;
+  private readonly connectTimeoutMs: number;
+
+  constructor(private readonly opts: PoolOptions) {
+    this.connectTimeoutMs = opts.connectTimeoutMs ?? 2_000;
+    // bodyTimeout 0: the optional server→client SSE stream may stay open; request budgets are
+    // enforced per call by the SDK `timeout` option (GW-09).
+    this.dispatcher = new Agent({ connect: { timeout: this.connectTimeoutMs }, bodyTimeout: 0, keepAliveTimeout: 30_000 });
+  }
+
+  /** Align the pool with the current upstream rows. Disabled or removed upstreams are closed. */
+  async sync(rows: Upstream[]): Promise<void> {
+    const wanted = new Map(rows.filter((r) => r.enabled).map((r) => [r.id, r]));
+    const closing: Promise<void>[] = [];
+    for (const [id, entry] of this.entries) {
+      const row = wanted.get(id);
+      if (!row || versionOf(row) !== entry.version) {
+        this.entries.delete(id);
+        closing.push(this.closeEntry(entry));
+      }
+    }
+    for (const [id, row] of wanted) {
+      if (!this.entries.has(id)) this.entries.set(id, { row, version: versionOf(row) });
+    }
+    await Promise.all(closing);
+  }
+
+  /** Upstreams currently managed (enabled). */
+  upstreams(): Upstream[] {
+    return [...this.entries.values()].map((e) => e.row);
+  }
+
+  isConnected(id: string): boolean {
+    return !!this.entries.get(id)?.client;
+  }
+
+  /**
+   * Runs `fn` with a connected client. On a transport error the connection is replaced and `fn`
+   * is retried once, but only when `retry` allows it (tools/call is not always safe to repeat).
+   */
+  async withClient<T>(id: string, fn: (c: Client) => Promise<T>, retry: (e: unknown) => boolean = isTransportError): Promise<T> {
+    const entry = this.entries.get(id);
+    if (!entry) throw new Error(`upstream ${id} is not enabled`);
+    const client = await this.connect(entry);
+    try {
+      return await fn(client);
+    } catch (e) {
+      if (!retry(e) || this.entries.get(id) !== entry) throw e;
+      this.opts.log?.warn({ upstream: entry.row.slug, err: (e as Error).message }, 'upstream request failed, reconnecting once');
+      await this.drop(entry);
+      return fn(await this.connect(entry));
+    }
+  }
+
+  async close(): Promise<void> {
+    const all = [...this.entries.values()];
+    this.entries.clear();
+    await Promise.all(all.map((e) => this.closeEntry(e)));
+    await this.dispatcher.close();
+  }
+
+  private connect(entry: Entry): Promise<Client> {
+    if (entry.client) return Promise.resolve(entry.client);
+    entry.connecting ??= this.open(entry.row)
+      .then((client) => {
+        // The entry may have been replaced (sync) while we were connecting: do not leak this client.
+        if (this.entries.get(entry.row.id) !== entry) {
+          void client.close();
+          throw new UpstreamUnavailableError(entry.row.slug, 'configuration changed while connecting');
+        }
+        entry.client = client;
+        client.onclose = () => { if (entry.client === client) entry.client = undefined; };
+        this.opts.log?.info({ upstream: entry.row.slug }, 'upstream connected');
+        return client;
+      })
+      .finally(() => { entry.connecting = undefined; });
+    return entry.connecting;
+  }
+
+  private async open(row: Upstream): Promise<Client> {
+    const headers: Record<string, string> = { 'user-agent': `${CLIENT_INFO.name}/${CLIENT_INFO.version}` };
+    if (row.authType !== 'none' && row.credentialEnc) {
+      const secret = decryptCredential(this.opts.key, row.slug, row.credentialEnc);
+      if (row.authType === 'bearer') headers.authorization = `Bearer ${secret}`;
+      else if (row.authHeader) headers[row.authHeader.toLowerCase()] = secret;
+    }
+    const dispatcher = this.dispatcher;
+    const transport = new StreamableHTTPClientTransport(new URL(row.url), {
+      requestInit: { headers },
+      fetch: ((url: string | URL, init?: RequestInit) =>
+        undiciFetch(url, { ...(init as object), dispatcher })) as unknown as typeof fetch,
+    });
+    const client = new Client(CLIENT_INFO, { capabilities: {} });
+    try {
+      await client.connect(transport, { timeout: this.connectTimeoutMs });
+      return client;
+    } catch (e) {
+      await client.close().catch(() => {});
+      throw new UpstreamUnavailableError(row.slug, safeReason(e));
+    }
+  }
+
+  private async drop(entry: Entry): Promise<void> {
+    const client = entry.client;
+    entry.client = undefined;
+    if (client) await client.close().catch(() => {});
+  }
+
+  private async closeEntry(entry: Entry): Promise<void> {
+    const pending = entry.connecting;
+    await this.drop(entry);
+    if (pending) await pending.then((c) => c.close(), () => {}).catch(() => {});
+  }
+}
+
+/** A short reason without URLs or headers (they could contain secrets in query strings). */
+function safeReason(e: unknown): string {
+  const err = e as { code?: string; cause?: { code?: string }; message?: string };
+  const code = err.cause?.code ?? err.code;
+  if (code) return String(code);
+  if (e instanceof StreamableHTTPError) return `HTTP ${e.code ?? 'error'}`;
+  if (e instanceof McpError) return `MCP error ${e.code}`;
+  return (err.message ?? 'unknown error').replace(/https?:\/\/\S+/g, '<url>').slice(0, 120);
+}

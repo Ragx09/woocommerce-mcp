@@ -884,17 +884,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-04 — Upstream client pool
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-02, ARC-13
 - **Requirements:** REQ-GW-02, REQ-GW-03
 - **Description:** Per-upstream SDK `Client` + `StreamableHTTPClientTransport` with injected headers; reconnect on failure; rebuilt on config change.
 - **Output:** `upstreams/pool.ts`.
 - **Acceptance:** Can list tools on `woo`.
-- **Tests:** TC-GW-04-1: unit with fake server → connect, list, close.
+- **Tests:** TC-GW-04-1..7 (`test/unit/pool.test.ts`, in-process fake upstreams `test/helpers/fake-upstream.ts`, stateless and sessionful).
 - **Command:** `npm test -w services/gateway`
-- **Evidence:** —
-- **Regression risk:** Connection leaks.
+- **Evidence:** 2026-10-12: `src/upstreams/pool.ts` — lazy per-upstream SDK `Client`, shared connect, decrypted credential → bearer/custom header only, rebuilt on row change, closed on disable/remove, one transparent reconnect on transport errors (not on upstream JSON-RPC errors), undici connect timeout 2 s. Unit 18/18 incl. TC-GW-04-1 connect/list/reuse/close (1 initialize); -2 header injection (no inbound auth forwarded); -3 3 concurrent callers → 1 connect; -4 sessionful upstream restart → reconnect, 2 initializes; -5 URL change → rebuilt, disabled → refused; -6 dead upstream → `UpstreamUnavailableError` < 3 s, message without URL; -7 unknown tool → isError result, no retry. k3d (acceptance): from the gateway pod, pool → `woo` tools in 503 ms: list_products, create_product, list_orders, get_order, update_order_status; `list_products` call isError=false. Gateway log `upstream pool ready ["woo"]`; rolling restart clean.
+- **Regression risk:** Connection leaks: entries replaced during connect close the new client; `close()` on shutdown. tools/call retry is only safe for transport errors before execution — GW-08 must pass a stricter retry predicate.
 
 ### GW-05 — Tool discovery
 - **Priority:** P0

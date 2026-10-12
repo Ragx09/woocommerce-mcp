@@ -4,9 +4,10 @@
 Phase 2 — Gateway core (Day 2, 2026-10-11)
 
 ## Current task
-GW-04 — Upstream client pool
+GW-05 — Tool discovery
 
 ## Recently completed
+- 2026-10-12: GW-04 — upstream client pool (lazy connect, credential injection, rebuild on change, reconnect once on stale session, 2 s connect timeout); 7 pool tests with in-process fake upstreams; woo tools listed from the gateway pod. `build-images.sh` now keeps tags of services not rebuilt.
 - 2026-10-12: GW-03 — woo upstream seeded at startup (once; admin edits/deletes respected; untouched row follows token rotation), credential AES-256-GCM encrypted (`gateway-secrets`), `app_meta` table, `listUpstreams`/`toPublic` allowlist. 11 unit + 23 integration tests; verified on k3d.
 - 2026-10-12: GW-02 — Postgres 16 StatefulSet + PVC (gateway-only NetworkPolicy, `postgres-secrets`); Drizzle `upstreams` table with DB-level CHECK constraints; migrations at startup under an advisory lock; `/readyz` checks the DB; gateway startupProbe. 16 integration tests (`scripts/gateway-db-int.sh`); fresh install, Postgres restart and persistence verified on k3d.
 - 2026-10-11: GW-01 — `services/gateway` (Fastify 5.12.5): env config, pino redaction, `/healthz` `/readyz` (named readiness checks), JSON error shape, Dockerfile; chart: gateway Deployment/Service, `app.<domain>` Ingress (`/api`, `/mcp`), platform default-deny + gateway-from-Traefik NetworkPolicy. 7 unit tests; deployed on k3d.
@@ -35,7 +36,7 @@ GW-04 — Upstream client pool
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-GW-04 (client pool: one MCP client per enabled upstream, credential decrypted in memory and injected), GW-05, GW-07, GW-06, GW-08. `GITHUB_MCP_PAT` needed before Day 3.
+GW-05 (cached tool discovery), GW-07 (naming), GW-06 (aggregated tools/list at /mcp), GW-08 (routing). `GITHUB_MCP_PAT` needed before Day 3.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.
