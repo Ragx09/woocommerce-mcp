@@ -1,0 +1,25 @@
+<!-- wp:group {"tagName":"header","style":{"spacing":{"padding":{"top":"1.1rem","bottom":"1.1rem","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"border":{"bottom":{"color":"var:preset|color|accent-2","width":"1px"}}},"backgroundColor":"base","layout":{"type":"constrained","contentSize":"1240px"}} -->
+<header class="wp-block-group has-base-background-color has-background" style="border-bottom-color:var(--wp--preset--color--accent-2);border-bottom-width:1px;padding-top:1.1rem;padding-right:var(--wp--preset--spacing--50);padding-bottom:1.1rem;padding-left:var(--wp--preset--spacing--50)">
+	<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"}} -->
+	<div class="wp-block-group">
+		<!-- wp:site-title {"level":0,"className":"tatva-wordmark"} /-->
+
+		<!-- wp:navigation {"overlayMenu":"mobile","overlayBackgroundColor":"base","overlayTextColor":"contrast","ariaLabel":"Primary","layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"blockGap":"1.75rem"}}} -->
+			<!-- wp:navigation-link {"label":"Home","url":"/","kind":"custom"} /-->
+			<!-- wp:navigation-link {"label":"Shop","url":"/shop/","kind":"custom"} /-->
+			<!-- wp:navigation-link {"label":"Brands","url":"/brands/","kind":"custom"} /-->
+			<!-- wp:navigation-link {"label":"Categories","url":"/categories/","kind":"custom"} /-->
+			<!-- wp:navigation-link {"label":"Our Concept","url":"/our-concept/","kind":"custom"} /-->
+		<!-- /wp:navigation -->
+
+		<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"right"},"style":{"spacing":{"blockGap":"0.75rem"}}} -->
+		<div class="wp-block-group">
+			<!-- wp:search {"label":"Search products","showLabel":false,"placeholder":"Search products","buttonText":"Search","buttonPosition":"button-only","buttonUseIcon":true,"isSearchFieldHidden":true,"query":{"post_type":"product"},"namespace":"woocommerce/product-search"} /-->
+			<!-- wp:woocommerce/customer-account {"displayStyle":"icon_only","iconStyle":"line","iconClass":"wc-block-customer-account__account-icon"} /-->
+			<!-- wp:woocommerce/mini-cart {"addToCartBehaviour":"none","hasHiddenPrice":true} /-->
+		</div>
+		<!-- /wp:group -->
+	</div>
+	<!-- /wp:group -->
+</header>
+<!-- /wp:group -->

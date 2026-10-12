@@ -1,0 +1,708 @@
+{
+ "_note": "TATVA demo catalogue — source: docs/tatva-brand-and-products.md §6. Prices are illustrative INR demo prices; brand names are placeholders, not real businesses. Descriptions only restate what the product name says.",
+ "store": {
+  "title": "TATVA",
+  "tagline": "The Essence of Good Design.",
+  "currency": "INR"
+ },
+ "categories": [
+  {
+   "slug": "home-living",
+   "name": "Home & Living",
+   "description": "Ceramic drinkware, planters, serving pieces, textiles and small home accessories.",
+   "image": "editorial/category-home-living.webp"
+  },
+  {
+   "slug": "personal-care",
+   "name": "Personal Care",
+   "description": "Skincare and haircare essentials with clear ingredient and usage information.",
+   "image": "editorial/category-personal-care.webp"
+  },
+  {
+   "slug": "fashion-accessories",
+   "name": "Fashion & Accessories",
+   "description": "Bags, scarves and everyday accessories from selected brands.",
+   "image": "editorial/category-fashion-accessories.webp"
+  },
+  {
+   "slug": "food-drink",
+   "name": "Food & Drink",
+   "description": "Tea, coffee and giftable pantry goods.",
+   "image": "editorial/category-food-drink.webp"
+  },
+  {
+   "slug": "stationery-everyday",
+   "name": "Stationery & Everyday Objects",
+   "description": "Notebooks, desk accessories and useful design objects.",
+   "image": "editorial/category-stationery-everyday.webp"
+  }
+ ],
+ "brands": [
+  {
+   "slug": "mitti-and-form",
+   "name": "Mitti & Form",
+   "description": "Stoneware and ceramic tableware: mugs, bowls, plates and vases."
+  },
+  {
+   "slug": "earthkind-studio",
+   "name": "Earthkind Studio",
+   "description": "Terracotta and ceramic pieces for plants, light and the table."
+  },
+  {
+   "slug": "loom-and-field",
+   "name": "Loom & Field",
+   "description": "Cotton textiles for the home and everyday bags and scarves."
+  },
+  {
+   "slug": "grain-theory",
+   "name": "Grain Theory",
+   "description": "Wooden objects for the desk, kitchen and wall."
+  },
+  {
+   "slug": "bare-ritual",
+   "name": "Bare Ritual",
+   "description": "Everyday skincare essentials."
+  },
+  {
+   "slug": "root-and-ritual",
+   "name": "Root & Ritual",
+   "description": "Hair, hand and body care essentials."
+  },
+  {
+   "slug": "thread-theory",
+   "name": "Thread Theory",
+   "description": "Pouches, sleeves and printed cotton accessories."
+  },
+  {
+   "slug": "kettle-and-grove",
+   "name": "Kettle & Grove",
+   "description": "Tea, coffee and infusion blends."
+  },
+  {
+   "slug": "paper-habit",
+   "name": "Paper Habit",
+   "description": "Notebooks, planners and paper goods for everyday use."
+  }
+ ],
+ "collections": [
+  {
+   "tag": "the-morning-table",
+   "name": "The Morning Table",
+   "description": "Cups, bowls, tea and coffee for a slower start to the day."
+  }
+ ],
+ "products": [
+  {
+   "sku": "TAT-001",
+   "name": "Hand-finished stoneware mug",
+   "slug": "hand-finished-stoneware-mug",
+   "brand": "Mitti & Form",
+   "category": "home-living",
+   "regular_price": "1299",
+   "short_description": "A stoneware mug with a hand-finished glaze, made for everyday coffee and tea.",
+   "featured": true,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-001.webp"
+  },
+  {
+   "sku": "TAT-002",
+   "name": "Terracotta planter, medium",
+   "slug": "terracotta-planter-medium",
+   "brand": "Earthkind Studio",
+   "category": "home-living",
+   "regular_price": "1200",
+   "short_description": "A medium terracotta planter for indoor plants.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-002.webp"
+  },
+  {
+   "sku": "TAT-003",
+   "name": "Ceramic serving bowl",
+   "slug": "ceramic-serving-bowl",
+   "brand": "Mitti & Form",
+   "category": "home-living",
+   "regular_price": "1450",
+   "short_description": "A ceramic bowl for serving salads, fruit and shared dishes.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-003.webp"
+  },
+  {
+   "sku": "TAT-004",
+   "name": "Cotton table runner",
+   "slug": "cotton-table-runner",
+   "brand": "Loom & Field",
+   "category": "home-living",
+   "regular_price": "1850",
+   "short_description": "A cotton runner that brings texture to the dining table.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-004.webp"
+  },
+  {
+   "sku": "TAT-005",
+   "name": "Minimal wooden desk organiser",
+   "slug": "minimal-wooden-desk-organiser",
+   "brand": "Grain Theory",
+   "category": "home-living",
+   "regular_price": "1100",
+   "short_description": "A minimal wooden organiser that keeps desk essentials in one place.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-005.webp"
+  },
+  {
+   "sku": "TAT-006",
+   "name": "Tea-light holder set of two",
+   "slug": "tea-light-holder-set-of-two",
+   "brand": "Earthkind Studio",
+   "category": "home-living",
+   "regular_price": "850",
+   "short_description": "A set of two tea-light holders for a softly lit table or shelf.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-006.webp"
+  },
+  {
+   "sku": "TAT-007",
+   "name": "Stoneware dinner plate",
+   "slug": "stoneware-dinner-plate",
+   "brand": "Mitti & Form",
+   "category": "home-living",
+   "regular_price": "950",
+   "short_description": "A stoneware plate for everyday meals.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-007.webp"
+  },
+  {
+   "sku": "TAT-008",
+   "name": "Ceramic bud vase",
+   "slug": "ceramic-bud-vase",
+   "brand": "Mitti & Form",
+   "category": "home-living",
+   "regular_price": "1100",
+   "short_description": "A small ceramic vase sized for a single stem or a few flowers.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-008.webp"
+  },
+  {
+   "sku": "TAT-009",
+   "name": "Woven cushion cover",
+   "slug": "woven-cushion-cover",
+   "brand": "Loom & Field",
+   "category": "home-living",
+   "regular_price": "1250",
+   "short_description": "A woven cover that adds texture to a cushion.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-009.webp"
+  },
+  {
+   "sku": "TAT-010",
+   "name": "Cotton kitchen towel set of two",
+   "slug": "cotton-kitchen-towel-set-of-two",
+   "brand": "Loom & Field",
+   "category": "home-living",
+   "regular_price": "699",
+   "short_description": "A set of two cotton towels for the kitchen.",
+   "featured": false,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-010.webp"
+  },
+  {
+   "sku": "TAT-011",
+   "name": "Wooden serving board",
+   "slug": "wooden-serving-board",
+   "brand": "Grain Theory",
+   "category": "home-living",
+   "regular_price": "1450",
+   "short_description": "A wooden board for serving, slicing and sharing.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-011.webp"
+  },
+  {
+   "sku": "TAT-012",
+   "name": "Small carved wooden bowl",
+   "slug": "small-carved-wooden-bowl",
+   "brand": "Grain Theory",
+   "category": "home-living",
+   "regular_price": "899",
+   "short_description": "A small carved wooden bowl for snacks, keys or trinkets.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-012.webp"
+  },
+  {
+   "sku": "TAT-013",
+   "name": "Terracotta water tumbler set of two",
+   "slug": "terracotta-water-tumbler-set-of-two",
+   "brand": "Earthkind Studio",
+   "category": "home-living",
+   "regular_price": "650",
+   "short_description": "A set of two terracotta tumblers for water.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-013.webp"
+  },
+  {
+   "sku": "TAT-014",
+   "name": "Ceramic incense holder",
+   "slug": "ceramic-incense-holder",
+   "brand": "Earthkind Studio",
+   "category": "home-living",
+   "regular_price": "550",
+   "short_description": "A ceramic holder for incense sticks.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-014.webp"
+  },
+  {
+   "sku": "TAT-015",
+   "name": "Textured cotton throw",
+   "slug": "textured-cotton-throw",
+   "brand": "Loom & Field",
+   "category": "home-living",
+   "regular_price": "2499",
+   "short_description": "A textured cotton throw for the sofa or bed.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-015.webp"
+  },
+  {
+   "sku": "TAT-016",
+   "name": "Minimal wall hook set",
+   "slug": "minimal-wall-hook-set",
+   "brand": "Grain Theory",
+   "category": "home-living",
+   "regular_price": "799",
+   "short_description": "A set of minimal hooks for coats, bags and keys.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-016.webp"
+  },
+  {
+   "sku": "TAT-017",
+   "name": "Stoneware breakfast bowl",
+   "slug": "stoneware-breakfast-bowl",
+   "brand": "Mitti & Form",
+   "category": "home-living",
+   "regular_price": "1050",
+   "short_description": "A stoneware bowl sized for breakfast cereal, yoghurt or soup.",
+   "featured": false,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-017.webp"
+  },
+  {
+   "sku": "TAT-018",
+   "name": "Tabletop planter duo",
+   "slug": "tabletop-planter-duo",
+   "brand": "Earthkind Studio",
+   "category": "home-living",
+   "regular_price": "1650",
+   "short_description": "A pair of small planters for a desk, sill or shelf.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-018.webp"
+  },
+  {
+   "sku": "TAT-019",
+   "name": "Daily face cleanser, 100 ml",
+   "slug": "daily-face-cleanser-100-ml",
+   "brand": "Bare Ritual",
+   "category": "personal-care",
+   "regular_price": "549",
+   "short_description": "A daily face cleanser in a 100 ml bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-019.webp"
+  },
+  {
+   "sku": "TAT-020",
+   "name": "Lightweight face moisturiser, 50 g",
+   "slug": "lightweight-face-moisturiser-50-g",
+   "brand": "Bare Ritual",
+   "category": "personal-care",
+   "regular_price": "799",
+   "short_description": "A lightweight face moisturiser in a 50 g jar.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-020.webp"
+  },
+  {
+   "sku": "TAT-021",
+   "name": "Nourishing hair oil, 100 ml",
+   "slug": "nourishing-hair-oil-100-ml",
+   "brand": "Root & Ritual",
+   "category": "personal-care",
+   "regular_price": "649",
+   "short_description": "A nourishing hair oil in a 100 ml bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-021.webp"
+  },
+  {
+   "sku": "TAT-022",
+   "name": "Refillable hand wash, 250 ml",
+   "slug": "refillable-hand-wash-250-ml",
+   "brand": "Root & Ritual",
+   "category": "personal-care",
+   "regular_price": "599",
+   "short_description": "A hand wash in a refillable 250 ml bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-022.webp"
+  },
+  {
+   "sku": "TAT-023",
+   "name": "Gentle body wash, 200 ml",
+   "slug": "gentle-body-wash-200-ml",
+   "brand": "Bare Ritual",
+   "category": "personal-care",
+   "regular_price": "499",
+   "short_description": "A gentle body wash in a 200 ml bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-023.webp"
+  },
+  {
+   "sku": "TAT-024",
+   "name": "Lip balm, 15 g",
+   "slug": "lip-balm-15-g",
+   "brand": "Bare Ritual",
+   "category": "personal-care",
+   "regular_price": "249",
+   "short_description": "A lip balm in a 15 g tin.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-024.webp"
+  },
+  {
+   "sku": "TAT-025",
+   "name": "Hand and body lotion, 200 ml",
+   "slug": "hand-and-body-lotion-200-ml",
+   "brand": "Root & Ritual",
+   "category": "personal-care",
+   "regular_price": "699",
+   "short_description": "A lotion for hands and body in a 200 ml bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-025.webp"
+  },
+  {
+   "sku": "TAT-026",
+   "name": "Shampoo bar",
+   "slug": "shampoo-bar",
+   "brand": "Root & Ritual",
+   "category": "personal-care",
+   "regular_price": "399",
+   "short_description": "A solid shampoo bar.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-026.webp"
+  },
+  {
+   "sku": "TAT-027",
+   "name": "Face mist, 100 ml",
+   "slug": "face-mist-100-ml",
+   "brand": "Bare Ritual",
+   "category": "personal-care",
+   "regular_price": "449",
+   "short_description": "A face mist in a 100 ml spray bottle.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-027.webp"
+  },
+  {
+   "sku": "TAT-028",
+   "name": "Travel personal-care pouch",
+   "slug": "travel-personal-care-pouch",
+   "brand": "Root & Ritual",
+   "category": "personal-care",
+   "regular_price": "499",
+   "short_description": "A pouch for carrying personal-care items when travelling.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-028.webp"
+  },
+  {
+   "sku": "TAT-029",
+   "name": "Everyday cotton tote",
+   "slug": "everyday-cotton-tote",
+   "brand": "Loom & Field",
+   "category": "fashion-accessories",
+   "regular_price": "899",
+   "short_description": "A cotton tote for everyday carrying.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-029.webp"
+  },
+  {
+   "sku": "TAT-030",
+   "name": "Handwoven scarf",
+   "slug": "handwoven-scarf",
+   "brand": "Loom & Field",
+   "category": "fashion-accessories",
+   "regular_price": "1799",
+   "short_description": "A handwoven scarf for everyday wear.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-030.webp"
+  },
+  {
+   "sku": "TAT-031",
+   "name": "Everyday crossbody pouch",
+   "slug": "everyday-crossbody-pouch",
+   "brand": "Thread Theory",
+   "category": "fashion-accessories",
+   "regular_price": "1199",
+   "short_description": "A compact crossbody pouch for everyday essentials.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-031.webp"
+  },
+  {
+   "sku": "TAT-032",
+   "name": "Block-print cotton bandana",
+   "slug": "block-print-cotton-bandana",
+   "brand": "Thread Theory",
+   "category": "fashion-accessories",
+   "regular_price": "499",
+   "short_description": "A block-printed cotton bandana.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-032.webp"
+  },
+  {
+   "sku": "TAT-033",
+   "name": "Woven laptop sleeve",
+   "slug": "woven-laptop-sleeve",
+   "brand": "Thread Theory",
+   "category": "fashion-accessories",
+   "regular_price": "1499",
+   "short_description": "A woven sleeve for carrying a laptop.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-033.webp"
+  },
+  {
+   "sku": "TAT-034",
+   "name": "Minimal card holder",
+   "slug": "minimal-card-holder",
+   "brand": "Grain Theory",
+   "category": "fashion-accessories",
+   "regular_price": "799",
+   "short_description": "A slim, minimal holder for cards.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-034.webp"
+  },
+  {
+   "sku": "TAT-035",
+   "name": "Cotton weekend tote",
+   "slug": "cotton-weekend-tote",
+   "brand": "Loom & Field",
+   "category": "fashion-accessories",
+   "regular_price": "1299",
+   "short_description": "A roomy cotton tote for weekends and short trips.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-035.webp"
+  },
+  {
+   "sku": "TAT-036",
+   "name": "Everyday zip pouch set of two",
+   "slug": "everyday-zip-pouch-set-of-two",
+   "brand": "Thread Theory",
+   "category": "fashion-accessories",
+   "regular_price": "699",
+   "short_description": "A set of two zip pouches for organising small things.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-036.webp"
+  },
+  {
+   "sku": "TAT-037",
+   "name": "Loose-leaf tea, 100 g",
+   "slug": "loose-leaf-tea-100-g",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "499",
+   "short_description": "Loose-leaf tea in a 100 g pack.",
+   "featured": false,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-037.webp"
+  },
+  {
+   "sku": "TAT-038",
+   "name": "Filter coffee, 250 g",
+   "slug": "filter-coffee-250-g",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "449",
+   "short_description": "Ground coffee for filter brewing, 250 g.",
+   "featured": false,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-038.webp"
+  },
+  {
+   "sku": "TAT-039",
+   "name": "Herbal infusion blend, 50 g",
+   "slug": "herbal-infusion-blend-50-g",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "399",
+   "short_description": "A herbal infusion blend in a 50 g pack.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-039.webp"
+  },
+  {
+   "sku": "TAT-040",
+   "name": "Single-origin coffee, 250 g",
+   "slug": "single-origin-coffee-250-g",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "599",
+   "short_description": "Single-origin coffee, 250 g.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-040.webp"
+  },
+  {
+   "sku": "TAT-041",
+   "name": "Spiced chai blend, 100 g",
+   "slug": "spiced-chai-blend-100-g",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "349",
+   "short_description": "A spiced chai blend in a 100 g pack.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-041.webp"
+  },
+  {
+   "sku": "TAT-042",
+   "name": "Ceramic tea cup",
+   "slug": "ceramic-tea-cup",
+   "brand": "Mitti & Form",
+   "category": "food-drink",
+   "regular_price": "699",
+   "short_description": "A ceramic cup for tea.",
+   "featured": false,
+   "tags": [
+    "the-morning-table"
+   ],
+   "image": "products/tat-042.webp"
+  },
+  {
+   "sku": "TAT-043",
+   "name": "Tea and coffee tasting gift set",
+   "slug": "tea-and-coffee-tasting-gift-set",
+   "brand": "Kettle & Grove",
+   "category": "food-drink",
+   "regular_price": "1199",
+   "short_description": "A gift set for tasting a selection of tea and coffee.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-043.webp"
+  },
+  {
+   "sku": "TAT-044",
+   "name": "Hardcover notebook",
+   "slug": "hardcover-notebook",
+   "brand": "Paper Habit",
+   "category": "stationery-everyday",
+   "regular_price": "399",
+   "short_description": "A hardcover notebook for notes, lists and sketches.",
+   "featured": true,
+   "tags": [],
+   "image": "products/tat-044.webp"
+  },
+  {
+   "sku": "TAT-045",
+   "name": "Desk tray",
+   "slug": "desk-tray",
+   "brand": "Grain Theory",
+   "category": "stationery-everyday",
+   "regular_price": "699",
+   "short_description": "A desk tray for papers, pens and small objects.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-045.webp"
+  },
+  {
+   "sku": "TAT-046",
+   "name": "Undated weekly planner",
+   "slug": "undated-weekly-planner",
+   "brand": "Paper Habit",
+   "category": "stationery-everyday",
+   "regular_price": "499",
+   "short_description": "An undated planner organised by week, so it can start any time.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-046.webp"
+  },
+  {
+   "sku": "TAT-047",
+   "name": "Set of three pocket notebooks",
+   "slug": "set-of-three-pocket-notebooks",
+   "brand": "Paper Habit",
+   "category": "stationery-everyday",
+   "regular_price": "299",
+   "short_description": "A set of three pocket-sized notebooks.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-047.webp"
+  },
+  {
+   "sku": "TAT-048",
+   "name": "Minimal greeting card set",
+   "slug": "minimal-greeting-card-set",
+   "brand": "Paper Habit",
+   "category": "stationery-everyday",
+   "regular_price": "249",
+   "short_description": "A set of minimal greeting cards.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-048.webp"
+  },
+  {
+   "sku": "TAT-049",
+   "name": "Wooden pen stand",
+   "slug": "wooden-pen-stand",
+   "brand": "Grain Theory",
+   "category": "stationery-everyday",
+   "regular_price": "599",
+   "short_description": "A wooden stand that keeps pens upright on the desk.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-049.webp"
+  },
+  {
+   "sku": "TAT-050",
+   "name": "Desk notepad and pen gift set",
+   "slug": "desk-notepad-and-pen-gift-set",
+   "brand": "Paper Habit",
+   "category": "stationery-everyday",
+   "regular_price": "649",
+   "short_description": "A gift set with a desk notepad and a pen.",
+   "featured": false,
+   "tags": [],
+   "image": "products/tat-050.webp"
+  }
+ ]
+}

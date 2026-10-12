@@ -1,0 +1,108 @@
+<!-- wp:template-part {"slug":"header","tagName":"header"} /-->
+<!-- wp:group {"tagName":"main","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"1240px"}} -->
+<main class="wp-block-group" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+	<!-- wp:woocommerce/breadcrumbs {"fontSize":"small"} /-->
+	<!-- wp:query-title {"type":"archive","showPrefix":false} /-->
+	<!-- wp:paragraph {"textColor":"accent-4"} -->
+	<p class="has-accent-4-color has-text-color">Distinctive everyday products from the brands in the TATVA collection. Filter by category, brand or price.</p>
+	<!-- /wp:paragraph -->
+	<!-- wp:woocommerce/store-notices /-->
+	<!-- wp:columns {"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|60"},"margin":{"top":"var:preset|spacing|40"}}}} -->
+	<div class="wp-block-columns" style="margin-top:var(--wp--preset--spacing--40)">
+		<!-- wp:column {"width":"240px"} -->
+		<div class="wp-block-column" style="flex-basis:240px">
+			<!-- wp:woocommerce/product-filters {"overlay":"mobile"} -->
+			<div class="wp-block-woocommerce-product-filters wc-block-product-filters">
+				<!-- wp:heading {"level":2,"fontSize":"large"} -->
+				<h2 class="wp-block-heading has-large-font-size">Filter</h2>
+				<!-- /wp:heading -->
+				<!-- wp:woocommerce/product-filter-active -->
+				<div class="wp-block-woocommerce-product-filter-active">
+					<!-- wp:woocommerce/product-filter-removable-chips -->
+					<div class="wp-block-woocommerce-product-filter-removable-chips wc-block-product-filter-removable-chips"></div>
+					<!-- /wp:woocommerce/product-filter-removable-chips -->
+					<!-- wp:woocommerce/product-filter-clear-button -->
+					<!-- wp:buttons {"layout":{"type":"flex"}} -->
+					<div class="wp-block-buttons"><!-- wp:button {"className":"wc-block-product-filters__clear-button is-style-outline","style":{"typography":{"fontSize":"0.8rem"}}} -->
+					<div class="wp-block-button wc-block-product-filters__clear-button is-style-outline"><a class="wp-block-button__link wp-element-button" style="font-size:0.8rem">Clear filters</a></div>
+					<!-- /wp:button --></div>
+					<!-- /wp:buttons -->
+					<!-- /wp:woocommerce/product-filter-clear-button -->
+				</div>
+				<!-- /wp:woocommerce/product-filter-active -->
+				<!-- wp:woocommerce/product-filter-taxonomy {"taxonomy":"product_cat","displayStyle":"woocommerce/product-filter-checkbox-list"} -->
+				<div class="wp-block-woocommerce-product-filter-taxonomy">
+					<!-- wp:heading {"level":3,"fontSize":"medium"} -->
+					<h3 class="wp-block-heading has-medium-font-size">Category</h3>
+					<!-- /wp:heading -->
+					<!-- wp:woocommerce/product-filter-checkbox-list -->
+					<div class="wp-block-woocommerce-product-filter-checkbox-list wc-block-product-filter-checkbox-list"></div>
+					<!-- /wp:woocommerce/product-filter-checkbox-list -->
+				</div>
+				<!-- /wp:woocommerce/product-filter-taxonomy -->
+				<!-- wp:woocommerce/product-filter-taxonomy {"taxonomy":"product_brand","displayStyle":"woocommerce/product-filter-checkbox-list"} -->
+				<div class="wp-block-woocommerce-product-filter-taxonomy">
+					<!-- wp:heading {"level":3,"fontSize":"medium"} -->
+					<h3 class="wp-block-heading has-medium-font-size">Brand</h3>
+					<!-- /wp:heading -->
+					<!-- wp:woocommerce/product-filter-checkbox-list -->
+					<div class="wp-block-woocommerce-product-filter-checkbox-list wc-block-product-filter-checkbox-list"></div>
+					<!-- /wp:woocommerce/product-filter-checkbox-list -->
+				</div>
+				<!-- /wp:woocommerce/product-filter-taxonomy -->
+				<!-- wp:woocommerce/product-filter-price -->
+				<div class="wp-block-woocommerce-product-filter-price">
+					<!-- wp:heading {"level":3,"fontSize":"medium"} -->
+					<h3 class="wp-block-heading has-medium-font-size">Price</h3>
+					<!-- /wp:heading -->
+					<!-- wp:woocommerce/product-filter-price-slider -->
+					<div class="wp-block-woocommerce-product-filter-price-slider wc-block-product-filter-price-slider"></div>
+					<!-- /wp:woocommerce/product-filter-price-slider -->
+				</div>
+				<!-- /wp:woocommerce/product-filter-price -->
+			</div>
+			<!-- /wp:woocommerce/product-filters -->
+		</div>
+		<!-- /wp:column -->
+		<!-- wp:column -->
+		<div class="wp-block-column">
+			<!-- wp:group {"layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+			<div class="wp-block-group">
+				<!-- wp:woocommerce/product-results-count {"fontSize":"small"} /-->
+				<!-- wp:woocommerce/catalog-sorting {"fontSize":"small"} /-->
+			</div>
+			<!-- /wp:group -->
+			<!-- wp:woocommerce/product-collection {"queryId":0,"query":{"perPage":12,"pages":0,"offset":0,"postType":"product","order":"asc","orderBy":"menu_order","search":"","exclude":[],"inherit":true,"taxQuery":{},"isProductCollectionBlock":true,"featured":false,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[]},"tagName":"div","displayLayout":{"type":"flex","columns":3,"shrinkColumns":true},"queryContextIncludes":["collection"]} -->
+			<div class="wp-block-woocommerce-product-collection">
+				<!-- wp:woocommerce/product-template -->
+			<!-- wp:woocommerce/product-image {"showSaleBadge":false,"imageSizing":"thumbnail","isDescendentOfQueryLoop":true,"aspectRatio":"4/5","scale":"cover"} /-->
+			<!-- wp:post-title {"level":3,"isLink":true,"fontSize":"medium","style":{"spacing":{"margin":{"top":"0.75rem","bottom":"0.15rem"}},"typography":{"fontWeight":"600"}},"fontFamily":"manrope","__woocommerceNamespace":"woocommerce/product-collection/product-title"} /-->
+			<!-- wp:post-terms {"term":"product_brand","style":{"spacing":{"margin":{"top":"0","bottom":"0.35rem"}}}} /-->
+			<!-- wp:woocommerce/product-price {"isDescendentOfQueryLoop":true,"fontSize":"medium"} /-->
+			<!-- /wp:woocommerce/product-template -->
+				<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"}} -->
+				<!-- wp:query-pagination-previous /-->
+				<!-- wp:query-pagination-numbers /-->
+				<!-- wp:query-pagination-next /-->
+				<!-- /wp:query-pagination -->
+				<!-- wp:woocommerce/product-collection-no-results -->
+				<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"center"}} -->
+				<div class="wp-block-group">
+					<!-- wp:heading {"level":2,"fontSize":"large"} -->
+					<h2 class="wp-block-heading has-large-font-size">No products match these filters</h2>
+					<!-- /wp:heading -->
+					<!-- wp:paragraph -->
+					<p>Try removing a filter or another search term, or <a href="/shop/">browse all products</a>.</p>
+					<!-- /wp:paragraph -->
+				</div>
+				<!-- /wp:group -->
+				<!-- /wp:woocommerce/product-collection-no-results -->
+			</div>
+			<!-- /wp:woocommerce/product-collection -->
+		</div>
+		<!-- /wp:column -->
+	</div>
+	<!-- /wp:columns -->
+</main>
+<!-- /wp:group -->
+<!-- wp:template-part {"slug":"footer","tagName":"footer"} /-->

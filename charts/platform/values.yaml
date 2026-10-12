@@ -33,10 +33,20 @@ store:
   init:
     image: wordpress:cli-2.12.0-php8.3
     woocommerceVersion: 11.2.1
-    title: Urumi Demo Store
-    currency: USD
-    timezone: UTC
-    country: "US:CA"
+    title: TATVA                             # current working brand concept (D-015, may change)
+    currency: INR
+    timezone: Asia/Kolkata
+    country: "IN:KA"
+    # BRD-06: TATVA theme + catalogue + images, shipped as an image and imported by wp-init.
+    # Disabled → the plain store with three sample products (used before Phase 9).
+    brand:
+      enabled: true
+      image:
+        repository: store-assets
+        tag: dev
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { memory: 64Mi }
     adminSecret: wordpress-admin             # keys: admin-user, admin-password, admin-email
     apiSecret: woo-api                       # keys: consumer-key, consumer-secret
     resources:

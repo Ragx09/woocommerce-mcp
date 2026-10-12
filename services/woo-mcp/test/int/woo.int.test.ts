@@ -26,11 +26,13 @@ beforeAll(async () => {
 afterAll(async () => { await client?.close(); });
 
 describe('woo-mcp against the real store', () => {
-  it('TC-WC-08-1 list_products returns the seeded products', async () => {
-    const r = await call('list_products', { per_page: 50 });
-    expect(r.isError).toBe(false);
-    const names = r.data.products.map((p: { name: string }) => p.name);
-    expect(names).toEqual(expect.arrayContaining(['Urumi Mug', 'Urumi T-Shirt', 'Urumi Sticker Pack']));
+  it('TC-WC-08-1 list_products returns the seeded TATVA catalogue products', async () => {
+    // Search per product: the catalogue (50) plus draft test products exceeds one page of results.
+    for (const name of ['Hand-finished stoneware mug', 'Terracotta planter, medium', 'Loose-leaf tea, 100 g']) {
+      const r = await call('list_products', { search: name });
+      expect(r.isError, r.text).toBe(false);
+      expect(r.data.products.map((p: { name: string }) => p.name)).toContain(name);
+    }
   });
 
   it(`TC-WC-09-1 create_product (${publish ? 'published, checked on storefront' : 'draft'})`, async () => {
@@ -52,7 +54,7 @@ describe('woo-mcp against the real store', () => {
     const r = await call('list_orders', { date: 'today' });
     expect(r.isError, r.text).toBe(false);
     expect(r.data.count).toBeGreaterThan(0);
-    const order = r.data.orders.find((o: { items: string }) => /Urumi/.test(o.items));
+    const order = r.data.orders.find((o: { items: string }) => /stoneware mug/i.test(o.items)); // bought by scripts/e2e-checkout.sh
     expect(order).toBeDefined();
     orderId = order.id;
   });

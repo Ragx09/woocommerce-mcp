@@ -4,9 +4,10 @@
 Phase 2 — Gateway core (Day 2, 2026-10-12)
 
 ## Current task
-Day 2 complete (vertical slice + INF-15). Next: Day 3 — GW-09 Timeouts
+Day 2 complete; Phase 9 (TATVA storefront) done early at the user's request. Next: Day 3 — GW-09 Timeouts
 
 ## Recently completed
+- 2026-10-12: **Phase 9 BRD-01..07 — TATVA V1 storefront**: `tatva` child theme (palette/type from the V1 spec, header/footer, homepage sections in spec order, shop/category/brand/search archives with category/brand/price filters, product page, brand + category directories, concept page), 50-product INR catalogue with 9 placeholder brands imported idempotently by wp-init from the new `store-assets` image (D-016), 49/50 product images + 8 editorial images (CC0/PD only, no on-site credits per user; Openverse + Wikimedia Commons; manifest + `validate_images.py`). Old sample products retired. Verified: 22 page views audited (0 broken images/alt/h-scroll), COD e2e PASS with Indian address, woo-int 7/7, unit 26/26 + 48/48, chart 0 violations, pod-deletion keeps branding. Open: TAT-005 has no image; `/cart/` logs a WooCommerce `undefinedwc/store/v1/cart` 404 (cart works); clean-cluster run with branding not yet repeated.
 - 2026-10-12: P0-04 + ARC-15 Done — `GITHUB_MCP_PAT` verified against GitHub remote MCP (46 tools, `get_me` OK, 401 without token), put into Secret `upstream-seed`; D-013 Accepted. `.env` converted from CRLF to LF.
 - 2026-10-12: INF-15 — `scripts/up.sh` from a deleted cluster → all Ready in 5m32s (smoke: shop 200, gateway list + call OK); re-run is a no-op after fixing non-reproducible image ids (`--provenance=false --sbom=false` in `build-images.sh`); README "Local setup" written; `checkpoint.md` gitignored. Note: the clean rebuild reset all local data (orders, gateway DB, dev key) — the old demo-pay DB rows are gone with it.
 - 2026-10-12: Brand docs → **TATVA as the current working concept (may change)**: D-015 rewritten (Proposed), D-016 points to `docs/v1-brand-ui-theme.md`, BRD-01..07 reference the TATVA docs (5 categories, ~50 proposed products, placeholder brands), **BRD-03 unblocked** (theme material exists). TATVA docs committed; `*:Zone.Identifier` ignored. Sample products still named "Urumi …" until BRD-05.

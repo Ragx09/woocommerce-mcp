@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 
 const STORE = process.env.STORE_URL ?? 'http://store.127.0.0.1.nip.io';
-const PRODUCT = process.env.PRODUCT_SLUG ?? 'urumi-mug';
+const PRODUCT = process.env.PRODUCT_SLUG ?? 'hand-finished-stoneware-mug';
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.setDefaultTimeout(30_000);
@@ -13,12 +13,16 @@ try {
   await page.waitForLoadState('networkidle');
   await page.goto(`${STORE}/checkout/`);
   await page.getByLabel(/email address/i).fill('buyer@example.test');
-  await page.getByLabel(/^first name/i).fill('Grace');
-  await page.getByLabel(/^last name/i).fill('Hopper');
-  await page.getByLabel(/^address$/i).fill('1 Demo Street');
-  await page.getByLabel(/^city/i).fill('San Francisco');
-  const zip = page.getByLabel(/zip code|postcode|postal code/i).first();
-  await zip.fill('94105');
+  // Store base country is India (TATVA): Indian address, state and PIN code.
+  await page.getByLabel(/^first name/i).fill('Asha');
+  await page.getByLabel(/^last name/i).fill('Rao');
+  await page.getByLabel(/^address$/i).fill('12 Demo Road');
+  await page.getByLabel(/^city/i).fill('Bengaluru');
+  const state = page.getByLabel(/^state/i).first();
+  if (await state.evaluate((el) => el.tagName === 'SELECT')) await state.selectOption({ label: 'Karnataka' });
+  else { await state.fill('Karnataka'); await page.getByRole('option', { name: 'Karnataka' }).first().click().catch(() => {}); }
+  const zip = page.getByLabel(/pin code|zip code|postcode|postal code/i).first();
+  await zip.fill('560001');
   await page.screenshot({ path: '/out/checkout-form.png', fullPage: true });
   await expectText(page, 'Cash on delivery');
   await page.getByRole('button', { name: /place order/i }).click();

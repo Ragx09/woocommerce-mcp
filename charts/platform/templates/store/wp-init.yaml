@@ -36,6 +36,19 @@ spec:
         runAsGroup: 33
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
+      {{- if $i.brand.enabled }}
+      initContainers:
+        - name: store-assets   # copies theme, catalogue and images into the shared volume
+          image: "{{ $i.brand.image.repository }}:{{ $i.brand.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: assets, mountPath: /out }
+          resources: {{- include "platform.resources" (dict "name" "store-assets" "resources" $i.brand.resources) | nindent 12 }}
+      {{- end }}
       containers:
         - name: wp-cli
           image: {{ $i.image }}
@@ -54,6 +67,7 @@ spec:
             - { name: STORE_CURRENCY, value: {{ $i.currency | quote }} }
             - { name: STORE_TIMEZONE, value: {{ $i.timezone | quote }} }
             - { name: STORE_COUNTRY, value: {{ $i.country | quote }} }
+            - { name: BRAND_ENABLED, value: {{ $i.brand.enabled | quote }} }
             - name: ADMIN_USER
               valueFrom: { secretKeyRef: { name: {{ $i.adminSecret }}, key: admin-user } }
             - name: ADMIN_PASSWORD
@@ -70,10 +84,17 @@ spec:
           volumeMounts:
             - { name: data, mountPath: /var/www/html }
             - { name: script, mountPath: /scripts }
+            {{- if $i.brand.enabled }}
+            - { name: assets, mountPath: /assets, readOnly: true }
+            {{- end }}
           resources: {{- include "platform.resources" (dict "name" "wp-init" "resources" $i.resources) | nindent 12 }}
       volumes:
         - name: data
           persistentVolumeClaim: { claimName: wordpress-data }
         - name: script
           configMap: { name: wp-init-script }
+        {{- if $i.brand.enabled }}
+        - name: assets
+          emptyDir: { sizeLimit: 200Mi }
+        {{- end }}
 {{- end }}

@@ -1,0 +1,58 @@
+<!-- wp:template-part {"slug":"header","tagName":"header"} /-->
+<!-- wp:group {"tagName":"main","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"1240px"}} -->
+<main class="wp-block-group" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+	<!-- wp:woocommerce/breadcrumbs {"fontSize":"small"} /-->
+	<!-- wp:woocommerce/store-notices /-->
+	<!-- wp:columns {"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|60"},"margin":{"top":"var:preset|spacing|40"}}}} -->
+	<div class="wp-block-columns" style="margin-top:var(--wp--preset--spacing--40)">
+		<!-- wp:column {"width":"52%"} -->
+		<div class="wp-block-column" style="flex-basis:52%">
+			<!-- wp:woocommerce/product-image-gallery /-->
+		</div>
+		<!-- /wp:column -->
+		<!-- wp:column -->
+		<div class="wp-block-column">
+			<!-- wp:post-terms {"term":"product_brand","style":{"typography":{"letterSpacing":"0.08em","textTransform":"uppercase","fontWeight":"600"}},"fontSize":"small"} /-->
+			<!-- wp:post-title {"level":1,"fontSize":"x-large","__woocommerceNamespace":"woocommerce/product-query/product-title"} /-->
+			<!-- wp:woocommerce/product-price {"isDescendentOfSingleProductTemplate":true,"fontSize":"large"} /-->
+			<!-- wp:post-excerpt {"__woocommerceNamespace":"woocommerce/product-query/product-summary","excerptLength":100} /-->
+			<!-- wp:woocommerce/product-stock-indicator {"isDescendentOfSingleProductTemplate":true,"fontSize":"small"} /-->
+			<!-- wp:woocommerce/add-to-cart-form /-->
+			<!-- wp:woocommerce/product-meta -->
+			<div class="wp-block-woocommerce-product-meta">
+				<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"},"style":{"spacing":{"blockGap":"0.25rem"}},"fontSize":"small"} -->
+				<div class="wp-block-group has-small-font-size">
+					<!-- wp:woocommerce/product-sku /-->
+					<!-- wp:post-terms {"term":"product_cat","prefix":"Category: "} /-->
+					<!-- wp:post-terms {"term":"product_brand","prefix":"Brand: "} /-->
+				</div>
+				<!-- /wp:group -->
+			</div>
+			<!-- /wp:woocommerce/product-meta -->
+			<!-- wp:paragraph {"className":"tatva-demo-note","style":{"spacing":{"margin":{"top":"var:preset|spacing|40"}}}} -->
+			<p class="tatva-demo-note" style="margin-top:var(--wp--preset--spacing--40)">Demo listing: materials, dimensions and care details will be added from the brand. Price is illustrative.</p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:column -->
+	</div>
+	<!-- /wp:columns -->
+	<!-- wp:woocommerce/related-products {"align":"wide"} -->
+	<div class="wp-block-woocommerce-related-products alignwide">
+		<!-- wp:query {"queryId":13,"query":{"perPage":4,"pages":0,"offset":0,"postType":"product","order":"asc","orderBy":"title","author":"","search":"","exclude":[],"sticky":"","inherit":false},"namespace":"woocommerce/related-products","lock":{"remove":true,"move":true}} -->
+		<div class="wp-block-query">
+			<!-- wp:heading {"style":{"spacing":{"margin":{"top":"var:preset|spacing|60"}}}} -->
+			<h2 class="wp-block-heading" style="margin-top:var(--wp--preset--spacing--60)">You may also like</h2>
+			<!-- /wp:heading -->
+			<!-- wp:post-template {"className":"products-block-post-template","layout":{"type":"grid","columnCount":4},"__woocommerceNamespace":"woocommerce/product-query/product-template"} -->
+				<!-- wp:woocommerce/product-image {"isDescendentOfQueryLoop":true,"aspectRatio":"4/5","scale":"cover"} /-->
+				<!-- wp:post-title {"level":3,"isLink":true,"fontSize":"medium","fontFamily":"manrope","style":{"typography":{"fontWeight":"600"},"spacing":{"margin":{"top":"0.75rem","bottom":"0.15rem"}}},"__woocommerceNamespace":"woocommerce/product-query/product-title"} /-->
+				<!-- wp:post-terms {"term":"product_brand"} /-->
+				<!-- wp:woocommerce/product-price {"isDescendentOfQueryLoop":true,"fontSize":"medium"} /-->
+			<!-- /wp:post-template -->
+		</div>
+		<!-- /wp:query -->
+	</div>
+	<!-- /wp:woocommerce/related-products -->
+</main>
+<!-- /wp:group -->
+<!-- wp:template-part {"slug":"footer","tagName":"footer"} /-->

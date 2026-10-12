@@ -42,6 +42,8 @@ KEY="$(kubectl -n platform get secret gateway-dev-key -o jsonpath='{.data.key}' 
 npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http \
   --header "Authorization: Bearer $KEY" --method tools/list; unset KEY
 ```
+Storefront (TATVA, D-016): `scripts/build-images.sh` also builds `store-assets` (theme, catalogue, images); every deploy's wp-init Job installs the theme and imports `services/store-assets/catalogue/catalogue.json` (idempotent; log line `catalogue: 50 products (… unchanged)`). To change products or copy: edit the catalogue/theme, then `SERVICES=store-assets scripts/build-images.sh && scripts/deploy.sh local`. `store.init.brand.enabled=false` gives the plain store. Visual check: `scripts/storefront-screens.sh` (screenshots in `tests/e2e/out/screens`).
+
 Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
 
 Local domains: `http://store.127.0.0.1.nip.io`, `http://app.127.0.0.1.nip.io`. nip.io resolves `*.127.0.0.1.nip.io` to 127.0.0.1, so no hosts-file edits are needed. Fallback: add both hosts to `/etc/hosts` and `C:\Windows\System32\drivers\etc\hosts`.

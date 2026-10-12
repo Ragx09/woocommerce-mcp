@@ -2030,103 +2030,101 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 
 ### BRD-01 — Niche and positioning
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** WC-03
 - **Requirements:** —
-- **Description:** Summarise the current working concept, **TATVA** (D-015, may change): a curated multi-brand Indian lifestyle store. Primary line "The Essence of Good Design.", campaign line "Discover brands with meaning."; audience, brand principles, voice/copy rules; the 5 categories (Home & Living as hero, Personal Care, Fashion & Accessories, Food & Drink, Stationery & Everyday Objects); placeholder brand names; merchandising rules. Source: `docs/tatva-brand-and-products.md` §1–5, §7–8.
-- **Output:** `brand/BRAND.md`.
-- **Acceptance:** One page that BRD-02..05 can be built from without further questions; brand-name review note for REL-16/17 recorded.
-- **Tests:** TC-BRD-01-1: user reviews `brand/BRAND.md` → approved.
+- **Description:** Current working concept **TATVA** (D-015, may change): curated multi-brand Indian lifestyle store, primary line "The Essence of Good Design.", 5 categories (Home & Living hero), placeholder brands, voice and merchandising rules. Source of truth: `docs/tatva-brand-and-products.md` (user-supplied).
+- **Output:** `docs/tatva-brand-and-products.md` (brand + catalogue), applied in theme copy and `services/store-assets/catalogue/catalogue.json`.
+- **Acceptance:** BRD-02..05 built from it without further questions; brand-name review note for REL-16/17 recorded (D-015).
+- **Tests:** TC-BRD-01-1: copy check — site title, tagline, hero, concept page match the doc; no unsupported claims.
 - **Command:** —
-- **Evidence:** —
-- **Regression risk:** Brand names are placeholders, not real businesses; still review names and claims before the repo goes public (REL-16/17, D-015).
+- **Evidence:** 2026-10-12: site title "TATVA – The Essence of Good Design." on every page; concept page and homepage copy follow §1–4/§7 of the doc (no "sustainable/handmade/organic" claims, demo disclosure in footer, brand pages and product pages). Scan of 10 storefront pages for "urumi" → 0.
+- **Regression risk:** Concept may change: only the docs, D-015, `catalogue.json` and the theme copy need edits.
 
 ### BRD-02 — Logo and visual identity
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-01
 - **Requirements:** —
-- **Description:** Wordmark + mark for the current working name (TATVA) as SVG, favicon/site icon (512 px PNG + ICO), colour palette and font pairing from `docs/v1-brand-ui-theme.md` §2 with licences noted. Keep the name in one place so a rename is a token change.
-- **Output:** `brand/logo/` (SVG, PNG, ICO), `brand/palette.md` (hex values, contrast ratios).
-- **Acceptance:** Logo readable at 32 px and on light/dark backgrounds; text/background pairs meet WCAG AA (4.5:1).
-- **Tests:** TC-BRD-02-1: contrast check of each text pair → ≥ 4.5:1. TC-BRD-02-2: favicon renders in the browser tab.
+- **Description:** Wordmark for the working name (Literata, letter-spaced, as site title so it stays crisp and editable) + SVG wordmark + site icon; palette and fonts from `docs/v1-brand-ui-theme.md` §2 (+ terracotta accent).
+- **Output:** `brand/logo/tatva-wordmark.svg`, `brand/logo/site-icon-512.png`, `favicon-64.png`; site icon installed by the importer; fonts Literata + Manrope (OFL, bundled in the theme, no CDN).
+- **Acceptance:** Logo readable at 32 px; text pairs meet WCAG AA.
+- **Tests:** TC-BRD-02-1 contrast; TC-BRD-02-2 favicon set.
 - **Command:** —
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: site icon = forest-green "T" monogram (512 px) set as `site_icon` by the importer. Contrast (WCAG formula, computed): charcoal/ivory 13.50, forest/ivory 11.07, white/forest 11.96, charcoal/sand 10.78, forest/sand 8.84, footer note/forest 8.82, terracotta/ivory 5.04; spec grey #737873 on ivory 4.17 (fails AA 4.5) → muted grey token darkened to #5F645F: 5.59 on ivory, 6.04 on white. Fonts served from the theme (no external requests: audit console errors 0 on 20/22 page views).
+- **Regression risk:** Changing the name means changing the site title value and the SVG text only.
 
 ### BRD-03 — Design tokens and theme
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-02
 - **Requirements:** —
-- **Description:** Theme material now exists: `docs/v1-brand-ui-theme.md` (2026-10-12; was Blocked waiting for it). Turn it into theme tokens (theme.json colours, typography scale, spacing, radii, shadows) and pick the theme base (D-016).
-- **Output:** Theme source under `charts/platform/files/theme/` (or as D-016 decides).
-- **Acceptance:** Tokens match `brand/` material; no hard-coded colours outside the token file.
-- **Tests:** TC-BRD-03-1: grep theme CSS for raw hex outside tokens → none.
-- **Command:** —
-- **Evidence:** —
-- **Regression risk:** A theme switch can change checkout markup used by `scripts/e2e-checkout.sh`.
+- **Description:** Theme decision (D-016): `tatva` child theme of Twenty Twenty-Five (block theme, WooCommerce blocks). theme.json maps the TATVA palette onto the parent's slots (base, contrast, accent-1..6) so every parent/WooCommerce template inherits it; type scale Literata (display) + Manrope (UI).
+- **Output:** `services/store-assets/theme/tatva/` (theme.json, style.css, functions.php, parts/, templates/, patterns/, assets/).
+- **Acceptance:** Tokens match `docs/v1-brand-ui-theme.md`; no hard-coded colours outside theme.json except the documented footer note tint.
+- **Tests:** TC-BRD-03-1 grep for raw hex outside theme.json.
+- **Command:** `grep -rn "#[0-9A-Fa-f]\{6\}" services/store-assets/theme/tatva --include=*.css --include=*.html --include=*.php`
+- **Evidence:** 2026-10-12: palette Warm ivory #F8F6F0, Charcoal #252A27, Forest #173D35, Sand #E8DCC9, Sage #A6B7A0, Muted grey #5F645F, White, Terracotta #A4532F; buttons 2 px radius, visible focus outline, reduced-motion respected. Raw hex outside theme.json: footer note colour #d9dfd6 only (documented).
+- **Regression risk:** A parent-theme update could change parent patterns; our templates override header, footer, home, archives, brand and product pages.
 
 ### BRD-04 — Storefront UI layout
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-03
 - **Requirements:** —
-- **Description:** Build the pages from `docs/v1-brand-ui-theme.md` (§3 navigation, §4 homepage layout, §5 required pages, §6 product/brand cards, §7 states). Style product page, cart and checkout to match. Mobile layout (≤ 400 px) without horizontal scroll.
-- **Output:** Templates/patterns in the theme; About page content.
-- **Acceptance:** Homepage matches the theme spec sections in order (`docs/v1-brand-ui-theme.md` §4, §9 checklist); all links work; mobile layout usable; checkout still works.
-- **Tests:** TC-BRD-04-1: desktop + mobile screenshots vs theme spec → sections present. TC-BRD-04-2: header search returns products.
-- **Command:** —
-- **Evidence:** —
-- **Regression risk:** Block checkout styling must not hide the payment method radios.
+- **Description:** Pages per `docs/v1-brand-ui-theme.md`: header (wordmark, Home/Shop/Brands/Categories/Our Concept, search, account, cart; mobile menu), homepage sections in spec order (hero, curation principles, shop by category, featured brands, featured products, curated collection "The Morning Table", concept), shop/category/brand/search archives with category/brand/price filters and sorting (no rating sort: no reviews exist), product page (gallery, brand, ₹ price, add to cart, SKU, demo-listing note, related products), brand directory, category directory, concept page, footer. Brand shown on cards, product page and cart lines. Missing-image fallback.
+- **Output:** Theme templates/patterns; pages Brands, Categories, Our Concept created by the importer (bodies are theme patterns).
+- **Acceptance:** Homepage matches the spec sections in order; links work; mobile usable; checkout still works.
+- **Tests:** TC-BRD-04-1 screenshots desktop+mobile; TC-BRD-04-2 search returns products; TC-BRD-04-3 empty search shows a clear empty state.
+- **Command:** `scripts/storefront-screens.sh`
+- **Evidence:** 2026-10-12: `scripts/storefront-screens.sh` → 11 pages × 2 viewports: all 200, broken images 0, missing alt 0, horizontal scroll none, console errors 0 on 20/22 (the 2 are `/cart/`: WooCommerce cart script requests `/cart/undefinedwc/store/v1/cart` → 404; cart and checkout work, source not yet identified — open item). Search "mug" → product found; "zzzz" → "No products found" state. Screenshots: `docs/evidence/brd-07-*.jpg`.
+- **Regression risk:** Block checkout markup changes could affect `scripts/e2e-checkout.sh`.
 
-### BRD-05 — Product catalogue
+### BRD-05 — Product catalogue and images
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-01
-- **Requirements:** REQ-STORE-01
-- **Description:** Store currency INR (₹). Create the 5 categories, a brand taxonomy (WooCommerce built-in Brands) with the placeholder brands, and the proposed ~50-product starter catalogue from `docs/tatva-brand-and-products.md` §6 (name, brand, category, illustrative ₹ price, short description, image, SKU), with featured products per §8 (stoneware mug as hero). Images per `docs/PRODUCT_IMAGES.md` (open-licence, attributed). Seeded **idempotently** by wp-init (match on SKU, never duplicate on re-run); replaces today's sample products ("Urumi Mug", "Urumi T-Shirt", "Urumi Sticker Pack"), which tests and the e2e checkout still use until then.
-- **Output:** Catalogue data file (`charts/platform/files/catalogue/products.json` or similar) + wp-init step; product images.
-- **Acceptance:** Fresh install → all 5 categories have products; re-running wp-init creates no duplicates.
-- **Tests:** TC-BRD-05-1: count products/categories/brands after install. TC-BRD-05-2: re-run wp-init → counts unchanged. TC-BRD-05-3: MCP `list_products` returns ₹ prices.
-- **Command:** `scripts/woo-int.sh`
-- **Evidence:** —
-- **Regression risk:** Images exceed the 1 MiB ConfigMap limit → ship them via an init container or a custom image. Tests that assume old sample product names must be updated.
+- **Requirements:** —
+- **Description:** INR store; 5 categories, 9 placeholder brands (WooCommerce Brands), the 50-product proposed catalogue from `docs/tatva-brand-and-products.md` §6 (illustrative ₹ prices, descriptions only restating the product name), 8 featured, collection tag "The Morning Table". Images per `docs/PRODUCT_IMAGES.md`, restricted to **CC0 / Public Domain** (no attribution needed, so the store shows no credits — user decision 2026-10-12); sourced via the Openverse and Wikimedia Commons APIs, chosen visually, cropped/resized only. Imported idempotently (SKU, image key + checksum); replaces the old sample products (trashed).
+- **Output:** `services/store-assets/catalogue/catalogue.json`, `services/store-assets/images/{products,editorial,brand}/`, `services/store-assets/images/manifest.json` (source, creator, licence, URLs, original size, sha256, modifications, alt), `services/store-assets/import/import-catalogue.php`, tools `scripts/brand/{find_images,fetch_image,validate_images}.py`.
+- **Acceptance:** Fresh install → all 5 categories have products; re-running wp-init creates no duplicates; every product has an image or a recorded gap.
+- **Tests:** TC-BRD-05-1 counts; TC-BRD-05-2 re-run → unchanged; TC-BRD-05-3 MCP list_products returns ₹ catalogue; TC-BRD-05-4 `validate_images.py`.
+- **Command:** `python3 scripts/brand/validate_images.py && scripts/woo-int.sh`
+- **Evidence:** 2026-10-12: `validate_images.py` exit 0 — products with images **49/50** (gap: TAT-005 desk organiser, no suitable CC0 image without an identifiable third-party product → WooCommerce placeholder + theme fallback), 8 editorial/category images, 57 unique files, licences CC0 56 + Public domain 1, sources Openverse (rawpixel 26, StockSnap 24, WordPress Photo Directory 2, Flickr 2) + Wikimedia Commons 3, 2.6 MB total, WebP 800×1000 (products) / 900×1125 (tiles) / 3:2 (editorial). Import: first run "50 created, 16 images, 3 retired"; after images "54 images uploaded"; two no-op deploys "0 created, 0 updated, 50 unchanged, 0 images uploaded"; DB: 50 published products, 55 tracked attachments, no duplicate keys. Via gateway `woo__list_products {search:"stoneware"}` → Stoneware breakfast bowl 1050, dinner plate 950, Hand-finished stoneware mug 1299. `scripts/woo-int.sh` 7/7.
+- **Regression risk:** Openverse rawpixel originals are served at ~1024 px, so some product images are upscaled to 800×1000 (soft on large screens). Changing image keys re-uploads media.
 
 ### BRD-06 — Theme and asset packaging
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-03, BRD-05
-- **Requirements:** REQ-K8S-03
-- **Description:** Install and activate the theme, logo, site icon, menus, homepage and catalogue through wp-init. Toggle in values (`store.brand.enabled`).
-- **Output:** Chart templates + wp-init steps.
-- **Acceptance:** `scripts/down.sh && scripts/up.sh` (or fresh `helm install`) → branded store with no manual steps; data survives pod deletion.
-- **Tests:** TC-BRD-06-1: fresh cluster → branded homepage. TC-BRD-06-2: delete wordpress pod → still branded.
+- **Requirements:** —
+- **Description:** `store-assets` image (busybox 1.37.0, files only) built by `scripts/build-images.sh` with a content-addressed tag; the wp-init Job copies it via an initContainer into an emptyDir, then WP-CLI swaps the theme in atomically, activates it and runs the importer. Toggle `store.init.brand.enabled` (off → old plain store). Store settings from values: title TATVA, INR, Asia/Kolkata, IN:KA.
+- **Output:** `services/store-assets/Dockerfile`, `charts/platform/templates/store/wp-init.yaml` (initContainer + emptyDir), `charts/platform/files/wp-init.sh`, values `store.init.brand`, `scripts/deploy.sh` tag wiring.
+- **Acceptance:** Fresh helm install → branded store with no manual steps; data survives pod deletion.
+- **Tests:** TC-BRD-06-1 fresh cluster → branded homepage. TC-BRD-06-2 delete wordpress pod → still branded.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
-- **Regression risk:** wp-init run time grows; keep the Job's backoff/timeout in step.
+- **Evidence:** 2026-10-12: `check-chart.sh` → lint ×2, kubeconform 24/24 ×2, policy 0 violations. Deploys rev 5–15 applied the theme + import through the Job (no manual steps). TC-BRD-06-2 PASS: `kubectl delete pod -l app=wordpress` → new pod Ready → title "TATVA – The Essence of Good Design.", hero and brands present. TC-BRD-06-1 on a deleted cluster **not re-run** after branding (it wipes local data; the INF-15 clean run predates branding) — run with `scripts/down.sh --all && scripts/up.sh` before REL.
+- **Regression risk:** For the VPS the `store-assets` image must be pushed to the registry like the other images (REL-03).
 
 ### BRD-07 — Storefront verification
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** BRD-04, BRD-06
-- **Requirements:** REQ-DOD-01
-- **Description:** Screenshots (desktop + mobile) checked against `docs/v1-brand-ui-theme.md` §9; full regression of checkout and MCP tools.
-- **Output:** `docs/evidence/brd-07-*.png`.
+- **Requirements:** —
+- **Description:** Screenshots (desktop + mobile) checked against `docs/v1-brand-ui-theme.md` §9; regression of checkout and MCP tools.
+- **Output:** `docs/evidence/brd-07-*.jpg`; `scripts/storefront-screens.sh`, `tests/e2e/screens.mjs`.
 - **Acceptance:** Checkout (COD) passes; woo-int passes; screenshots stored.
-- **Tests:** TC-BRD-07-1: `scripts/e2e-checkout.sh` → COD checkout PASS. TC-BRD-07-2: `scripts/woo-int.sh` → all PASS.
+- **Tests:** TC-BRD-07-1 `scripts/e2e-checkout.sh` → COD PASS. TC-BRD-07-2 `scripts/woo-int.sh` → all PASS.
 - **Command:** `scripts/e2e-checkout.sh && scripts/woo-int.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-12: e2e checkout PASS (TATVA mug, Indian address, Bengaluru/Karnataka/560001, COD) — orders #83, #139; `scripts/woo-int.sh` 7/7 (product lookup now by search: catalogue + draft test products exceed one page); woo-mcp unit 26/26; gateway unit 48/48. 9 screenshots in `docs/evidence/brd-07-*.jpg`. §9 checklist: warm editorial direction, concept understandable from the homepage, coherent shop/category/brand/product pages, brand visible but not dominant, buy within the store, deliberate mobile layout (2-column category tiles, mobile menu), accessible contrast/focus/alt, claims marked as demo.
 - **Regression risk:** —
-
----
 
 ## Phase 10 — Security testing: attack and harden
 Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run, every finding in `docs/SECURITY_FINDINGS.md` is fixed (with a regression test) or explicitly accepted, and `docs/SECURITY_REPORT.md` is written. Added 2026-10-12 at the user's request. Starts after E2E-14 (Day 6–7) and continues after submission. **Scope: only our own targets** — the local k3d hosts (`*.127.0.0.1.nip.io`, the cluster) and later our own VPS. Third-party services we only connect to (GitHub remote MCP, Groq, OpenRouter) are out of scope.

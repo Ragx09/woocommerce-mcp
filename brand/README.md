@@ -12,3 +12,15 @@ Source material for the storefront brand (Phase 9 in `TASKS.md`, BRD-01…07). T
 | `products/`: product images (with licence/attribution) | here | BRD-05 |
 
 **How it fits into the code:** see [`INTEGRATION_GUIDE.md`](INTEGRATION_GUIDE.md). It covers the surfaces themed, what's still missing, and what breaks.
+
+## Implementation (Phase 9, 2026-10-12)
+| What | Where |
+|---|---|
+| Theme (`tatva`, child of Twenty Twenty-Five) | `services/store-assets/theme/tatva/` |
+| Catalogue (50 products, 5 categories, 9 placeholder brands) | `services/store-assets/catalogue/catalogue.json` |
+| Product, category and editorial images (CC0 / Public Domain, WebP) | `services/store-assets/images/` |
+| Image records (source, creator, licence, URLs, checksum, alt) | `services/store-assets/images/manifest.json` |
+| Importer (idempotent, run by wp-init) | `services/store-assets/import/import-catalogue.php` |
+| Image tools: search, fetch/crop, validate | `scripts/brand/` |
+| Logo, site icon | `brand/logo/` |
+| Screenshots | `docs/evidence/brd-07-*.jpg` |

@@ -116,9 +116,10 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Why:** A concrete, good-looking store makes the demo more convincing than generic sample products. Keeping the concept in docs (not in task text) means a later rename only touches those docs, the theme tokens and the catalogue data.
 - **Trade-offs:** Placeholder brand names avoid most trademark risk, but names, product claims and image licences still need a check before the repo goes public or the video is recorded (REL-16/17). Brand work is P2 and the first thing cut if behind. Today's seeded sample products still carry "Urumi" names until BRD-05 replaces them.
 
-## D-016 — Storefront theme approach
+## D-016 — Storefront theme and asset delivery
 - **Date:** 2026-10-12
-- **Status:** Proposed (theme material available: [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md))
-- **Choice:** To be decided in BRD-03 from `docs/v1-brand-ui-theme.md`. Constraint: the theme, assets and catalogue must be installed by wp-init so a fresh cluster reproduces the store with no manual steps.
-- **Why:** Reproducibility across local k3d and the VPS with the same chart.
-- **Trade-offs:** Images exceed the 1 MiB ConfigMap limit, so they need an init container or a custom image.
+- **Status:** Accepted (BRD-03/06 implemented and verified 2026-10-12)
+- **Choice:** A `tatva` child theme of Twenty Twenty-Five (block theme + WooCommerce blocks), following [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md). Theme, catalogue (`catalogue.json`), images and importer ship as a files-only `store-assets` image; the wp-init Job copies it in through an initContainer, swaps the theme in and runs an idempotent WP-CLI importer that uses the normal WooCommerce data model and media library. Product images: CC0 / Public Domain only (no attribution required, so no credits on the storefront — user decision), sourced via the Openverse and Wikimedia Commons APIs, recorded in `images/manifest.json`.
+- **Why:** Reproducible on k3d and the VPS with the same chart; images exceed the 1 MiB ConfigMap limit; one source of truth in git; no hand-made WordPress state. A child of the bundled default theme keeps WooCommerce block templates and checkout markup stable.
+- **Trade-offs:** One more image to build and push (REL-03). CC0/PD-only narrows image choice (one product without a suitable image, some originals only ~1024 px). A full-site-editing change made in wp-admin would be overwritten by the next deploy for theme files (content pages are patterns, so text lives in git).
+

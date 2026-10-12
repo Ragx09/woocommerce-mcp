@@ -5,7 +5,7 @@
 ## 1. Layers
 | # | Layer | Component | Responsibility |
 |---|---|---|---|
-| 1 | Store | `wordpress` + `mariadb` (+ `wp-init` Job) | WooCommerce storefront, checkout (COD), admin, REST API |
+| 1 | Store | `wordpress` + `mariadb` (+ `wp-init` Job, + `store-assets` initContainer) | WooCommerce storefront (TATVA theme and catalogue, D-016), checkout (COD), admin, REST API |
 | 2 | WooCommerce MCP server | `woo-mcp` | Exposes products and orders as MCP tools over Streamable HTTP; talks to WooCommerce REST (`/wp-json/wc/v3`) with OAuth 1.0a signing |
 | 3 | Gateway + dashboard | `gateway` (Fastify) + `dashboard` (React static) + `postgres` | Gateway: one MCP endpoint aggregating upstream tools, upstream registry, auth (sessions + API keys), audit, REST API for the dashboard. Dashboard: UI only, no secrets. |
 | 4 | Chat agent | module inside `gateway` | LLM tool loop; executes tools by calling the gateway's own `/mcp` as the logged-in user |
@@ -109,3 +109,4 @@ One umbrella chart `charts/platform`, with subcharts or templates per component,
 - Tool names are always namespaced (`slug__tool`): no ambiguity, but longer names.
 - Stateless MCP: horizontally scalable, but no server-initiated notifications (we don't need them).
 - Own Helm templates instead of Bitnami: more YAML, but no dependency on deprecated images.
+- Storefront brand as code: theme + catalogue + images ship in a `store-assets` image and are imported idempotently by wp-init (D-016), at the cost of one more image to build and push.

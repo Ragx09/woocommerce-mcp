@@ -1,0 +1,149 @@
+/*
+Theme Name: TATVA
+Theme URI: https://github.com/Ragx09/woocommerce-mcp
+Description: TATVA V1 storefront (current working brand concept, may change). Child theme of Twenty Twenty-Five. Design tokens follow docs/v1-brand-ui-theme.md; brand and catalogue follow docs/tatva-brand-and-products.md.
+Template: twentytwentyfive
+Version: 1.0.0
+Requires at least: 6.7
+Requires PHP: 8.1
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: tatva
+*/
+
+/* Only what theme.json cannot express. Colours come from the theme.json presets. */
+
+/* Product images: one consistent 4:5 crop across grids, cards, cart and gallery (no layout shift). */
+.wc-block-components-product-image img,
+.wp-block-woocommerce-product-image img,
+.tatva-card__media img {
+	aspect-ratio: 4 / 5;
+	object-fit: cover;
+	width: 100%;
+	height: auto;
+	background: var(--wp--preset--color--accent-2);
+}
+
+/* Missing image: a calm sand panel instead of a broken icon (theme.js swaps failed images). */
+img.tatva-img-missing {
+	visibility: hidden;
+}
+.tatva-img-fallback {
+	background: var(--wp--preset--color--accent-2);
+	aspect-ratio: 4 / 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--wp--preset--color--accent-4);
+	font-size: var(--wp--preset--font-size--small);
+}
+
+/* Lifestyle imagery fills its frame; product imagery is never stretched. */
+.tatva-editorial img {
+	object-fit: cover;
+	width: 100%;
+	height: 100%;
+}
+
+/* Brand name on product cards and pages: quiet metadata, not a badge. */
+.taxonomy-product_brand.wp-block-post-terms,
+.tatva-brand {
+	color: var(--wp--preset--color--accent-4);
+	font-size: var(--wp--preset--font-size--small);
+	letter-spacing: 0.02em;
+}
+.taxonomy-product_brand.wp-block-post-terms a {
+	color: inherit;
+	text-decoration: none;
+}
+.taxonomy-product_brand.wp-block-post-terms a:hover,
+.taxonomy-product_brand.wp-block-post-terms a:focus-visible {
+	text-decoration: underline;
+}
+
+/* Cards: restrained, no heavy shadows; subtle hover that never hides information. */
+.tatva-card {
+	background: var(--wp--preset--color--accent-5);
+	height: 100%;
+	transition: transform 160ms ease;
+}
+.tatva-card:hover {
+	transform: translateY(-2px);
+}
+.tatva-card a {
+	text-decoration: none;
+	color: inherit;
+}
+.tatva-brand-mark {
+	aspect-ratio: 3 / 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--wp--preset--color--accent-2);
+	font-family: var(--wp--preset--font-family--literata);
+	font-size: clamp(1.4rem, 2.4vw, 2rem);
+	color: var(--wp--preset--color--accent-1);
+	text-align: center;
+	padding: 1rem;
+}
+
+/* Visible keyboard focus everywhere. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent-1);
+	outline-offset: 2px;
+}
+
+/* Wordmark */
+.tatva-wordmark .wp-block-site-title a,
+.wp-block-site-title.tatva-wordmark a {
+	letter-spacing: 0.28em;
+	text-decoration: none;
+}
+
+/* Demo disclosure: honest, small, never alarming. */
+.tatva-demo-note {
+	color: var(--wp--preset--color--accent-4);
+	font-size: var(--wp--preset--font-size--small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tatva-card { transition: none; }
+	.tatva-card:hover { transform: none; }
+}
+
+/* ---- Grids for categories and brands ---- */
+.tatva-grid {
+	list-style: none;
+	margin: var(--wp--preset--spacing--40) 0 0;
+	padding: 0;
+	display: grid;
+	gap: var(--wp--preset--spacing--40);
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+.tatva-grid--brands { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.tatva-card__body { padding: 1rem 1.1rem 1.25rem; }
+.tatva-card__body h3 { margin: 0 0 0.35rem; font-size: var(--wp--preset--font-size--large); }
+.tatva-card__body p { margin: 0 0 0.5rem; }
+.tatva-card--category .tatva-card__media { aspect-ratio: 4 / 5; overflow: hidden; }
+.tatva-card--category .tatva-card__media img { aspect-ratio: 4 / 5; }
+.tatva-link-arrow { font-weight: 600; font-size: var(--wp--preset--font-size--small); }
+.tatva-link-arrow::after { content: " \2192"; }
+
+/* ---- Curation principles strip ---- */
+.tatva-principles {
+	list-style: none; margin: 0; padding: 0;
+	display: grid; gap: var(--wp--preset--spacing--40);
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.tatva-principles li { display: flex; flex-direction: column; gap: 0.25rem; }
+.tatva-principles strong { font-family: var(--wp--preset--font-family--literata); font-weight: 500; font-size: var(--wp--preset--font-size--large); color: var(--wp--preset--color--accent-1); }
+
+/* ---- Mobile: no horizontal scroll, comfortable gutters ---- */
+@media (max-width: 600px) {
+	.wp-block-columns { gap: var(--wp--preset--spacing--40); }
+	.tatva-principles { grid-template-columns: 1fr 1fr; }
+	.tatva-grid--categories { grid-template-columns: 1fr 1fr; gap: var(--wp--preset--spacing--30); }
+	.tatva-grid--categories .tatva-card__body { padding: 0.6rem 0.7rem 0.8rem; }
+	.tatva-grid--categories .tatva-card__body h3 { font-size: var(--wp--preset--font-size--medium); }
+}
+

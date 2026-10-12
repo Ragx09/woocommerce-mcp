@@ -33,7 +33,15 @@ q option update woocommerce_cod_settings '{"enabled":"yes","title":"Cash on deli
 q option update woocommerce_enable_guest_checkout yes
 echo "store settings applied (COD enabled)"
 
-if [ "$($WP post list --post_type=product --post_status=any --format=count)" = "0" ]; then
+if [ "${BRAND_ENABLED:-false}" = "true" ]; then
+  # BRD-06: TATVA theme (replaced on every run so updates apply) + idempotent catalogue import.
+  T=/var/www/html/wp-content/themes
+  rm -rf "$T/.tatva-new" "$T/.tatva-old" && cp -r /assets/theme/tatva "$T/.tatva-new"
+  [ -d "$T/tatva" ] && mv "$T/tatva" "$T/.tatva-old"; mv "$T/.tatva-new" "$T/tatva"; rm -rf "$T/.tatva-old"
+  [ "$($WP option get stylesheet)" = "tatva" ] || q theme activate tatva
+  q option update blogname "$TITLE"
+  ASSETS_DIR=/assets $WP eval-file /assets/import/import-catalogue.php
+elif [ "$($WP post list --post_type=product --post_status=any --format=count)" = "0" ]; then
   for p in "Urumi Mug|12.00" "Urumi T-Shirt|25.00" "Urumi Sticker Pack|5.00"; do
     q wc product create --user="$ADMIN_USER" --name="${p%|*}" --regular_price="${p#*|}" --status=publish
   done

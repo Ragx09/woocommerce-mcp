@@ -106,9 +106,11 @@ Bonus multi-store provisioning; stand-out items: VPS deployment with TLS, per-ro
 - **A-01** The chat agent's LLM is Groq (free tier) by default; OpenRouter free models are also supported. Both use the OpenAI-compatible chat-completions API with tool calling.
 - **A-02** The two additional upstreams are `@modelcontextprotocol/server-everything` (in-cluster, Streamable HTTP) and GitHub's remote MCP server (PAT bearer credential).
 - **A-03** Invites are one-time links shown to the admin; no email is sent.
-- **A-04** "Today" for orders means the store's timezone (configured in WooCommerce; UTC by default).
+- **A-04** "Today" for orders means the store's timezone (configured in WooCommerce; Asia/Kolkata since the TATVA storefront, values `store.init.timezone`).
 - **A-05** Dashboard login is email + password; external MCP clients use API keys (`Authorization: Bearer <key>`).
 - **A-06** The VPS is not available yet. Development is local on k3d (k3s in Docker) so the VPS step is values-only.
+- **A-07** Storefront brand (Phase 9, not part of the problem statement's requirements): the current working concept is TATVA (D-015). Where `docs/PRODUCT_IMAGES.md` says "16 products", the catalogue in `docs/tatva-brand-and-products.md` (50 products) is authoritative, so images were sourced for all 50.
+- **A-08** Storefront photos are used as the mock products' own images without on-site credits (user decision 2026-10-12); therefore only CC0 / Public Domain images are used. Source and licence records stay in `services/store-assets/images/manifest.json`.
 
 ## 10. Open questions
 - **Q-01** VPS provider and size (needs ≥4 GB RAM). Tracked as a blocker for REL-01.
