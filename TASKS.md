@@ -912,17 +912,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-06 — Aggregated tools/list at /mcp
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-05, GW-07
 - **Requirements:** REQ-GW-02, REQ-GW-12
 - **Description:** Gateway MCP server (stateless) implementing `tools/list` over all enabled upstreams. Temporary static dev key until AUTH-08.
-- **Output:** `/mcp`.
+- **Output:** `src/mcp/route.ts` (POST `/mcp`, stateless, dev-key auth, GET/DELETE → 405), `src/mcp/aggregate.ts` (public tool list + `ToolIndex`); `MCP_DEV_KEY` from Secret `gateway-dev-key` (chart + `make-secrets.sh`).
 - **Acceptance:** **Vertical slice milestone**: Inspector → gateway → woo-mcp → WooCommerce returns products.
-- **Tests:** TC-GW-06-1: Inspector CLI list via gateway → `woo__list_products` etc.
+- **Tests:** TC-GW-06-1: Inspector CLI list via gateway → `woo__list_products` etc. Unit TC-GW-06-U1..U7 (`test/unit/mcp-route.test.ts`, `aggregate.test.ts`): aggregation over 2 fakes, 401 cases incl. no key configured, client key not forwarded, dead/disabled upstream, registry change picked up, registry error without internals + GET 405, field allowlist.
 - **Command:** `npx @modelcontextprotocol/inspector --cli http://app.127.0.0.1.nip.io/mcp --transport http --header "Authorization: Bearer $KEY" --method tools/list`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: `npm test -w services/gateway` → **40/40 passed** (3 runs), typecheck clean; `scripts/check-chart.sh` → lint ×2, kubeconform 25/25 ×2, policy 0 violations. k3d: `make-secrets.sh` → `gateway-dev-key: created`; `build-images.sh` → `gateway:sha-d8c2da5073bd`; `deploy.sh local` → rev 10, rollout OK. **TC-GW-06-1 PASS** — `npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http --header "Authorization: Bearer $KEY" --method tools/list` → `woo__list_products`, `woo__create_product`, `woo__list_orders`, `woo__get_order`, `woo__update_order_status`, descriptions prefixed `[woo]`; gateway log `tools/list tools=5 upstreams=["woo"] failed=[] ms=196` (20 ms warm). No key / wrong key → 401. Dev key occurrences in gateway and woo-mcp logs: 0. Path proven: Inspector → Traefik → gateway → woo-mcp (Inspector → … → WooCommerce **returning products** needs `tools/call` = GW-08; `tools/call` currently → "Method not found").
+- **Regression risk:** The shared dev key is temporary: AUTH-08 must remove `MCP_DEV_KEY` (chart env, Secret, config). Each tools/list costs one DB query + one list per upstream (single-flight, 3 s cap).
 
 ### GW-07 — Namespacing (collision policy)
 - **Priority:** P0

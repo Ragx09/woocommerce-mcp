@@ -24,7 +24,7 @@
 | DELETE | `/api/keys/:id` | session | owner or admin | Revoke |
 | GET | `/api/audit` | session | admin | Filters `user, upstream, outcome, source, from, to, limit, cursor` |
 | POST | `/api/chat` | session | any | `{messages:[{role,content}]}` → `{reply, toolCalls[]}` |
-| POST | `/mcp` | Bearer API key or internal token | any | MCP Streamable HTTP endpoint |
+| POST | `/mcp` | Bearer API key or internal token (**until AUTH-08: temporary shared `MCP_DEV_KEY`**) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
 
 ## Error codes

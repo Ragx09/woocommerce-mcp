@@ -63,6 +63,7 @@ gateway:
   replicas: 1
   logLevel: info
   secrets: gateway-secrets                   # key: credentials-key (64 hex chars)
+  devKeySecret: gateway-dev-key              # key: key — TEMPORARY /mcp key until AUTH-08; missing → /mcp refuses all
   seed:
     secret: upstream-seed                    # keys: woo-token, github-pat
     woo:

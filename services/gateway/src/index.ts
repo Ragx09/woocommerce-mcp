@@ -2,6 +2,8 @@ import { loadConfig } from './config.js';
 import { buildApp, VERSION } from './app.js';
 import { loadCredentialKey } from './crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
+import { registerMcp } from './mcp/route.js';
+import { ToolDiscovery } from './upstreams/discovery.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadWooSeed, seedUpstream } from './upstreams/seed.js';
@@ -38,6 +40,16 @@ if (wooSeed) {
 const upstreamPool = new UpstreamPool({ key: credentialKey, log: app.log });
 await upstreamPool.sync(await listUpstreams(createDb(dbPool)));
 app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug) }, 'upstream pool ready');
+
+// Gateway MCP endpoint (GW-06). Upstreams are reloaded from the DB on each tools/list.
+const db = createDb(dbPool);
+registerMcp(app, {
+  devKey: cfg.mcpDevKey,
+  loadUpstreams: () => listUpstreams(db),
+  pool: upstreamPool,
+  discovery: new ToolDiscovery(upstreamPool, { log: app.log }),
+});
+if (!cfg.mcpDevKey) app.log.warn('MCP_DEV_KEY not set: /mcp refuses all requests');
 
 await app.listen({ port: cfg.port, host: cfg.host });
 app.log.info({ version: VERSION }, 'gateway listening');

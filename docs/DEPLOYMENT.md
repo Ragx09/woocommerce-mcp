@@ -36,6 +36,12 @@ scripts/make-secrets.sh        # K8s Secrets from random values + .env (never ov
 scripts/build-images.sh        # docker build, content-addressed tag, k3d image import → .images.env
 scripts/deploy.sh local        # helm upgrade --install … -f values-local.yaml --wait --wait-for-jobs
 ```
+Gateway `/mcp` with the temporary dev key (GW-06, removed in AUTH-08), without printing the key:
+```bash
+KEY="$(kubectl -n platform get secret gateway-dev-key -o jsonpath='{.data.key}' | base64 -d)"
+npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http \
+  --header "Authorization: Bearer $KEY" --method tools/list; unset KEY
+```
 Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
 
 Local domains: `http://store.127.0.0.1.nip.io`, `http://app.127.0.0.1.nip.io`. nip.io resolves `*.127.0.0.1.nip.io` to 127.0.0.1, so no hosts-file edits are needed. Fallback: add both hosts to `/etc/hosts` and `C:\Windows\System32\drivers\etc\hosts`.

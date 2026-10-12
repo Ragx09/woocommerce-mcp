@@ -17,7 +17,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-MCP-08 | Req. WooCommerce MCP | Internal only; gateway-only access | NetworkPolicy | ARC-02, WC-14 | TC-SEC-02, TC-SEC-03 | Not Started | — |
 | REQ-MCP-09 | Req. WooCommerce MCP | Document store integration + why | docs | ARC-14, WC-06 | TC-ARC-14-1, TC-UNIT-03 | In Progress | D-003 drafted |
 | REQ-GW-01 | Req. Gateway | Admin add/edit/disable/remove upstreams with optional credential | gateway API + dashboard | GW-02, GW-11, GW-12, UI-05, UI-06, UI-07 | TC-UI-05-1, TC-UI-06-1, TC-UI-07-1, TC-INT-05 | Not Started | — |
-| REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04, GW-05 Done (TASKS.md); /mcp aggregation pending GW-06 |
+| REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04..07 Done; TC-GW-06-1 PASS on k3d (5 woo tools via Inspector CLI, TASKS.md GW-06); TC-INT-02 with 3 upstreams pending GW-13/14 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Not Started | — |
 | REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 Accepted; TC-UNIT-01 8/8 PASS (GW-07); TC-INT-02 pending GW-06 |
 | REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | Not Started | — |
@@ -27,7 +27,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-GW-09 | User story admin 1 | Server list with status + tools | dashboard | GW-10, UI-04 | TC-UI-04-1 | Not Started | — |
 | REQ-GW-10 | User story admin 2 | WooCommerce server pre-registered | gateway seed | GW-03 | TC-GW-03-1 | Not Started | — |
 | REQ-GW-11 | Problem statement | Only the gateway talks to upstreams | gateway + chat + NetworkPolicy | ARC-10, UI-15, WC-14 | TC-INT-07, TC-SEC-02 | Not Started | — |
-| REQ-GW-12 | User story member 2 | One URL + key shows all tools | gateway /mcp | GW-06, AUTH-08, E2E-01 | TC-EXT-01, TC-EXT-02 | Not Started | — |
+| REQ-GW-12 | User story member 2 | One URL + key shows all tools | gateway /mcp | GW-06, AUTH-08, E2E-01 | TC-EXT-01, TC-EXT-02 | In Progress | One URL works with a temporary shared dev key (GW-06); per-user keys in AUTH-08 |
 | REQ-AUTH-01 | Req. Team | Admin and member roles | gateway auth | AUTH-01, AUTH-10, ARC-03 | TC-AUTH-02 | Not Started | — |
 | REQ-AUTH-02 | User story admin 4 | Invite team members | gateway + dashboard | AUTH-04, AUTH-05, UI-09 | TC-AUTH-03, TC-UI-09-1 | Not Started | — |
 | REQ-AUTH-03 | Req. Team / story member 1 | Own API key; self-generate | gateway + dashboard | AUTH-06, AUTH-08, UI-11 | TC-AUTH-06-1, TC-UI-11-1 | Not Started | — |

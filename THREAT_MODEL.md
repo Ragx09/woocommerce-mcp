@@ -23,10 +23,11 @@
 ## 3. Threats and mitigations
 | ID | Threat | Mitigation | Status |
 |---|---|---|---|
+| T-01a | Temporary shared `/mcp` dev key (GW-06 → AUTH-08) leaks | ≥ 32 random chars in Secret `gateway-dev-key`, constant-time compare, never logged (0 occurrences checked), fail closed when unset; **removed in AUTH-08** | Temporary |
 | T-01 | Stolen or leaked API key | Revocation is immediate (DB check on every request); prefix is shown for identification; keys are listed per user with `last_used_at` | Planned |
 | T-02 | DB dump reveals keys | Only SHA-256 hashes are stored | Planned |
 | T-03 | Upstream credential reaches the browser or client | Write-only API field; credential injected only in the server-side upstream transport; response serializer allowlist; tests assert no secret in responses | Planned |
-| T-04 | Client token forwarded upstream (confused deputy / token passthrough) | The gateway never forwards the inbound `Authorization` header; upstream requests carry only the stored upstream credential | Planned |
+| T-04 | Client token forwarded upstream (confused deputy / token passthrough) | The gateway never forwards the inbound `Authorization` header; upstream requests carry only the stored upstream credential | Implemented (GW-04/06; TC-GW-04-2, TC-GW-06-U3) |
 | T-05 | Member performs admin actions | Role check in the gateway on every `/api` route (not just the UI); tests per route | Planned |
 | T-06 | SSRF via admin-supplied upstream URL (e.g. `169.254.169.254`, internal Services) | URL validator: http(s) only; resolve DNS and block private, loopback, link-local and metadata ranges unless the host matches the configured allowlist; re-validate at connect time | Planned |
 | T-07 | Malicious or compromised upstream returns prompt-injection in tool descriptions or results | Tool descriptions are namespaced and length-capped; the chat system prompt treats tool output as data; the chat agent has an iteration cap; the dashboard shows which server each tool comes from; admins can disable a server instantly. Residual risk: the model may still be manipulated, so the human must review destructive actions | Planned |

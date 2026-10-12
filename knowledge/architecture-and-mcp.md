@@ -27,7 +27,7 @@ Each concept follows the same structure: what, why it exists, why we need it, ho
 2. **Why:** Members configure one URL and one key; the admin manages credentials centrally; every call is audited.
 3. **Why we need it:** It is the core of the brief (REQ-GW-*).
 4. **How:** Fan-out `listTools` to enabled upstreams → rename to `slug__tool` → union. A call parses the slug and forwards the call (D-005, MCP_DESIGN §3–5).
-5. **Where:** `services/gateway/src/upstreams/discovery.ts`, `services/gateway/src/mcp/naming.ts` (done), `services/gateway/src/mcp/{aggregate,router}.ts` (planned).
+5. **Where:** `services/gateway/src/upstreams/discovery.ts`, `services/gateway/src/mcp/{naming,aggregate,route}.ts` (done), routing of `tools/call` in GW-08.
 6. **Alternatives:** Collision policies: first-wins (non-deterministic across restarts), prefix-only-on-conflict (names change when a server is added), always-prefix (**chosen**: stable and explicit).
    Discovery (GW-05) keeps the last good list per upstream for 60 s, so a slow upstream (> 3 s) still shows its tools (marked stale) instead of vanishing; a cached list is never served after the upstream's URL or credential changes.
 7. **Debugging:** Compare `tools/list` from the gateway with the upstream directly (port-forward). Check the health status and `last_error` in `/api/upstreams`.

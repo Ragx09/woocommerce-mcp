@@ -73,6 +73,10 @@ EOF
 secret "$PLATFORM_NS" gateway-secrets <<EOF
 credentials-key=$(hex 64)
 EOF
+# TEMPORARY shared key for the gateway /mcp endpoint (GW-06) until per-user API keys (AUTH-08).
+secret "$PLATFORM_NS" gateway-dev-key <<EOF
+key=mgw_dev_$(rand 40)
+EOF
 
 # Gateway secrets (used from Phase 4 on). Upstream credentials seeded into the gateway DB.
 [ -f .env ] && set -a && . ./.env && set +a
