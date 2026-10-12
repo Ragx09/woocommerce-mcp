@@ -37,7 +37,7 @@ interface Entry {
 }
 
 /** Everything that, when changed, requires a new connection. */
-const versionOf = (u: Upstream) =>
+export const versionOf = (u: Upstream) =>
   JSON.stringify([u.url, u.authType, u.authHeader, u.credentialEnc?.ciphertext ?? null, u.updatedAt.toISOString()]);
 
 /** Errors that mean "the connection/session is bad", as opposed to the upstream answering with an error. */
@@ -165,11 +165,12 @@ export class UpstreamPool {
 }
 
 /** A short reason without URLs or headers (they could contain secrets in query strings). */
-function safeReason(e: unknown): string {
+export function safeReason(e: unknown): string {
+  // SDK errors first: their numeric `code` is a JSON-RPC / HTTP status, not a socket error code.
+  if (e instanceof StreamableHTTPError) return `HTTP ${e.code ?? 'error'}`;
+  if (e instanceof McpError) return `MCP error ${e.code}`;
   const err = e as { code?: string; cause?: { code?: string }; message?: string };
   const code = err.cause?.code ?? err.code;
   if (code) return String(code);
-  if (e instanceof StreamableHTTPError) return `HTTP ${e.code ?? 'error'}`;
-  if (e instanceof McpError) return `MCP error ${e.code}`;
   return (err.message ?? 'unknown error').replace(/https?:\/\/\S+/g, '<url>').slice(0, 120);
 }

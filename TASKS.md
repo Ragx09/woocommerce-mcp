@@ -9,13 +9,13 @@ Field format (parsed by `tracker/build.mjs`; keep it): `### ID — Title` follow
 |---|---|---|---|
 | 1 | 2026-10-11 | Phase 0 + Phase 1: docs, tracker, tooling, 3 experiments | Experiments pass, plan agreed |
 | 2 | 2026-10-12 | Phase 2 infra + Phase 3 store & woo-mcp + gateway passthrough | Vertical slice: Inspector → gateway → woo-mcp → WooCommerce |
-| 3 | 2026-10-13 | Phase 4 gateway: aggregation, 3 upstreams, timeouts, health | GW exit criterion |
+| 3 | 2026-10-13 | Phase 4 gateway: aggregation, 3 upstreams, timeouts, health + Phase 9 storefront brand (niche, logo, theme, UI, catalogue; parallel, P2) | GW exit criterion; branded store if time allows |
 | 4 | 2026-10-14 | Phase 5 auth, keys, audit (+ VPS provisioning if available) | Revocation + audit tests pass |
 | 5 | 2026-10-15 | Phase 6 dashboard + chat agent | Chat creates a product end-to-end |
-| 6 | 2026-10-16 | Phase 7 E2E + Phase 8 VPS deploy + security fixes | All DoD checks pass locally (+ VPS) |
-| 7 | 2026-10-17 | Phase 8: docs, regression, rehearsal, video, submission | Submitted |
+| 6 | 2026-10-16 | Phase 7 E2E + Phase 8 VPS deploy + security fixes + Phase 10 scans (SEC-01..06) | All DoD checks pass locally (+ VPS) |
+| 7 | 2026-10-17 | Phase 8: docs, regression, rehearsal, video, submission + Phase 10 attacker-LLM loop (SEC-07..09, continues after submission) | Submitted |
 
-Cut order if behind: UI polish → TLS → bonus → depth of docs. Mandatory items are never cut.
+Cut order if behind: brand polish (Phase 9) → UI polish → TLS → bonus → depth of docs. Mandatory items are never cut.
 
 ---
 
@@ -898,17 +898,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-05 — Tool discovery
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-04
 - **Requirements:** REQ-GW-02
 - **Description:** Per-upstream `listTools` with pagination, cached with a timestamp.
-- **Output:** Discovery module.
+- **Output:** `src/upstreams/discovery.ts` (`ToolDiscovery.discover()`).
 - **Acceptance:** Cached list served when the upstream is temporarily slow.
-- **Tests:** TC-GW-05-1: fake upstream → list cached.
+- **Tests:** TC-GW-05-1..7 (`test/unit/discovery.test.ts`): pagination, slow → stale cache, cache expiry, isolation, unreachable, config change, single-flight/disable.
 - **Command:** `npm test -w services/gateway`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: `ToolDiscovery` — parallel `listTools` over pool upstreams (`Promise.allSettled`), follows `nextCursor` (max 20 pages), one 3 s deadline per upstream incl. connect/reconnect (aborts the request), cache `{version, tools, fetchedAt}`; on failure serves the cache as `stale` if ≤ 60 s old and the upstream config is unchanged, else reports it in `failed` (safe message, no URL); concurrent calls share one in-flight request. Fixed `safeReason` in pool.ts (SDK error codes were reported without the `MCP error`/`HTTP` prefix). `npm run typecheck` clean; `npm test -w services/gateway` → **25/25 passed** (3 consecutive runs), incl. TC-GW-05-1 5 tools over 3 pages; -2 slow upstream (2 s delay) → cached list `stale:true`, `error: upstream slow timed out after 300 ms`, returned < 1 s, healthy upstream live; -3 cache 60 001 ms old → omitted, `MCP error -32603`; -4 failing upstream isolated; -5 unreachable → failed < 1 s, no `127.0.0.1` in message; -6 URL change → old tools not served; -7 3 concurrent → 1 upstream list, disabled → dropped. Not wired into `/mcp` yet (GW-06); real woo-mcp check deferred to the GW-06 vertical slice (Docker was not running). The "health = Connected" condition from MCP_DESIGN §4 lands with GW-10.
+- **Regression risk:** Serving stale tools after an upstream changed its tool set (bounded to 60 s); GW-08 must handle `unknown tool` from the upstream gracefully.
 
 ### GW-06 — Aggregated tools/list at /mcp
 - **Priority:** P0
@@ -2019,6 +2019,240 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** User confirms submission.
 - **Tests:** TC-SEC-04; clean clone `scripts/up.sh`.
 - **Command:** `gitleaks detect` (or grep scan)
+- **Evidence:** —
+- **Regression risk:** —
+
+---
+
+## Phase 9 — Storefront brand and catalogue
+Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated Indian Marketplace Homepage.png`), has the real catalogue, comes back the same on a fresh cluster, and checkout and MCP tests still pass. Added 2026-10-12 at the user's request. Runs alongside Phase 4 on Day 3; P2, so brand polish is the first thing cut if behind.
+
+### BRD-01 — Niche and positioning
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** WC-03
+- **Requirements:** —
+- **Description:** Write down the store concept: **Urumi**, a curated marketplace of Indian startups and homegrown brands (D-015). Audience, value proposition, tagline ("Real people. Real brands. Real India."), tone of voice, the 7 categories from the mockup (Fashion & Apparel, Home & Living, Beauty & Personal Care, Food & Beverages, Books & Stationery, Electronics & Gadgets, Art & Accessories), the featured-brand list and the four value props (Support Indian Startups, Authentic & Unique, Pan India Shipping, Meaningful Choices).
+- **Output:** `brand/BRAND.md`.
+- **Acceptance:** One page that BRD-02..05 can be built from without further questions; brand-name review note for REL-16/17 recorded.
+- **Tests:** TC-BRD-01-1: user reviews `brand/BRAND.md` → approved.
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** Real brand names are trademarks; keep them local/demo only until reviewed (D-015).
+
+### BRD-02 — Logo and visual identity
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** BRD-01
+- **Requirements:** —
+- **Description:** Urumi wordmark + mark as SVG, favicon/site icon (512 px PNG + ICO), colour palette from the mockup (forest green, warm cream, terracotta/clay, ink), font pairing (serif-ish display + clean sans body) with licences noted.
+- **Output:** `brand/logo/` (SVG, PNG, ICO), `brand/palette.md` (hex values, contrast ratios).
+- **Acceptance:** Logo readable at 32 px and on light/dark backgrounds; text/background pairs meet WCAG AA (4.5:1).
+- **Tests:** TC-BRD-02-1: contrast check of each text pair → ≥ 4.5:1. TC-BRD-02-2: favicon renders in the browser tab.
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** —
+
+### BRD-03 — Design tokens and theme
+- **Priority:** P2
+- **Status:** Blocked
+- **Day:** 3
+- **Depends on:** BRD-02
+- **Requirements:** —
+- **Description:** **Blocked: waiting for the user's detailed theme material in `brand/`.** Turn it into theme tokens (theme.json colours, typography scale, spacing, radii, shadows) and pick the theme base (D-016).
+- **Output:** Theme source under `charts/platform/files/theme/` (or as D-016 decides).
+- **Acceptance:** Tokens match `brand/` material; no hard-coded colours outside the token file.
+- **Tests:** TC-BRD-03-1: grep theme CSS for raw hex outside tokens → none.
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** A theme switch can change checkout markup used by `scripts/e2e-checkout.sh`.
+
+### BRD-04 — Storefront UI layout
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** BRD-03
+- **Requirements:** —
+- **Description:** Build the pages from the mockup: header (logo, Home/Shop/Brands/Categories/About, search, account, cart count), hero with product search, value-props strip, Shop by Category, Featured Brands, Featured Products (wishlist heart optional), "The Urumi Concept" band, footer. Style product page, cart and checkout to match. Mobile layout (≤ 400 px) without horizontal scroll.
+- **Output:** Templates/patterns in the theme; About page content.
+- **Acceptance:** Homepage matches the mockup sections in order; all links work; mobile layout usable; checkout still works.
+- **Tests:** TC-BRD-04-1: desktop + mobile screenshots vs mockup → sections present. TC-BRD-04-2: header search returns products.
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** Block checkout styling must not hide the payment method radios.
+
+### BRD-05 — Product catalogue
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** BRD-01
+- **Requirements:** REQ-STORE-01
+- **Description:** Store currency INR (₹). Create the 7 categories, a brand taxonomy (WooCommerce built-in Brands) with the featured brands, and about 20–30 products (name, brand, category, ₹ price, short description, image), with ~6 marked featured. Seeded **idempotently** by wp-init (match on SKU, never duplicate on re-run); replaces the current sample products.
+- **Output:** Catalogue data file (`charts/platform/files/catalogue/products.json` or similar) + wp-init step; product images.
+- **Acceptance:** Fresh install → every category has products; re-running wp-init creates no duplicates.
+- **Tests:** TC-BRD-05-1: count products/categories/brands after install. TC-BRD-05-2: re-run wp-init → counts unchanged. TC-BRD-05-3: MCP `list_products` returns ₹ prices.
+- **Command:** `scripts/woo-int.sh`
+- **Evidence:** —
+- **Regression risk:** Images exceed the 1 MiB ConfigMap limit → ship them via an init container or a custom image. Tests that assume old sample product names must be updated.
+
+### BRD-06 — Theme and asset packaging
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** BRD-03, BRD-05
+- **Requirements:** REQ-K8S-03
+- **Description:** Install and activate the theme, logo, site icon, menus, homepage and catalogue through wp-init. Toggle in values (`store.brand.enabled`).
+- **Output:** Chart templates + wp-init steps.
+- **Acceptance:** `scripts/down.sh && scripts/up.sh` (or fresh `helm install`) → branded store with no manual steps; data survives pod deletion.
+- **Tests:** TC-BRD-06-1: fresh cluster → branded homepage. TC-BRD-06-2: delete wordpress pod → still branded.
+- **Command:** `scripts/check-chart.sh`
+- **Evidence:** —
+- **Regression risk:** wp-init run time grows; keep the Job's backoff/timeout in step.
+
+### BRD-07 — Storefront verification
+- **Priority:** P2
+- **Status:** Not Started
+- **Day:** 3
+- **Depends on:** BRD-04, BRD-06
+- **Requirements:** REQ-DOD-01
+- **Description:** Screenshots (desktop + mobile) next to the mockup; full regression of checkout and MCP tools.
+- **Output:** `docs/evidence/brd-07-*.png`.
+- **Acceptance:** Checkout (COD) passes; woo-int passes; screenshots stored.
+- **Tests:** TC-BRD-07-1: `scripts/e2e-checkout.sh` → 3 PASS. TC-BRD-07-2: `scripts/woo-int.sh` → all PASS.
+- **Command:** `scripts/e2e-checkout.sh && scripts/woo-int.sh`
+- **Evidence:** —
+- **Regression risk:** —
+
+---
+
+## Phase 10 — Security testing: attack and harden
+Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run, every finding in `docs/SECURITY_FINDINGS.md` is fixed (with a regression test) or explicitly accepted, and `docs/SECURITY_REPORT.md` is written. Added 2026-10-12 at the user's request. Starts after E2E-14 (Day 6–7) and continues after submission. **Scope: only our own targets** — the local k3d hosts (`*.127.0.0.1.nip.io`, the cluster) and later our own VPS. Third-party services we only connect to (GitHub remote MCP, Groq, OpenRouter) are out of scope.
+
+### SEC-01 — Rules of engagement and findings workflow
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** E2E-14
+- **Requirements:** —
+- **Description:** Fix scope, targets, test accounts (users A and B and a throwaway admin only), allowed times, severity scale (Critical/High/Medium/Low/Info), and the loop: find → `docs/SECURITY_FINDINGS.md` row → fix → retest → regression test → close.
+- **Output:** `docs/SECURITY_TESTING.md` (rules + tool list), `docs/SECURITY_FINDINGS.md`.
+- **Acceptance:** Both docs exist; every later SEC task logs into the findings table.
+- **Tests:** TC-SEC-01-1: findings table parses (one row per finding, all columns filled).
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** —
+
+### SEC-02 — Web scanners against the storefront
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** SEC-01
+- **Requirements:** —
+- **Description:** WPScan (core, themes, plugins, user enumeration), nuclei and nikto (misconfiguration, exposed `xmlrpc.php`, `readme.html`, `wp-json/wp/v2/users`, directory listing, debug output). All tools run as pinned Docker images.
+- **Output:** Reports under `docs/evidence/sec-02/`; findings logged.
+- **Acceptance:** No open High/Critical; user enumeration and `xmlrpc.php` disabled or justified.
+- **Tests:** TC-SEC-02-1: WPScan → no vulnerable components. TC-SEC-02-2: `GET /wp-json/wp/v2/users` anonymously → no user list.
+- **Command:** `scripts/sec/wp-scan.sh`
+- **Evidence:** —
+- **Regression risk:** Disabling REST user endpoints must not break WooCommerce REST used by woo-mcp.
+
+### SEC-03 — OWASP ZAP scans
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** SEC-01
+- **Requirements:** —
+- **Description:** ZAP baseline (passive) on the store and dashboard; authenticated ZAP API scan of `/api` (OpenAPI or recorded requests) as a member and as an admin.
+- **Output:** HTML reports under `docs/evidence/sec-03/`; findings logged.
+- **Acceptance:** No open High; Medium items fixed or accepted with a reason.
+- **Tests:** TC-SEC-03-1: baseline → 0 FAIL. TC-SEC-03-2: API scan → no 5xx with stack traces, no reflected input.
+- **Command:** `scripts/sec/zap.sh`
+- **Evidence:** —
+- **Regression risk:** Active scans create junk data; run against a throwaway install.
+
+### SEC-04 — Manual auth and business-logic tests
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** SEC-01, REL-07
+- **Requirements:** REQ-AUTH-01, REQ-AUTH-04
+- **Description:** Member calls every admin `/api` route; revoked and malformed keys on `/mcp`; key prefix enumeration and timing; IDOR on keys, members and audit rows; CSRF and session handling (fixation, logout, cookie reuse); login brute force and lockout/rate limit; invite token reuse; checkout price/quantity/coupon tampering via Store API.
+- **Output:** Test scripts under `tests/security/`; findings logged.
+- **Acceptance:** Every case rejected server-side and recorded in the audit log where applicable.
+- **Tests:** TC-SEC-04-1 … one per case above, automated where possible.
+- **Command:** `npm test -w tests/security`
+- **Evidence:** —
+- **Regression risk:** Rate limits must not break the E2E suite (exempt or raise for test keys).
+
+### SEC-05 — MCP and AI-specific tests
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** SEC-01, REL-08
+- **Requirements:** —
+- **Description:** Register a deliberately hostile in-cluster test upstream: prompt injection in tool descriptions and results, huge and slow responses, tool names that try to spoof another server's `slug__tool`. SSRF via upstream URL (metadata IP, cluster services, redirects, DNS rebinding). Try to make the chat agent reveal upstream credentials or other users' data, or call tools as another user.
+- **Output:** Hostile test upstream (test-only chart toggle); findings logged; THREAT_MODEL updated.
+- **Acceptance:** No credential or cross-user leak; hostile upstream cannot break listing or other upstreams; SSRF targets rejected.
+- **Tests:** TC-SEC-05-1 injection; TC-SEC-05-2 oversize/slow; TC-SEC-05-3 name spoof; TC-SEC-05-4 SSRF set (incl. TC-SEC-01); TC-SEC-05-5 chat credential exfiltration attempt.
+- **Command:** `npm test -w services/gateway -- security`
+- **Evidence:** —
+- **Regression risk:** The hostile upstream must be disabled by default in every values file.
+
+### SEC-06 — Container and Kubernetes scans
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 6
+- **Depends on:** SEC-01, REL-09
+- **Requirements:** REQ-K8S-09
+- **Description:** Trivy CVE scan of every image we build or pin; kubescape config scan of the rendered chart; a rogue pod in each namespace tries to reach woo-mcp, MariaDB, Postgres and the gateway's internal ports (NetworkPolicy escape); check service-account tokens are not mounted; gitleaks on the full git history.
+- **Output:** Reports under `docs/evidence/sec-06/`; findings logged.
+- **Acceptance:** No fixable Critical CVEs; NetworkPolicy blocks all unintended paths; gitleaks clean.
+- **Tests:** TC-SEC-06-1 trivy; TC-SEC-06-2 kubescape; TC-SEC-06-3 rogue-pod matrix (incl. TC-SEC-02); TC-SEC-06-4 gitleaks (TC-SEC-04).
+- **Command:** `scripts/sec/k8s-scan.sh`
+- **Evidence:** —
+- **Regression risk:** Base-image bumps can change behaviour; rerun the full E2E after.
+
+### SEC-07 — Security headers, cookies and TLS
+- **Priority:** P1
+- **Status:** Blocked
+- **Day:** 7
+- **Depends on:** SEC-01, REL-04
+- **Requirements:** —
+- **Description:** Local part (can start now): CSP, X-Frame-Options/frame-ancestors, X-Content-Type-Options, Referrer-Policy on store and dashboard; Secure/HttpOnly/SameSite on session cookies. **Blocked part:** `testssl.sh` and HSTS on the VPS need the VPS and TLS (REL-04).
+- **Output:** Traefik middleware / app header config; testssl report.
+- **Acceptance:** Headers present on every response; testssl grade without High issues.
+- **Tests:** TC-SEC-07-1 headers check; TC-SEC-07-2 cookie flags; TC-SEC-07-3 testssl (VPS).
+- **Command:** `scripts/sec/headers.sh`
+- **Evidence:** —
+- **Regression risk:** A strict CSP can break WordPress admin and block checkout scripts.
+
+### SEC-08 — Attacker-LLM loop
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 7
+- **Depends on:** SEC-02, SEC-03, SEC-04, SEC-05, SEC-06
+- **Requirements:** —
+- **Description:** A second LLM session acts as attacker, using `docs/RED_TEAM_BRIEF.md` (scope, targets, user-B key only, goals, report format). Work in rounds: the attacker reports findings, this session fixes each one with a regression test, and the attacker retests. The attacker never gets admin credentials, upstream secrets or cluster access beyond what a member has.
+- **Output:** `docs/RED_TEAM_BRIEF.md`; one findings-table row per issue; round log in `docs/SECURITY_FINDINGS.md`.
+- **Acceptance:** At least 2 rounds; the last round finds no new High/Critical.
+- **Tests:** Regression tests added per finding (TC-SEC-08-n).
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** Fixes under time pressure; every fix reruns the E2E suite.
+
+### SEC-09 — Hardening sign-off and security report
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 7
+- **Depends on:** SEC-08
+- **Requirements:** REQ-DEL-07, REQ-DEL-08
+- **Description:** Close or formally accept every finding; update THREAT_MODEL; write the report used for the video's "Security posture" section.
+- **Output:** `docs/SECURITY_REPORT.md` (what was tried, found, fixed, residual risk).
+- **Acceptance:** Findings table has no open item without an owner and reason.
+- **Tests:** TC-SEC-09-1: full E2E + security suites green after all fixes.
+- **Command:** `scripts/e2e.sh && npm test -w tests/security`
 - **Evidence:** —
 - **Regression risk:** —
 

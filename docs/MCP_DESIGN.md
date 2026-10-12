@@ -24,9 +24,10 @@
 
 ## 4. Discovery and aggregation
 1. On `tools/list`: load enabled upstreams from the DB (so replicas always agree).
-2. For each one in parallel (`Promise.allSettled`) with a 3 s timeout: `client.listTools()` (follow `nextCursor`).
-3. On success: update the cache `{tools, fetchedAt}`. On failure: use the cached list if it is younger than 60 s and the health status is Connected; otherwise omit the upstream.
+2. For each one in parallel (`Promise.allSettled`) with one 3 s deadline (covers connect, the single reconnect and all pages; the request is aborted): `client.listTools()` (follow `nextCursor`, max 20 pages). Concurrent `tools/list` requests share one in-flight upstream request.
+3. On success: update the cache `{version, tools, fetchedAt}` (`version` = URL/auth/credential/`updated_at`). On failure: serve the cached list marked `stale` if it is at most 60 s old and the version is unchanged; otherwise omit the upstream and report it (`failed[]`, safe message). The extra "health status is Connected" condition arrives with GW-10.
 4. Map to public names and return the concatenated list.
+Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 
 ## 5. Routing `tools/call`
 1. Parse the public name → (slug, tool). Unknown slug → error `unknown_tool`.

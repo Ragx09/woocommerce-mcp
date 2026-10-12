@@ -1,28 +1,51 @@
 // In-process MCP server for tests. `sessionful` mimics server-everything (issues Mcp-Session-Id);
-// restart() forgets all sessions, like a pod restart.
+// restart() forgets all sessions, like a pod restart. tools/list can be paginated (`pageSize`),
+// slowed down (setListDelay) or made to fail (setListError) to exercise discovery (GW-05).
 import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 
 export interface FakeUpstream {
   url: string;
   headers: IncomingHttpHeaders[];
   initializeCount: () => number;
+  /** Number of tools/list requests received (one per page). */
+  listCount: () => number;
+  setListDelay: (ms: number) => void;
+  setListError: (on: boolean) => void;
   restart: () => void;
   close: () => Promise<void>;
 }
 
-export async function startFakeUpstream(opts: { sessionful?: boolean; tools?: string[] } = {}): Promise<FakeUpstream> {
+export async function startFakeUpstream(
+  opts: { sessionful?: boolean; tools?: string[]; pageSize?: number } = {},
+): Promise<FakeUpstream> {
   const tools = opts.tools ?? ['echo', 'ping'];
   const headers: IncomingHttpHeaders[] = [];
   let inits = 0;
+  let lists = 0;
+  let listDelayMs = 0;
+  let listError = false;
   let sessions = new Map<string, StreamableHTTPServerTransport>();
 
   const build = () => {
     const mcp = new McpServer({ name: 'fake', version: '1.0.0' }, { capabilities: { tools: {} } });
     for (const t of tools) mcp.registerTool(t, { description: `fake ${t}` }, async () => ({ content: [{ type: 'text', text: t }] }));
+    // Replace the SDK's tools/list handler: same tools, plus paging, delay and failure injection.
+    const size = opts.pageSize ?? tools.length;
+    mcp.server.setRequestHandler(ListToolsRequestSchema, async (req) => {
+      lists++;
+      if (listDelayMs) await new Promise((r) => setTimeout(r, listDelayMs));
+      if (listError) throw new McpError(-32603, 'list failed');
+      const start = Number(req.params?.cursor ?? 0);
+      const page = tools.slice(start, start + size).map((name) => ({
+        name, description: `fake ${name}`, inputSchema: { type: 'object' as const, properties: {} },
+      }));
+      return start + size < tools.length ? { tools: page, nextCursor: String(start + size) } : { tools: page };
+    });
     return mcp;
   };
 
@@ -61,6 +84,9 @@ export async function startFakeUpstream(opts: { sessionful?: boolean; tools?: st
     url: `http://127.0.0.1:${port}/mcp`,
     headers,
     initializeCount: () => inits,
+    listCount: () => lists,
+    setListDelay: (ms) => { listDelayMs = ms; },
+    setListError: (on) => { listError = on; },
     restart: () => { sessions = new Map(); },
     close: () => new Promise((r) => { http.closeAllConnections(); http.close(() => r()); }),
   };

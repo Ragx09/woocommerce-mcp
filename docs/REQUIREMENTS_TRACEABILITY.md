@@ -17,7 +17,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-MCP-08 | Req. WooCommerce MCP | Internal only; gateway-only access | NetworkPolicy | ARC-02, WC-14 | TC-SEC-02, TC-SEC-03 | Not Started | — |
 | REQ-MCP-09 | Req. WooCommerce MCP | Document store integration + why | docs | ARC-14, WC-06 | TC-ARC-14-1, TC-UNIT-03 | In Progress | D-003 drafted |
 | REQ-GW-01 | Req. Gateway | Admin add/edit/disable/remove upstreams with optional credential | gateway API + dashboard | GW-02, GW-11, GW-12, UI-05, UI-06, UI-07 | TC-UI-05-1, TC-UI-06-1, TC-UI-07-1, TC-INT-05 | Not Started | — |
-| REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-06-1, TC-INT-02 | Not Started | — |
+| REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04, GW-05 Done (TASKS.md); /mcp aggregation pending GW-06 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Not Started | — |
 | REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 drafted |
 | REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | Not Started | — |
