@@ -4,9 +4,10 @@
 Phase 2 — Gateway core (Day 2, 2026-10-12)
 
 ## Current task
-GW-07 — Namespacing (next)
+GW-06 — Aggregated tools/list at /mcp (next; needs Docker Desktop for the vertical slice)
 
 ## Recently completed
+- 2026-10-12: GW-07 — `src/mcp/naming.ts`: `slug__tool`, 64-char limit with sha1 suffix, invalid characters sanitized + hashed, `ToolIndex` for routing (handles unsplittable hashed names, reports duplicates), `[slug]` description prefix capped at 1024. 8 tests (TC-UNIT-01), unit suite 33/33. D-005 addendum.
 - 2026-10-12: Roadmap extended (docs only): **Phase 9 — Storefront brand and catalogue** (BRD-01..07, Day 3, P2, D-015/D-016) and **Phase 10 — Security testing: attack and harden** (SEC-01..09, Day 6–7 and ongoing; `docs/SECURITY_TESTING.md`, `SECURITY_FINDINGS.md`, `RED_TEAM_BRIEF.md`; `brand/README.md`). Tracker `idList` now parses `BRD`/`SEC` IDs; tracker regenerated.
 - 2026-10-12: GW-05 — `ToolDiscovery` (parallel paginated `listTools`, 3 s deadline per upstream, 60 s stale cache keyed by config version, single-flight, failures isolated and reported); 7 tests, unit suite 25/25. Also fixed `safeReason` prefixes for SDK errors. Not yet wired into `/mcp` (GW-06); k3d check deferred (Docker Desktop was not running).
 - 2026-10-12: GW-04 — upstream client pool (lazy connect, credential injection, rebuild on change, reconnect once on stale session, 2 s connect timeout); 7 pool tests with in-process fake upstreams; woo tools listed from the gateway pod. `build-images.sh` now keeps tags of services not rebuilt.
@@ -39,7 +40,7 @@ GW-07 — Namespacing (next)
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-GW-07 (naming), then GW-06 (aggregated tools/list at /mcp — Day 2 vertical slice, needs Docker Desktop running), GW-08 (routing). `GITHUB_MCP_PAT` needed before Day 3.
+GW-06 (aggregated tools/list at /mcp — Day 2 vertical slice, needs Docker Desktop running), then GW-08 (routing). `GITHUB_MCP_PAT` needed before Day 3.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

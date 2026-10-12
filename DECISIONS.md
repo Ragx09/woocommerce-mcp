@@ -45,8 +45,8 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 
 ## D-005 — Tool-name collision policy
 - **Date:** 2026-10-11
-- **Status:** Proposed
-- **Choice:** Always expose `<slug>__<tool>`. Slug: `^[a-z0-9-]{1,20}$`, unique, immutable after creation. The final name must match `^[a-zA-Z0-9_-]{1,64}$`. If it is too long, use the first 55 characters + `_` + 8 hex characters of sha1 (deterministic). Routing splits on the first `__`.
+- **Status:** Accepted (GW-07 implemented and unit-tested 2026-10-12)
+- **Choice:** Always expose `<slug>__<tool>`. Slug: `^[a-z0-9-]{1,20}$`, unique, immutable after creation. The final name must match `^[a-zA-Z0-9_-]{1,64}$`. If it is too long, use the first 55 characters + `_` + 8 hex characters of sha1 (deterministic). Routing splits on the first `__`. **Addendum 2026-10-12 (GW-07):** upstream names with characters outside `[a-zA-Z0-9_-]` (MCP allows `.`) get the same hash form after replacing those characters with `_`; because hashed names cannot be split back, `tools/call` resolves the public name through an index built from the discovered tools (`ToolIndex`), and a duplicate public name keeps the first tool and is logged.
 - **Why:** Collision-free by construction and deterministic across replicas. Compatible with Claude/OpenAI tool-name rules. Shows the user which server a tool comes from.
 - **Trade-offs:** Longer names. Upstream tool names containing `__` still work because we split on the first occurrence and slugs cannot contain `_`.
 

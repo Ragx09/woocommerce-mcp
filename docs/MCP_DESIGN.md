@@ -20,7 +20,10 @@
 ## 3. Tool naming and collisions (D-005)
 - Public name = `<slug>__<upstreamTool>`, e.g. `woo__list_orders`, `everything__echo`, `github__create_issue`.
 - Slug `^[a-z0-9-]{1,20}$`, unique and immutable. The public name must match `^[a-zA-Z0-9_-]{1,64}$`. If it is too long: `name[0..55] + "_" + sha1(full)[0..8]`, with a reverse map kept in memory per upstream.
+- Invalid characters (e.g. `.`) are replaced by `_` and the hash suffix is added, so `files.read` and `files_read` never clash.
+- Routing resolves public names through `ToolIndex` (built from discovery), not by splitting alone; a duplicate public name keeps the first tool and is reported.
 - Descriptions get a prefix: `[woo] …`. Descriptions are capped at 1024 characters (T-07).
+- Implemented in `services/gateway/src/mcp/naming.ts` (GW-07).
 
 ## 4. Discovery and aggregation
 1. On `tools/list`: load enabled upstreams from the DB (so replicas always agree).

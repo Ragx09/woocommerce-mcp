@@ -926,17 +926,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-07 — Namespacing (collision policy)
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** ARC-06
 - **Requirements:** REQ-GW-04
 - **Description:** Implement D-005 (`toPublicName`, `parsePublicName`).
-- **Output:** `mcp/naming.ts` + tests.
+- **Output:** `src/mcp/naming.ts` (`toPublicName`, `parsePublicName`, `publicDescription`, `ToolIndex`) + `test/unit/naming.test.ts`.
 - **Acceptance:** TC-UNIT-01 passes.
-- **Tests:** TC-UNIT-01.
+- **Tests:** TC-UNIT-01 = TC-GW-07-1..8 (cross-upstream collision, `__` in upstream names, malformed names, 64-char limit + hash, invalid characters, duplicates, bad slug, description prefix/cap).
 - **Command:** `npm test -w services/gateway -- naming`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: `npx vitest run test/unit/naming.test.ts` → **8/8 passed**; `npm test -w services/gateway` → 33/33; typecheck clean. Results: `woo__search` / `github__search` both resolvable; `everything__a__b` → slug `everything`, tool `a__b`; 70-char names → 64 chars `github__x{47}_<8 hex>`, distinct and deterministic; `files.read` → `srv__files_read_<hash>` (no clash with a real `files_read`); duplicate → first kept, conflict reported; descriptions `[slug] …` capped at 1024. Extends D-005: invalid characters get the hash form too, and routing resolves through `ToolIndex` (hashed names cannot be split back).
+- **Regression risk:** Changing the hash rule renames tools for every client; treat it as a breaking change.
 
 ### GW-08 — Routing tools/call
 - **Priority:** P0

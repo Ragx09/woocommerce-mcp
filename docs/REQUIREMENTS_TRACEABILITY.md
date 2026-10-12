@@ -19,7 +19,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-GW-01 | Req. Gateway | Admin add/edit/disable/remove upstreams with optional credential | gateway API + dashboard | GW-02, GW-11, GW-12, UI-05, UI-06, UI-07 | TC-UI-05-1, TC-UI-06-1, TC-UI-07-1, TC-INT-05 | Not Started | — |
 | REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04, GW-05 Done (TASKS.md); /mcp aggregation pending GW-06 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Not Started | — |
-| REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 drafted |
+| REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 Accepted; TC-UNIT-01 8/8 PASS (GW-07); TC-INT-02 pending GW-06 |
 | REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | Not Started | — |
 | REQ-GW-06 | Req. Gateway | Timeouts + clear error | gateway | GW-09, UI-18 | TC-INT-03 | Not Started | — |
 | REQ-GW-07 | Req. Gateway | Upstream credentials server-side only | gateway | GW-12, AUTH-15 | TC-INT-06, TC-AUTH-04 | Not Started | — |
