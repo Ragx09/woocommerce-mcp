@@ -109,16 +109,16 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Trade-offs:** GitHub depends on internet access and the PAT. Fallback: DeepWiki (no auth).
 
 
-## D-015 — Store niche: Urumi, curated Indian brands
-- **Date:** 2026-10-12
-- **Status:** Accepted
-- **Choice:** The demo store is **Urumi**, a curated marketplace for Indian startups and homegrown brands (7 categories, featured brands, ₹ prices), following the user's mockup `Urumi Curated Indian Marketplace Homepage.png`. The user chose **real brand names** as in the mockup.
-- **Why:** A concrete, good-looking store makes the demo more convincing than generic sample products.
-- **Trade-offs:** Real brand names and logos are trademarks. Fine for local development; **review before the repo goes public or the video is recorded** (REL-16/17), and swap to fictional names if in doubt. Brand work is P2 and the first thing cut if behind.
+## D-015 — Store concept: TATVA (current working concept)
+- **Date:** 2026-10-12 (updated 2026-10-12)
+- **Status:** Proposed — current working concept, may change
+- **Choice:** For now the demo store is **TATVA**, a curated multi-brand Indian lifestyle store (primary line "The Essence of Good Design.", campaign line "Discover brands with meaning."). 5 categories with Home & Living as the hero; a proposed starter catalogue of about 50 products with illustrative ₹ prices and **placeholder brand names**. Details: [`docs/tatva-brand-and-products.md`](docs/tatva-brand-and-products.md), UI/theme: [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md), images: [`docs/PRODUCT_IMAGES.md`](docs/PRODUCT_IMAGES.md). Replaces the earlier Urumi idea (7 categories, real brand names from a mockup).
+- **Why:** A concrete, good-looking store makes the demo more convincing than generic sample products. Keeping the concept in docs (not in task text) means a later rename only touches those docs, the theme tokens and the catalogue data.
+- **Trade-offs:** Placeholder brand names avoid most trademark risk, but names, product claims and image licences still need a check before the repo goes public or the video is recorded (REL-16/17). Brand work is P2 and the first thing cut if behind. Today's seeded sample products still carry "Urumi" names until BRD-05 replaces them.
 
 ## D-016 — Storefront theme approach
 - **Date:** 2026-10-12
-- **Status:** Proposed (waiting for the user's theme material in `brand/`)
-- **Choice:** To be decided in BRD-03 once `brand/theme/` exists. Constraint: the theme, assets and catalogue must be installed by wp-init so a fresh cluster reproduces the store with no manual steps.
+- **Status:** Proposed (theme material available: [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md))
+- **Choice:** To be decided in BRD-03 from `docs/v1-brand-ui-theme.md`. Constraint: the theme, assets and catalogue must be installed by wp-init so a fresh cluster reproduces the store with no manual steps.
 - **Why:** Reproducibility across local k3d and the VPS with the same chart.
 - **Trade-offs:** Images exceed the 1 MiB ConfigMap limit, so they need an init container or a custom image.

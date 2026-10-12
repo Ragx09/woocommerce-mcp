@@ -7,6 +7,8 @@ Phase 2 — Gateway core (Day 2, 2026-10-12)
 Day 2 exit gate met (vertical slice). Next: INF-15 (P1, Day 2 leftover) or Day 3 GW-09 — Timeouts
 
 ## Recently completed
+- 2026-10-12: Brand docs → **TATVA as the current working concept (may change)**: D-015 rewritten (Proposed), D-016 points to `docs/v1-brand-ui-theme.md`, BRD-01..07 reference the TATVA docs (5 categories, ~50 proposed products, placeholder brands), **BRD-03 unblocked** (theme material exists). TATVA docs committed; `*:Zone.Identifier` ignored. Sample products still named "Urumi …" until BRD-05.
+- 2026-10-12: WC-16 (mock card payment page) **removed**: not in the problem statement (COD satisfies REQ-STORE-02); no code/task/doc left in the repo. Local k3d DB still has stale rows (`active_plugins` entry, `woocommerce_urumi_demo_card_settings`, gateway order) — harmless (plugin files gone); cleanup command awaits user approval.
 - 2026-10-12: GW-08 — `tools/call` routing: public name → `ToolIndex` (works for hashed names) → forward → result unchanged; `unknown_tool` / `upstream_disabled` JSON-RPC errors; unreachable/timeout/error → readable `isError` results; retry only when the call certainly did not run. Unit 48/48. **Day 2 vertical slice PASS on k3d:** Inspector CLI → gateway → woo-mcp → WooCommerce returns 5 products and 6 orders.
 - 2026-10-12: GW-06 — gateway `POST /mcp` (stateless, low-level SDK `Server`): tools/list reloads upstreams from the DB, discovers (GW-05) and returns public names (GW-07); temporary shared `MCP_DEV_KEY` (Secret `gateway-dev-key`, fail closed) until AUTH-08. Unit 40/40; on k3d the Inspector CLI lists the 5 `woo__*` tools through Traefik; 401 without/with wrong key; key absent from logs.
 - 2026-10-12: GW-07 — `src/mcp/naming.ts`: `slug__tool`, 64-char limit with sha1 suffix, invalid characters sanitized + hashed, `ToolIndex` for routing (handles unsplittable hashed names, reports duplicates), `[slug]` description prefix capped at 1024. 8 tests (TC-UNIT-01), unit suite 33/33. D-005 addendum.
@@ -34,6 +36,7 @@ Day 2 exit gate met (vertical slice). Next: INF-15 (P1, Day 2 leftover) or Day 3
 
 ## Blockers
 - **BRD-03 theme** waits for the user's theme material in `brand/` (Phase 9, added 2026-10-12). SEC-07 TLS part waits for the VPS / REL-04.
+- BRD-03 no longer blocked (theme spec in `docs/v1-brand-ui-theme.md`).
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - **GitHub fine-grained PAT** still needed in `.env` (`GITHUB_MCP_PAT`) → P0-04, blocks ARC-15. Groq key verified 2026-10-11; OpenRouter key optional.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.

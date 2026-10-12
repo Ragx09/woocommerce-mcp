@@ -13,3 +13,6 @@ secrets/
 .vite/
 tests/e2e/out/
 .images.env
+
+# Windows download markers (copied from /mnt/c)
+*:Zone.Identifier

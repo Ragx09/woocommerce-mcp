@@ -47,7 +47,7 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 | `DECISIONS.md` | architecture decision log |
 | `THREAT_MODEL.md` | security model |
 | `docs/SECURITY_TESTING.md`, `docs/SECURITY_FINDINGS.md`, `docs/RED_TEAM_BRIEF.md` | Phase 10 rules of engagement, findings log, attacker-LLM brief |
-| `brand/` | Urumi storefront source material (Phase 9) |
+| `brand/` | Storefront brand material (Phase 9; current working concept TATVA, may change) |
 | `docs/PROGRESS.md` | latest handover summary |
 | `docs/REQUIREMENTS_TRACEABILITY.md` | requirement → task → test → evidence |
 | `docs/API_CONTRACTS.md`, `docs/MCP_DESIGN.md`, `docs/DEPLOYMENT.md`, `docs/DEMO_RUNBOOK.md` | engineering details |

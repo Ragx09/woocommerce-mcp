@@ -2025,7 +2025,8 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 ---
 
 ## Phase 9 — Storefront brand and catalogue
-Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated Indian Marketplace Homepage.png`), has the real catalogue, comes back the same on a fresh cluster, and checkout and MCP tests still pass. Added 2026-10-12 at the user's request. Runs alongside Phase 4 on Day 3; P2, so brand polish is the first thing cut if behind.
+Brand: **TATVA (current working concept; may change, D-015)**. Source material: [`docs/tatva-brand-and-products.md`](docs/tatva-brand-and-products.md) (brand + catalogue), [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md) (UI/theme), [`docs/PRODUCT_IMAGES.md`](docs/PRODUCT_IMAGES.md) (images). If the concept changes, only these docs and D-015 change; the tasks stay the same.
+Exit criterion: the storefront follows the current brand concept and theme spec, has the catalogue, comes back the same on a fresh cluster, and checkout and MCP tests still pass. Added 2026-10-12 at the user's request. Runs alongside Phase 4 on Day 3; P2, so brand polish is the first thing cut if behind.
 
 ### BRD-01 — Niche and positioning
 - **Priority:** P2
@@ -2033,13 +2034,13 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 - **Day:** 3
 - **Depends on:** WC-03
 - **Requirements:** —
-- **Description:** Write down the store concept: **Urumi**, a curated marketplace of Indian startups and homegrown brands (D-015). Audience, value proposition, tagline ("Real people. Real brands. Real India."), tone of voice, the 7 categories from the mockup (Fashion & Apparel, Home & Living, Beauty & Personal Care, Food & Beverages, Books & Stationery, Electronics & Gadgets, Art & Accessories), the featured-brand list and the four value props (Support Indian Startups, Authentic & Unique, Pan India Shipping, Meaningful Choices).
+- **Description:** Summarise the current working concept, **TATVA** (D-015, may change): a curated multi-brand Indian lifestyle store. Primary line "The Essence of Good Design.", campaign line "Discover brands with meaning."; audience, brand principles, voice/copy rules; the 5 categories (Home & Living as hero, Personal Care, Fashion & Accessories, Food & Drink, Stationery & Everyday Objects); placeholder brand names; merchandising rules. Source: `docs/tatva-brand-and-products.md` §1–5, §7–8.
 - **Output:** `brand/BRAND.md`.
 - **Acceptance:** One page that BRD-02..05 can be built from without further questions; brand-name review note for REL-16/17 recorded.
 - **Tests:** TC-BRD-01-1: user reviews `brand/BRAND.md` → approved.
 - **Command:** —
 - **Evidence:** —
-- **Regression risk:** Real brand names are trademarks; keep them local/demo only until reviewed (D-015).
+- **Regression risk:** Brand names are placeholders, not real businesses; still review names and claims before the repo goes public (REL-16/17, D-015).
 
 ### BRD-02 — Logo and visual identity
 - **Priority:** P2
@@ -2047,7 +2048,7 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 - **Day:** 3
 - **Depends on:** BRD-01
 - **Requirements:** —
-- **Description:** Urumi wordmark + mark as SVG, favicon/site icon (512 px PNG + ICO), colour palette from the mockup (forest green, warm cream, terracotta/clay, ink), font pairing (serif-ish display + clean sans body) with licences noted.
+- **Description:** Wordmark + mark for the current working name (TATVA) as SVG, favicon/site icon (512 px PNG + ICO), colour palette and font pairing from `docs/v1-brand-ui-theme.md` §2 with licences noted. Keep the name in one place so a rename is a token change.
 - **Output:** `brand/logo/` (SVG, PNG, ICO), `brand/palette.md` (hex values, contrast ratios).
 - **Acceptance:** Logo readable at 32 px and on light/dark backgrounds; text/background pairs meet WCAG AA (4.5:1).
 - **Tests:** TC-BRD-02-1: contrast check of each text pair → ≥ 4.5:1. TC-BRD-02-2: favicon renders in the browser tab.
@@ -2057,11 +2058,11 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 
 ### BRD-03 — Design tokens and theme
 - **Priority:** P2
-- **Status:** Blocked
+- **Status:** Not Started
 - **Day:** 3
 - **Depends on:** BRD-02
 - **Requirements:** —
-- **Description:** **Blocked: waiting for the user's detailed theme material in `brand/`.** Turn it into theme tokens (theme.json colours, typography scale, spacing, radii, shadows) and pick the theme base (D-016).
+- **Description:** Theme material now exists: `docs/v1-brand-ui-theme.md` (2026-10-12; was Blocked waiting for it). Turn it into theme tokens (theme.json colours, typography scale, spacing, radii, shadows) and pick the theme base (D-016).
 - **Output:** Theme source under `charts/platform/files/theme/` (or as D-016 decides).
 - **Acceptance:** Tokens match `brand/` material; no hard-coded colours outside the token file.
 - **Tests:** TC-BRD-03-1: grep theme CSS for raw hex outside tokens → none.
@@ -2075,10 +2076,10 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 - **Day:** 3
 - **Depends on:** BRD-03
 - **Requirements:** —
-- **Description:** Build the pages from the mockup: header (logo, Home/Shop/Brands/Categories/About, search, account, cart count), hero with product search, value-props strip, Shop by Category, Featured Brands, Featured Products (wishlist heart optional), "The Urumi Concept" band, footer. Style product page, cart and checkout to match. Mobile layout (≤ 400 px) without horizontal scroll.
+- **Description:** Build the pages from `docs/v1-brand-ui-theme.md` (§3 navigation, §4 homepage layout, §5 required pages, §6 product/brand cards, §7 states). Style product page, cart and checkout to match. Mobile layout (≤ 400 px) without horizontal scroll.
 - **Output:** Templates/patterns in the theme; About page content.
-- **Acceptance:** Homepage matches the mockup sections in order; all links work; mobile layout usable; checkout still works.
-- **Tests:** TC-BRD-04-1: desktop + mobile screenshots vs mockup → sections present. TC-BRD-04-2: header search returns products.
+- **Acceptance:** Homepage matches the theme spec sections in order (`docs/v1-brand-ui-theme.md` §4, §9 checklist); all links work; mobile layout usable; checkout still works.
+- **Tests:** TC-BRD-04-1: desktop + mobile screenshots vs theme spec → sections present. TC-BRD-04-2: header search returns products.
 - **Command:** —
 - **Evidence:** —
 - **Regression risk:** Block checkout styling must not hide the payment method radios.
@@ -2089,9 +2090,9 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 - **Day:** 3
 - **Depends on:** BRD-01
 - **Requirements:** REQ-STORE-01
-- **Description:** Store currency INR (₹). Create the 7 categories, a brand taxonomy (WooCommerce built-in Brands) with the featured brands, and about 20–30 products (name, brand, category, ₹ price, short description, image), with ~6 marked featured. Seeded **idempotently** by wp-init (match on SKU, never duplicate on re-run); replaces the current sample products.
+- **Description:** Store currency INR (₹). Create the 5 categories, a brand taxonomy (WooCommerce built-in Brands) with the placeholder brands, and the proposed ~50-product starter catalogue from `docs/tatva-brand-and-products.md` §6 (name, brand, category, illustrative ₹ price, short description, image, SKU), with featured products per §8 (stoneware mug as hero). Images per `docs/PRODUCT_IMAGES.md` (open-licence, attributed). Seeded **idempotently** by wp-init (match on SKU, never duplicate on re-run); replaces today's sample products ("Urumi Mug", "Urumi T-Shirt", "Urumi Sticker Pack"), which tests and the e2e checkout still use until then.
 - **Output:** Catalogue data file (`charts/platform/files/catalogue/products.json` or similar) + wp-init step; product images.
-- **Acceptance:** Fresh install → every category has products; re-running wp-init creates no duplicates.
+- **Acceptance:** Fresh install → all 5 categories have products; re-running wp-init creates no duplicates.
 - **Tests:** TC-BRD-05-1: count products/categories/brands after install. TC-BRD-05-2: re-run wp-init → counts unchanged. TC-BRD-05-3: MCP `list_products` returns ₹ prices.
 - **Command:** `scripts/woo-int.sh`
 - **Evidence:** —
@@ -2117,10 +2118,10 @@ Exit criterion: the storefront looks like the Urumi brand (mockup `Urumi Curated
 - **Day:** 3
 - **Depends on:** BRD-04, BRD-06
 - **Requirements:** REQ-DOD-01
-- **Description:** Screenshots (desktop + mobile) next to the mockup; full regression of checkout and MCP tools.
+- **Description:** Screenshots (desktop + mobile) checked against `docs/v1-brand-ui-theme.md` §9; full regression of checkout and MCP tools.
 - **Output:** `docs/evidence/brd-07-*.png`.
 - **Acceptance:** Checkout (COD) passes; woo-int passes; screenshots stored.
-- **Tests:** TC-BRD-07-1: `scripts/e2e-checkout.sh` → 3 PASS. TC-BRD-07-2: `scripts/woo-int.sh` → all PASS.
+- **Tests:** TC-BRD-07-1: `scripts/e2e-checkout.sh` → COD checkout PASS. TC-BRD-07-2: `scripts/woo-int.sh` → all PASS.
 - **Command:** `scripts/e2e-checkout.sh && scripts/woo-int.sh`
 - **Evidence:** —
 - **Regression risk:** —
