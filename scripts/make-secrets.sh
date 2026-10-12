@@ -66,6 +66,10 @@ token=$WOO_MCP_TOKEN
 EOF
 [ "$ROTATE" = "$STORE_NS/woo-mcp-auth" ] && ROTATE="$PLATFORM_NS/upstream-seed"
 
+secret "$PLATFORM_NS" postgres-secrets <<EOF
+password=$(rand 32)
+EOF
+
 # Gateway secrets (used from Phase 4 on). Upstream credentials seeded into the gateway DB.
 [ -f .env ] && set -a && . ./.env && set +a
 secret "$PLATFORM_NS" upstream-seed <<EOF

@@ -55,6 +55,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Choice:** PostgreSQL 16 (official image, StatefulSet + PVC), Drizzle ORM with SQL migrations.
 - **Why:** Multi-replica safe, real constraints. Separate from the store's MariaDB (isolation of failure and credentials).
 - **Trade-offs:** One more stateful workload.
+- **Implementation (GW-02, 2026-10-12):** `postgres:16.15-alpine3.24` StatefulSet (uid 70, read-only root FS, PVC). drizzle-orm 0.45.4 + drizzle-kit 0.31.11; SQL migrations committed under `services/gateway/drizzle/`, applied at gateway startup under `pg_advisory_lock` (safe with replicas). Invariants are CHECK constraints in the DB, not only API validation.
 
 ## D-007 — Dashboard authentication
 - **Date:** 2026-10-11

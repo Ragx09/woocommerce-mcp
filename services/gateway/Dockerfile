@@ -6,6 +6,7 @@ COPY services/gateway/package.json services/gateway/
 RUN npm ci --workspace services/gateway --include-workspace-root --no-audit --no-fund
 COPY services/gateway/tsconfig.json services/gateway/tsconfig.build.json services/gateway/
 COPY services/gateway/src services/gateway/src
+COPY services/gateway/drizzle services/gateway/drizzle
 RUN npm run build -w services/gateway \
  && npm ci --workspace services/gateway --omit=dev --no-audit --no-fund
 
@@ -15,6 +16,7 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/services/gateway/package.json ./package.json
 COPY --from=build /app/services/gateway/dist ./dist
+COPY --from=build /app/services/gateway/drizzle ./drizzle
 # Numeric uid so Kubernetes runAsNonRoot can verify it; nothing is written to disk at runtime.
 USER 1000:1000
 EXPOSE 8080

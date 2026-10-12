@@ -4,9 +4,10 @@
 Phase 2 — Gateway core (Day 2, 2026-10-11)
 
 ## Current task
-GW-02 — Postgres + upstream model
+GW-03 — Seed WooCommerce upstream
 
 ## Recently completed
+- 2026-10-12: GW-02 — Postgres 16 StatefulSet + PVC (gateway-only NetworkPolicy, `postgres-secrets`); Drizzle `upstreams` table with DB-level CHECK constraints; migrations at startup under an advisory lock; `/readyz` checks the DB; gateway startupProbe. 16 integration tests (`scripts/gateway-db-int.sh`); fresh install, Postgres restart and persistence verified on k3d.
 - 2026-10-11: GW-01 — `services/gateway` (Fastify 5.12.5): env config, pino redaction, `/healthz` `/readyz` (named readiness checks), JSON error shape, Dockerfile; chart: gateway Deployment/Service, `app.<domain>` Ingress (`/api`, `/mcp`), platform default-deny + gateway-from-Traefik NetworkPolicy. 7 unit tests; deployed on k3d.
 - 2026-10-11: INF-02..14, WC-01..05/14 committed (`41bf045`): platform Helm chart, k3d cluster config, image build, `scripts/check-chart.sh`. INF-11 still open for the dashboard `/` route (UI-20); INF-15 not started.
 - 2026-10-11: P0-04 (partial) — Groq key verified, tool calling works with `openai/gpt-oss-120b` (`scripts/llm-smoke.mjs`).
@@ -33,7 +34,7 @@ GW-02 — Postgres + upstream model
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-GW-02 (Postgres in chart + upstream table/migrations), then GW-03/04. ARC-15 and GW-14 still need `GITHUB_MCP_PAT`.
+GW-03 (seed `woo` upstream), then GW-04/05, GW-07, GW-06, GW-08. `GITHUB_MCP_PAT` needed before Day 3 (ARC-15, GW-14). Note: woo-mcp image tag changes on rebuild even without code changes (non-reproducible build), so deploys restart it; low priority.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

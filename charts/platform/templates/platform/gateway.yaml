@@ -45,7 +45,18 @@ spec:
             - { name: PORT, value: "8080" }
             - { name: LOG_LEVEL, value: {{ $v.logLevel | quote }} }
             - { name: TRUST_PROXY_HOPS, value: "1" }   # Traefik
+            - { name: PGHOST, value: "postgres.{{ $ns }}.svc.cluster.local" }
+            - { name: PGUSER, value: gateway }
+            - { name: PGDATABASE, value: gateway }
+            - { name: DB_CONNECT_TIMEOUT_MS, value: "150000" }   # first install: Postgres pulls + initdb
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $v.postgres.existingSecret }}, key: password } }
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          # Migrations run before the server listens; give startup up to 3 min before liveness applies.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 10

@@ -856,7 +856,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-02 — Postgres + upstream model
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-01, INF-12
 - **Requirements:** REQ-GW-01
@@ -864,9 +864,9 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Output:** Schema + migration.
 - **Acceptance:** Migration applies on a fresh DB; re-run is a no-op.
 - **Tests:** TC-GW-02-1: start twice → no error.
-- **Command:** `npm run db:migrate -w services/gateway`
-- **Evidence:** —
-- **Regression risk:** Concurrent migrations with replicas → advisory lock.
+- **Command:** `scripts/gateway-db-int.sh` (throwaway Postgres in Docker → `npm run test:int -w services/gateway`); `npm run db:migrate -w services/gateway`
+- **Evidence:** 2026-10-12: `scripts/gateway-db-int.sh` → 16 passed: TC-GW-02-1 fresh DB migrates, 2nd run no-op (1 row in `drizzle.__drizzle_migrations`); TC-GW-02-2 three concurrent runs → no error, no double-apply (advisory lock); TC-GW-02-3 unreachable DB → clear error after timeout; TC-GW-02-4 defaults; TC-GW-02-5 11 bad rows each rejected by the expected named constraint (slug format/unique, http URL, header-name CRLF injection, credential with auth none, …). k3d: `postgres-0` 1/1 + PVC 1Gi Bound; fresh install (PVC deleted) → gateway retries ~10 s, "database migrations applied", 0 restarts (startupProbe); `/readyz` → 503 during Postgres pod deletion, `{"status":"ready"}` after, row persisted, gateway 0 restarts; pod in `default` ns → postgres:5432 "no response" (NetworkPolicy). check-chart: 24 objects, 0 violations.
+- **Regression risk:** Concurrent migrations with replicas → advisory lock (tested). Schema changes need `npm run db:generate` + committed SQL.
 
 ### GW-03 — Seed WooCommerce upstream
 - **Priority:** P0

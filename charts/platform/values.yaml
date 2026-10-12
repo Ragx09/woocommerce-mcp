@@ -65,3 +65,10 @@ gateway:
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { memory: 384Mi }
+  postgres:
+    image: postgres:16.15-alpine3.24
+    storage: 1Gi
+    existingSecret: postgres-secrets         # key: password (user and database: gateway)
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 384Mi }

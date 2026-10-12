@@ -1,0 +1,87 @@
+{{- if .Values.gateway.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $p := .Values.gateway.postgres }}
+{{- $ctx := dict "root" . "app" "postgres" }}
+# Gateway database (D-006): users, keys, upstreams, audit. Reachable only from the gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 70       # postgres user in the official alpine image
+        runAsGroup: 70
+        fsGroup: 70
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: {{ $p.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          env:
+            - { name: POSTGRES_USER, value: gateway }
+            - { name: POSTGRES_DB, value: gateway }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $p.existingSecret }}, key: password } }
+            # Subdirectory: the volume root may contain lost+found, which initdb refuses.
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+          startupProbe:
+            exec: { command: [pg_isready, -U, gateway, -d, gateway, -h, 127.0.0.1] }
+            periodSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            exec: { command: [pg_isready, -U, gateway, -d, gateway, -h, 127.0.0.1] }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec: { command: [pg_isready, -U, gateway, -d, gateway, -h, 127.0.0.1] }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources: {{- include "platform.resources" (dict "name" "postgres" "resources" $p.resources) | nindent 12 }}
+      volumes:
+        - { name: run, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: {{- include "platform.labels" $ctx | nindent 10 }}
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: {{ .Values.global.storageClass }}
+        resources:
+          requests: { storage: {{ $p.storage }} }
+{{- end }}

@@ -29,3 +29,20 @@ spec:
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
       ports: [{ port: 8080 }]
 {{- end }}
+{{- if .Values.gateway.enabled }}
+---
+# Postgres ← the gateway only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-from-gateway
+  namespace: {{ .Values.global.namespaces.platform }}
+  labels: {{- include "platform.labels" (dict "root" . "app" "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: postgres } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+      ports: [{ port: 5432 }]
+{{- end }}
