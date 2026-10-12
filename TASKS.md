@@ -66,7 +66,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 
 ### P0-04 — Obtain LLM and GitHub credentials
 - **Priority:** P0
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** P0-01
 - **Requirements:** REQ-CHAT-01, REQ-CHAT-04, REQ-GW-08
@@ -75,7 +75,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Acceptance:** `.env` exists, ignored; a smoke request to Groq chat completions with a tool definition returns a `tool_calls` response.
 - **Tests:** TC-P0-04-1: key present → `scripts/llm-smoke.mjs` → response contains tool_calls.
 - **Command:** `node scripts/llm-smoke.mjs groq` (or `openrouter`)
-- **Evidence:** 2026-10-11: `.env` present, gitignored, mode 600; format check (no values printed): `LLM_API_KEY` set (gsk_ prefix), `OPENROUTER_API_KEY` empty (optional), `GITHUB_MCP_PAT` empty. TC-P0-04-1 PASS — `node scripts/llm-smoke.mjs groq` → HTTP 200 in 652 ms, `finish_reason=tool_calls`, `woo__list_orders {"after":"2026-10-11T00:00:00Z","status":"processing"}`. Groq `/models` lists `openai/gpt-oss-120b` (also gpt-oss-20b, qwen3.8-27b); free tier limit 1000 requests/day. Remaining: GitHub PAT (needed by ARC-15); OpenRouter key optional.
+- **Evidence:** 2026-10-11: `.env` present, gitignored, mode 600; format check (no values printed): `LLM_API_KEY` set (gsk_ prefix), `OPENROUTER_API_KEY` empty (optional), `GITHUB_MCP_PAT` empty. TC-P0-04-1 PASS — `node scripts/llm-smoke.mjs groq` → HTTP 200 in 652 ms, `finish_reason=tool_calls`, `woo__list_orders {"after":"2026-10-11T00:00:00Z","status":"processing"}`. Groq `/models` lists `openai/gpt-oss-120b` (also gpt-oss-20b, qwen3.8-27b); free tier limit 1000 requests/day. 2026-10-12: `GITHUB_MCP_PAT` added by the user (fine-grained `github_pat_…`, value never printed); verified in ARC-15 (`get_me` → account Ragx09); copied into Secret `platform/upstream-seed` via `scripts/make-secrets.sh --rotate platform/upstream-seed` (`github-pat` 93 bytes, `woo-token` unchanged). `.env` had CRLF line endings (trailing `\r` on every value) → converted to LF, mode 600 kept. OpenRouter key optional.
 - **Regression risk:** Free-tier limits.
 
 ### P0-05 — Extract requirement IDs
@@ -393,7 +393,7 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 
 ### ARC-15 — Experiment: additional upstreams reachable
 - **Priority:** P0
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 1
 - **Depends on:** ARC-13, P0-04
 - **Requirements:** REQ-GW-08
@@ -402,7 +402,7 @@ Exit criterion: architecture agreed; critical assumptions validated by experimen
 - **Acceptance:** `tools/list` works for both.
 - **Tests:** TC-ARC-15-1: everything container → list → tools. TC-ARC-15-2: GitHub with PAT → list → tools; without PAT → 401.
 - **Command:** `node experiments/upstreams/probe.mjs <url> [TOKEN_ENV_VAR]` (`experiments/upstreams/ev.sh start` runs server-everything on :3001)
-- **Evidence:** 2026-10-11: TC-ARC-15-1 PASS — `@modelcontextprotocol/server-everything@2026.8.31` (`dist/index.js streamableHttp`, PORT env) → SDK client: protocol 2025-11-25, **sessionful** (issues `Mcp-Session-Id`), 13 tools, all names valid for `slug__tool`; `echo` call → `Echo: via gateway client`. Restart test: stale session → `StreamableHTTPError` (-32000), fresh connect → 13 tools ⇒ GW-04 must reconnect once on session errors. TC-ARC-15-2 partial — GitHub `https://api.githubcopilot.com/mcp/` without token → 401 + `WWW-Authenticate: Bearer`; listing with PAT **pending `GITHUB_MCP_PAT`**. DeepWiki fallback unreachable from this network (TCP timeout); the timeout hung ~20 s despite the SDK `timeout` option ⇒ GW-09 must abort the transport fetch itself. Security: server-everything has a `get-env` tool that returns its process env ⇒ its pod must carry no secrets (T-15).
+- **Evidence:** 2026-10-11: TC-ARC-15-1 PASS — `@modelcontextprotocol/server-everything@2026.8.31` (`dist/index.js streamableHttp`, PORT env) → SDK client: protocol 2025-11-25, **sessionful** (issues `Mcp-Session-Id`), 13 tools, all names valid for `slug__tool`; `echo` call → `Echo: via gateway client`. Restart test: stale session → `StreamableHTTPError` (-32000), fresh connect → 13 tools ⇒ GW-04 must reconnect once on session errors. TC-ARC-15-2 PASS (2026-10-12) — `node experiments/upstreams/probe.mjs https://api.githubcopilot.com/mcp/ GITHUB_MCP_PAT` → connected in 4218 ms, protocol 2025-11-25, **sessionful** (`Mcp-Session-Id`), **46 tools** (add_issue_comment, issue_write, list_issues, get_me, …), names incompatible with `slug__tool`: none; `CALL='get_me {}'` → isError=false, login `Ragx09`; without token → 401. DeepWiki fallback unreachable from this network (TCP timeout); the timeout hung ~20 s despite the SDK `timeout` option ⇒ GW-09 must abort the transport fetch itself. Security: server-everything has a `get-env` tool that returns its process env ⇒ its pod must carry no secrets (T-15).
 - **Regression risk:** GitHub unreachable → DeepWiki fallback.
 
 ---

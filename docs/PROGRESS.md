@@ -7,6 +7,7 @@ Phase 2 — Gateway core (Day 2, 2026-10-12)
 Day 2 complete (vertical slice + INF-15). Next: Day 3 — GW-09 Timeouts
 
 ## Recently completed
+- 2026-10-12: P0-04 + ARC-15 Done — `GITHUB_MCP_PAT` verified against GitHub remote MCP (46 tools, `get_me` OK, 401 without token), put into Secret `upstream-seed`; D-013 Accepted. `.env` converted from CRLF to LF.
 - 2026-10-12: INF-15 — `scripts/up.sh` from a deleted cluster → all Ready in 5m32s (smoke: shop 200, gateway list + call OK); re-run is a no-op after fixing non-reproducible image ids (`--provenance=false --sbom=false` in `build-images.sh`); README "Local setup" written; `checkpoint.md` gitignored. Note: the clean rebuild reset all local data (orders, gateway DB, dev key) — the old demo-pay DB rows are gone with it.
 - 2026-10-12: Brand docs → **TATVA as the current working concept (may change)**: D-015 rewritten (Proposed), D-016 points to `docs/v1-brand-ui-theme.md`, BRD-01..07 reference the TATVA docs (5 categories, ~50 proposed products, placeholder brands), **BRD-03 unblocked** (theme material exists). TATVA docs committed; `*:Zone.Identifier` ignored. Sample products still named "Urumi …" until BRD-05.
 - 2026-10-12: WC-16 (mock card payment page) **removed**: not in the problem statement (COD satisfies REQ-STORE-02); no code/task/doc left in the repo. The stale k3d DB rows were cleared by the INF-15 clean rebuild: `active_plugins` = woocommerce only, no `urumi_demo` options (checked).
@@ -39,14 +40,13 @@ Day 2 complete (vertical slice + INF-15). Next: Day 3 — GW-09 Timeouts
 - **BRD-03 theme** waits for the user's theme material in `brand/` (Phase 9, added 2026-10-12). SEC-07 TLS part waits for the VPS / REL-04.
 - BRD-03 no longer blocked (theme spec in `docs/v1-brand-ui-theme.md`).
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
-- **GitHub fine-grained PAT** still needed in `.env` (`GITHUB_MCP_PAT`) → P0-04, blocks ARC-15. Groq key verified 2026-10-11; OpenRouter key optional.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
 
 ## Important decisions
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub — needs `GITHUB_MCP_PAT`). `GITHUB_MCP_PAT` needed before Day 3.
+Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

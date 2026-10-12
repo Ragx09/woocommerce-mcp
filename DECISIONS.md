@@ -103,7 +103,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 
 ## D-013 — Additional upstream MCP servers
 - **Date:** 2026-10-11
-- **Status:** Proposed (validate in ARC-15)
+- **Status:** Accepted (ARC-15 passed 2026-10-12: server-everything 13 tools; GitHub remote 46 tools with PAT, 401 without; both sessionful)
 - **Choice:** (1) `@modelcontextprotocol/server-everything` in-cluster, Streamable HTTP mode. (2) GitHub's remote MCP server (`https://api.githubcopilot.com/mcp/`) with a fine-grained PAT as a bearer credential.
 - **Why:** (1) gives us an in-cluster pod to kill and generic tool names. (2) demonstrates server-side credential injection and a realistic cross-server prompt (orders → GitHub issue).
 - **Trade-offs:** GitHub depends on internet access and the PAT. Fallback: DeepWiki (no auth).
