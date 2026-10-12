@@ -51,6 +51,15 @@ spec:
             - { name: DB_CONNECT_TIMEOUT_MS, value: "150000" }   # first install: Postgres pulls + initdb
             - name: PGPASSWORD
               valueFrom: { secretKeyRef: { name: {{ $v.postgres.existingSecret }}, key: password } }
+            - name: CREDENTIALS_KEY   # AES-256-GCM key for upstream credentials at rest (D-009)
+              valueFrom: { secretKeyRef: { name: {{ $v.secrets }}, key: credentials-key } }
+            {{- if and $v.seed.woo.enabled .Values.wooMcp.enabled }}
+            # GW-03: register woo-mcp on first start (admin edits are never overwritten).
+            - { name: SEED_WOO_URL, value: "http://woo-mcp.{{ .Values.global.namespaces.store }}.svc.cluster.local/mcp" }
+            - { name: SEED_WOO_NAME, value: {{ $v.seed.woo.name | quote }} }
+            - name: SEED_WOO_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: woo-token } }
+            {{- end }}
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
           # Migrations run before the server listens; give startup up to 3 min before liveness applies.
           startupProbe:

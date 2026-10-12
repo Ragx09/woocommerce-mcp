@@ -76,6 +76,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Status:** Proposed
 - **Choice:** AES-256-GCM encryption with a 32-byte key from the K8s Secret `gateway-secrets.CREDENTIALS_KEY`. Stored as `{iv, ciphertext, tag}`. The API field is write-only (responses show `hasCredential: true` + header name only).
 - **Why:** A DB dump alone doesn't leak upstream tokens. Credentials never reach the browser.
+- **Implementation (GW-03, 2026-10-12):** `{v:1, iv, ciphertext, tag}` in `upstreams.credential_enc` (jsonb); the upstream slug is bound as GCM associated data, so a ciphertext copied to another row does not decrypt. Key: `gateway-secrets/credentials-key` (64 hex chars) from `scripts/make-secrets.sh`.
 
 ## D-010 — Local cluster, ingress and domains
 - **Date:** 2026-10-11

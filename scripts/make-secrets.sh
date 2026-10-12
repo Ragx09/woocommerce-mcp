@@ -69,6 +69,10 @@ EOF
 secret "$PLATFORM_NS" postgres-secrets <<EOF
 password=$(rand 32)
 EOF
+# Encrypts upstream credentials in the gateway DB. Rotating it makes stored credentials unreadable.
+secret "$PLATFORM_NS" gateway-secrets <<EOF
+credentials-key=$(hex 64)
+EOF
 
 # Gateway secrets (used from Phase 4 on). Upstream credentials seeded into the gateway DB.
 [ -f .env ] && set -a && . ./.env && set +a

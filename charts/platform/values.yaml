@@ -62,6 +62,12 @@ gateway:
     tag: dev
   replicas: 1
   logLevel: info
+  secrets: gateway-secrets                   # key: credentials-key (64 hex chars)
+  seed:
+    secret: upstream-seed                    # keys: woo-token, github-pat
+    woo:
+      enabled: true
+      name: WooCommerce
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { memory: 384Mi }

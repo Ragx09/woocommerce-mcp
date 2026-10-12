@@ -30,7 +30,8 @@ export const upstreams = pgTable(
     /** users.id once AUTH-01 lands; null for rows seeded at startup. */
     createdBy: uuid('created_by'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Bumped on every ORM update; the seeder uses it to tell admin edits from untouched seeded rows. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => [
     // Constraints are enforced by the database too, not only by API validation.
@@ -48,4 +49,11 @@ export const upstreams = pgTable(
 );
 
 export type Upstream = typeof upstreams.$inferSelect;
+
+/** Small key/value store for one-time actions (e.g. "the woo upstream was seeded at …"). */
+export const appMeta = pgTable('app_meta', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 export type NewUpstream = typeof upstreams.$inferInsert;

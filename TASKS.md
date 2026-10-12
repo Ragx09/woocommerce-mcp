@@ -870,17 +870,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-03 — Seed WooCommerce upstream
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-02
 - **Requirements:** REQ-GW-10
 - **Description:** On startup, ensure upstream slug `woo` → `http://woo-mcp.store.svc.cluster.local/mcp` exists (from values); never overwrite admin edits.
 - **Output:** Seeder.
 - **Acceptance:** Fresh install lists `woo` first.
-- **Tests:** TC-GW-03-1: fresh DB → GET /api/upstreams → woo present.
-- **Command:** `curl …/api/upstreams`
-- **Evidence:** —
-- **Regression risk:** —
+- **Tests:** TC-GW-03-1..7 (`test/int/seed.int.test.ts`), TC-GW-03-U1..U4 (`test/unit/credentials.test.ts`). `GET /api/upstreams` needs a session (AUTH-03), so TC-GW-03-1 checks `listUpstreams()` (the function the route will use) instead of opening an unauthenticated API.
+- **Command:** `scripts/gateway-db-int.sh`; `npm test -w services/gateway`
+- **Evidence:** 2026-10-12: unit 11/11 (AES-256-GCM round trip, random IV, wrong key / other slug / tampered byte → throws, key format, public shape has `hasCredential` and no ciphertext); integration 23/23 incl. TC-GW-03-1 fresh DB → `created`, woo listed first, credential encrypted; -2 restart → `unchanged`, row not rewritten; -3 rotated token → `refreshed`; -4 admin edit → `admin-edited`, never overwritten; -5 admin delete → not re-created; -6 slug created by hand first → left alone; -7 4 concurrent seeders → 1 row. k3d: gateway log `{"slug":"woo","result":"created"}`; row `woo | WooCommerce | http://woo-mcp.store.svc.cluster.local/mcp | bearer | encrypted`; `pg_dump` contains the plaintext token 0 times; decrypted credential hash = `woo-mcp-auth` Secret hash; after `rollout restart` → `"result":"unchanged"`.
+- **Regression risk:** `CREDENTIALS_KEY` rotation makes stored credentials unreadable (re-enter or re-seed). Admin edits must go through the ORM so `updated_at` is bumped (`$onUpdate`).
 
 ### GW-04 — Upstream client pool
 - **Priority:** P0
@@ -1005,7 +1005,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-UNIT-05, TC-INT-06 pass.
 - **Tests:** TC-UNIT-05, TC-INT-06.
 - **Command:** `npm test -w services/gateway`
-- **Evidence:** —
+- **Evidence:** Partial (2026-10-12, GW-03): `src/crypto/credentials.ts` (AES-256-GCM, slug as AAD) + `gateway-secrets/credentials-key` done and tested; injection into the upstream transport still open.
 - **Regression risk:** Key rotation not supported (documented).
 
 ### GW-13 — everything-mcp upstream in cluster

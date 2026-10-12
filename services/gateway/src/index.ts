@@ -1,9 +1,13 @@
 import { loadConfig } from './config.js';
 import { buildApp, VERSION } from './app.js';
-import { createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
+import { loadCredentialKey } from './crypto/credentials.js';
+import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
+import { loadWooSeed, seedUpstream } from './upstreams/seed.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
+const credentialKey = loadCredentialKey();
+const wooSeed = loadWooSeed();
 const pool = createPool(dbCfg);
 const app = buildApp(cfg, { readinessChecks: [{ name: 'database', check: () => pingDb(pool) }] });
 
@@ -22,6 +26,11 @@ try {
   process.exit(1);
 }
 app.log.info('database migrations applied');
+
+if (wooSeed) {
+  const result = await seedUpstream(createDb(pool), credentialKey, wooSeed);
+  app.log.info({ slug: wooSeed.slug, result }, 'seed upstream');
+}
 
 await app.listen({ port: cfg.port, host: cfg.host });
 app.log.info({ version: VERSION }, 'gateway listening');

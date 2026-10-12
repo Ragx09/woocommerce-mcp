@@ -1,0 +1,168 @@
+{
+  "id": "952e9b0e-369d-48de-ac8b-53e24daf5015",
+  "prevId": "c0119a25-04d8-49f2-9d61-3932b089c35e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.app_meta": {
+      "name": "app_meta",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.upstreams": {
+      "name": "upstreams",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "auth_type": {
+          "name": "auth_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "auth_header": {
+          "name": "auth_header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_enc": {
+          "name": "credential_enc",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "upstreams_slug_unique": {
+          "name": "upstreams_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "upstreams_slug_format": {
+          "name": "upstreams_slug_format",
+          "value": "\"upstreams\".\"slug\" ~ '^[a-z0-9-]{1,20}$'"
+        },
+        "upstreams_name_length": {
+          "name": "upstreams_name_length",
+          "value": "char_length(\"upstreams\".\"name\") between 1 and 100"
+        },
+        "upstreams_url_http": {
+          "name": "upstreams_url_http",
+          "value": "\"upstreams\".\"url\" ~ '^https?://' and char_length(\"upstreams\".\"url\") <= 2048"
+        },
+        "upstreams_auth_type": {
+          "name": "upstreams_auth_type",
+          "value": "\"upstreams\".\"auth_type\" in ('none', 'header', 'bearer')"
+        },
+        "upstreams_auth_header": {
+          "name": "upstreams_auth_header",
+          "value": "(\"upstreams\".\"auth_type\" = 'header') = (\"upstreams\".\"auth_header\" is not null)\n          and (\"upstreams\".\"auth_header\" is null or \"upstreams\".\"auth_header\" ~ '^[A-Za-z0-9-]{1,64}$')"
+        },
+        "upstreams_credential": {
+          "name": "upstreams_credential",
+          "value": "\"upstreams\".\"auth_type\" <> 'none' or \"upstreams\".\"credential_enc\" is null"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
