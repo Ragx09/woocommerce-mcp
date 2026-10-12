@@ -7,6 +7,7 @@ Phase 2 — Gateway core (Day 2, 2026-10-12)
 GW-07 — Namespacing (next)
 
 ## Recently completed
+- 2026-10-12: Roadmap extended (docs only): **Phase 9 — Storefront brand and catalogue** (BRD-01..07, Day 3, P2, D-015/D-016) and **Phase 10 — Security testing: attack and harden** (SEC-01..09, Day 6–7 and ongoing; `docs/SECURITY_TESTING.md`, `SECURITY_FINDINGS.md`, `RED_TEAM_BRIEF.md`; `brand/README.md`). Tracker `idList` now parses `BRD`/`SEC` IDs; tracker regenerated.
 - 2026-10-12: GW-05 — `ToolDiscovery` (parallel paginated `listTools`, 3 s deadline per upstream, 60 s stale cache keyed by config version, single-flight, failures isolated and reported); 7 tests, unit suite 25/25. Also fixed `safeReason` prefixes for SDK errors. Not yet wired into `/mcp` (GW-06); k3d check deferred (Docker Desktop was not running).
 - 2026-10-12: GW-04 — upstream client pool (lazy connect, credential injection, rebuild on change, reconnect once on stale session, 2 s connect timeout); 7 pool tests with in-process fake upstreams; woo tools listed from the gateway pod. `build-images.sh` now keeps tags of services not rebuilt.
 - 2026-10-12: GW-03 — woo upstream seeded at startup (once; admin edits/deletes respected; untouched row follows token rotation), credential AES-256-GCM encrypted (`gateway-secrets`), `app_meta` table, `listUpstreams`/`toPublic` allowlist. 11 unit + 23 integration tests; verified on k3d.
@@ -29,6 +30,7 @@ GW-07 — Namespacing (next)
 - Environment checks (read-only): Docker 29.6.2 running, 12 CPU / ~15 GB RAM; kubectl 1.36.1; Node 24.19; helm, k3d, kind and minikube missing; no kubeconfig; no LLM keys in env.
 
 ## Blockers
+- **BRD-03 theme** waits for the user's theme material in `brand/` (Phase 9, added 2026-10-12). SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - **GitHub fine-grained PAT** still needed in `.env` (`GITHUB_MCP_PAT`) → P0-04, blocks ARC-15. Groq key verified 2026-10-11; OpenRouter key optional.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.

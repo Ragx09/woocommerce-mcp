@@ -38,6 +38,10 @@
 | T-13 | Brute force on login | argon2id; basic per-IP rate limit on `/api/auth/login` | Planned |
 | T-14 | Container breakout or privilege | `runAsNonRoot` where images allow, `allowPrivilegeEscalation: false`, dropped capabilities, no service-account token for our pods | Planned |
 | T-15 | A third-party upstream leaks its own environment (server-everything has a `get-env` tool) | Upstream pods get no Secrets or env credentials; only non-sensitive config; separate ServiceAccount without token | Planned |
+| T-17 | WordPress recon and attack surface: user enumeration (`/wp-json/wp/v2/users`, `?author=`), `xmlrpc.php` brute force, `readme.html` version leak, vulnerable plugins/themes | Disable or restrict the exposed endpoints; pin and scan core, plugins and the brand theme (Phase 9) | Planned (SEC-02) |
+| T-18 | Checkout tampering: price, quantity or coupon changed client-side; order marked paid without payment | WooCommerce recalculates totals server-side | Planned (SEC-04) |
+| T-19 | Clickjacking, XSS impact or cookie theft from missing security headers / cookie flags | CSP, frame-ancestors, nosniff, Referrer-Policy via Traefik middleware; Secure/HttpOnly/SameSite cookies; HSTS + TLS on the VPS | Planned (SEC-07) |
+| T-20 | Known CVEs in container images | Pinned images, Trivy scan, rebuild on fixable Critical/High | Planned (SEC-06) |
 
 ## 4. Required threat-model questions (REQ-DEL-07)
 1. **Shared upstream credentials: what can a member do with a credential they never see?** They can make the gateway use it for any tool the upstream allows, within the PAT's or key's scope. The credential itself can't be extracted. Limits: minimal-scope credentials; per-user attribution in the audit log; key revocation; disabling a server. Stand-out item: per-role tool permissions.
@@ -47,3 +51,23 @@
 
 ## 5. Security tests
 Mapped in `TEST_PLAN.md` § Security (TC-SEC-*).
+
+## 6. Verification by attack (Phase 10)
+This model is the **hypothesis**: what could go wrong and how we planned to stop it. Phase 10 (`TASKS.md` SEC-01…09) is the **proof**: we attack each threat and record the result in [`docs/SECURITY_FINDINGS.md`](docs/SECURITY_FINDINGS.md).
+
+| Threat | Attacked in |
+|---|---|
+| T-01, T-02, T-05, T-12, T-13 | SEC-04 manual auth tests, SEC-03 ZAP API scan |
+| T-03, T-04, T-07, T-08, T-15 | SEC-05 MCP/AI tests (hostile upstream, credential exfiltration via chat) |
+| T-06 | SEC-05 SSRF set (incl. TC-SEC-01, DNS rebinding) |
+| T-09, T-14, T-11, T-20 | SEC-06 rogue-pod matrix, kubescape, Trivy, gitleaks |
+| T-10 | SEC-04/05: grep logs after each attack run |
+| T-18 | SEC-04 checkout tampering |
+| T-17 | SEC-02 WPScan, nuclei, nikto |
+| T-19 | SEC-07 headers, cookies, TLS |
+| everything | SEC-08 attacker-LLM rounds |
+
+Rules for updating this file:
+- A threat moves from `Planned` to `Mitigated (<task>, verified <SEC-xx>)` only after its attack fails and a regression test exists.
+- A finding that matches no threat here becomes a **new T-row** (the attack found a gap in the model itself).
+- A finding we choose not to fix becomes `Accepted` with the reason, and goes into the residual-risk part of `docs/SECURITY_REPORT.md` (SEC-09).

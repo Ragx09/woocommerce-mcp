@@ -29,7 +29,8 @@ _Placing an order, connecting Claude Code / Cursor / MCP Inspector, using the ch
 | [THREAT_MODEL.md](THREAT_MODEL.md) | security model |
 | [TEST_PLAN.md](TEST_PLAN.md) | test strategy |
 | [TASKS.md](TASKS.md) | roadmap and status |
-| [docs/](docs) | MCP design, API contracts, deployment, demo runbook, traceability |
+| [docs/](docs) | MCP design, API contracts, deployment, demo runbook, traceability, security testing ([rules](docs/SECURITY_TESTING.md), [findings](docs/SECURITY_FINDINGS.md), [red-team brief](docs/RED_TEAM_BRIEF.md)) |
+| [brand/](brand) | Urumi storefront brand material |
 | [knowledge/](knowledge) | learning notes |
 
 ## Bonus / stand-out items attempted

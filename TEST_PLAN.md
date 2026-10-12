@@ -45,6 +45,10 @@ Each test has an ID (`TC-<area>-<n>` for suites, `TC-<taskID>-<n>` inside TASKS.
 - **TC-SEC-03** No woo-mcp Ingress exists; external `curl` to the store host at `/mcp` → 404. REQ-MCP-08
 - **TC-SEC-04** Secret scan of the repo (gitleaks or grep patterns) → no findings. REQ-K8S-09
 - **TC-SEC-05** Browser bundle grep for secret values and env names → none. REQ-CHAT-04
+- **Phase 10 suites** (attack and harden, `docs/SECURITY_TESTING.md`): TC-SEC-02-n web scanners (WPScan, nuclei, nikto) · TC-SEC-03-n OWASP ZAP · TC-SEC-04-n manual auth / business logic (`tests/security/`) · TC-SEC-05-n MCP/AI-specific (hostile upstream, SSRF, prompt injection) · TC-SEC-06-n Trivy, kubescape, rogue-pod NetworkPolicy matrix, gitleaks · TC-SEC-07-n headers, cookies, TLS · TC-SEC-08-n one regression test per attacker-LLM finding.
+
+### Storefront brand (Phase 9)
+- TC-BRD-01-1 … TC-BRD-07-2 (see `TASKS.md`): contrast, layout vs mockup, idempotent catalogue seeding, fresh-cluster reproducibility, checkout + woo-int regression.
 
 ### Kubernetes / deployment
 - **TC-K8S-01** `helm lint` + kubeconform pass for local and prod values. REQ-K8S-03

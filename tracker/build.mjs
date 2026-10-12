@@ -63,7 +63,7 @@ function sectionText(md, heading) {
   return s ? s.body.trim() : '';
 }
 
-const idList = (s) => (s || '').match(/\b(?:P0|ARC|INF|WC|GW|AUTH|UI|E2E|REL|BON)-\d{2}(?:\.\.(?:(?:P0|ARC|INF|WC|GW|AUTH|UI|E2E|REL|BON)-)?\d{2})?\b/g) || [];
+const idList = (s) => (s || '').match(/\b(?:P0|ARC|INF|WC|GW|AUTH|UI|E2E|REL|BON|BRD|SEC)-\d{2}(?:\.\.(?:(?:P0|ARC|INF|WC|GW|AUTH|UI|E2E|REL|BON|BRD|SEC)-)?\d{2})?\b/g) || [];
 
 // ---------- TASKS.md ----------
 const tasksMd = read('TASKS.md');

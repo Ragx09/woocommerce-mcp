@@ -34,7 +34,7 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 ## Conventions
 - Monorepo: `services/woo-mcp`, `services/gateway`, `apps/dashboard`, `charts/`, `scripts/`, `tests/e2e/`. TypeScript, Node 24, npm workspaces, vitest.
 - MCP: `@modelcontextprotocol/sdk` v1.x, Streamable HTTP, stateless. Gateway tool names are `<server_slug>__<tool>` (see `docs/MCP_DESIGN.md`).
-- Requirement IDs `REQ-*`, task IDs (`P0-`, `ARC-`, `INF-`, `WC-`, `GW-`, `AUTH-`, `UI-`, `E2E-`, `REL-`), test IDs `TC-<task>-<n>`.
+- Requirement IDs `REQ-*`, task IDs (`P0-`, `ARC-`, `INF-`, `WC-`, `GW-`, `AUTH-`, `UI-`, `E2E-`, `REL-`, `BRD-` storefront brand, `SEC-` security testing), test IDs `TC-<task>-<n>`.
 - Keep the Markdown formats the tracker parses: task headings `### ID — Title` + `- **Field:** value` bullets, traceability as one table, decisions as `## D-NNN — Title`.
 
 ## Document map
@@ -46,6 +46,8 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 | `TEST_PLAN.md` | test strategy and suites |
 | `DECISIONS.md` | architecture decision log |
 | `THREAT_MODEL.md` | security model |
+| `docs/SECURITY_TESTING.md`, `docs/SECURITY_FINDINGS.md`, `docs/RED_TEAM_BRIEF.md` | Phase 10 rules of engagement, findings log, attacker-LLM brief |
+| `brand/` | Urumi storefront source material (Phase 9) |
 | `docs/PROGRESS.md` | latest handover summary |
 | `docs/REQUIREMENTS_TRACEABILITY.md` | requirement → task → test → evidence |
 | `docs/API_CONTRACTS.md`, `docs/MCP_DESIGN.md`, `docs/DEPLOYMENT.md`, `docs/DEMO_RUNBOOK.md` | engineering details |

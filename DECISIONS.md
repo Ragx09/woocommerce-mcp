@@ -107,3 +107,18 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Choice:** (1) `@modelcontextprotocol/server-everything` in-cluster, Streamable HTTP mode. (2) GitHub's remote MCP server (`https://api.githubcopilot.com/mcp/`) with a fine-grained PAT as a bearer credential.
 - **Why:** (1) gives us an in-cluster pod to kill and generic tool names. (2) demonstrates server-side credential injection and a realistic cross-server prompt (orders → GitHub issue).
 - **Trade-offs:** GitHub depends on internet access and the PAT. Fallback: DeepWiki (no auth).
+
+
+## D-015 — Store niche: Urumi, curated Indian brands
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Choice:** The demo store is **Urumi**, a curated marketplace for Indian startups and homegrown brands (7 categories, featured brands, ₹ prices), following the user's mockup `Urumi Curated Indian Marketplace Homepage.png`. The user chose **real brand names** as in the mockup.
+- **Why:** A concrete, good-looking store makes the demo more convincing than generic sample products.
+- **Trade-offs:** Real brand names and logos are trademarks. Fine for local development; **review before the repo goes public or the video is recorded** (REL-16/17), and swap to fictional names if in doubt. Brand work is P2 and the first thing cut if behind.
+
+## D-016 — Storefront theme approach
+- **Date:** 2026-10-12
+- **Status:** Proposed (waiting for the user's theme material in `brand/`)
+- **Choice:** To be decided in BRD-03 once `brand/theme/` exists. Constraint: the theme, assets and catalogue must be installed by wp-init so a fresh cluster reproduces the store with no manual steps.
+- **Why:** Reproducibility across local k3d and the VPS with the same chart.
+- **Trade-offs:** Images exceed the 1 MiB ConfigMap limit, so they need an init container or a custom image.
