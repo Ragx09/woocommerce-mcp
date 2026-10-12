@@ -98,6 +98,16 @@ export class ToolDiscovery {
     return result;
   }
 
+  /**
+   * Tools of one upstream for routing (GW-08): the cached list when it matches the current config
+   * and is at most maxStale old, otherwise a fresh list (shared with any in-flight discovery).
+   */
+  async toolsFor(row: Upstream): Promise<Tool[]> {
+    const cached = this.cache.get(row.id);
+    if (cached && cached.version === versionOf(row) && this.now() - cached.fetchedAt <= this.maxStaleMs) return cached.tools;
+    return (await this.refresh(row)).tools;
+  }
+
   private refresh(row: Upstream): Promise<CacheEntry> {
     const version = versionOf(row);
     const running = this.inflight.get(row.id);

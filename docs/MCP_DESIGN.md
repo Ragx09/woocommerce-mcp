@@ -33,10 +33,13 @@
 Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 
 ## 5. Routing `tools/call`
-1. Parse the public name → (slug, tool). Unknown slug → error `unknown_tool`.
-2. Upstream disabled → `upstream_disabled`. Health Unreachable → try once with the connect timeout, then `upstream_unreachable`.
-3. Forward `callTool({name: tool, arguments})` with a 15 s timeout → return the upstream result as-is (`isError` preserved).
-4. Write the audit row (§9).
+1. Parse the public name → (slug, rest) (`parsePublicName`). Malformed or unknown slug → JSON-RPC `-32602`, `data.code = unknown_tool`.
+2. Upstream disabled → `-32602`, `data.code = upstream_disabled`. (Health-based fast fail arrives with GW-10.)
+3. Resolve the upstream tool name through a `ToolIndex` over `ToolDiscovery.toolsFor(row)` (cached list if ≤ 60 s old and the config is unchanged, otherwise refreshed). Not found → `unknown_tool`. This makes shortened (hashed) names routable.
+4. Forward `callTool({name: tool, arguments})` with a 15 s timeout → return the upstream result as-is (`isError` preserved). A transport failure is retried once **only** if the call certainly did not run (`isSafeCallRetry`: HTTP 404 stale session, `ECONNREFUSED`).
+5. Failures reaching the upstream become `isError` results the model can read: `upstream_unreachable: …`, `upstream_timeout: …`, `upstream_error: …` (no URLs, no credentials).
+6. Log `tools/call {upstream, tool, outcome, ms}` (never arguments or results); the audit row (§9) comes with Phase 5.
+Implemented in `services/gateway/src/mcp/route.ts` (GW-08).
 
 ## 6. Timeouts and errors
 | Stage | Budget | Error code (in the JSON-RPC error `data.code`, or an `isError` tool result) |

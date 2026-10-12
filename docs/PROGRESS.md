@@ -4,9 +4,10 @@
 Phase 2 — Gateway core (Day 2, 2026-10-12)
 
 ## Current task
-GW-08 — Routing tools/call (next; completes the Day 2 vertical slice)
+Day 2 exit gate met (vertical slice). Next: INF-15 (P1, Day 2 leftover) or Day 3 GW-09 — Timeouts
 
 ## Recently completed
+- 2026-10-12: GW-08 — `tools/call` routing: public name → `ToolIndex` (works for hashed names) → forward → result unchanged; `unknown_tool` / `upstream_disabled` JSON-RPC errors; unreachable/timeout/error → readable `isError` results; retry only when the call certainly did not run. Unit 48/48. **Day 2 vertical slice PASS on k3d:** Inspector CLI → gateway → woo-mcp → WooCommerce returns 5 products and 6 orders.
 - 2026-10-12: GW-06 — gateway `POST /mcp` (stateless, low-level SDK `Server`): tools/list reloads upstreams from the DB, discovers (GW-05) and returns public names (GW-07); temporary shared `MCP_DEV_KEY` (Secret `gateway-dev-key`, fail closed) until AUTH-08. Unit 40/40; on k3d the Inspector CLI lists the 5 `woo__*` tools through Traefik; 401 without/with wrong key; key absent from logs.
 - 2026-10-12: GW-07 — `src/mcp/naming.ts`: `slug__tool`, 64-char limit with sha1 suffix, invalid characters sanitized + hashed, `ToolIndex` for routing (handles unsplittable hashed names, reports duplicates), `[slug]` description prefix capped at 1024. 8 tests (TC-UNIT-01), unit suite 33/33. D-005 addendum.
 - 2026-10-12: Roadmap extended (docs only): **Phase 9 — Storefront brand and catalogue** (BRD-01..07, Day 3, P2, D-015/D-016) and **Phase 10 — Security testing: attack and harden** (SEC-01..09, Day 6–7 and ongoing; `docs/SECURITY_TESTING.md`, `SECURITY_FINDINGS.md`, `RED_TEAM_BRIEF.md`; `brand/README.md`). Tracker `idList` now parses `BRD`/`SEC` IDs; tracker regenerated.
@@ -41,7 +42,7 @@ GW-08 — Routing tools/call (next; completes the Day 2 vertical slice)
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-GW-08 (routing tools/call → products returned through the gateway = Day 2 vertical slice), then INF-15 and Day 3 (GW-09+). `GITHUB_MCP_PAT` needed before Day 3.
+INF-15 (up/down scripts, P1), then Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub — needs `GITHUB_MCP_PAT`). `GITHUB_MCP_PAT` needed before Day 3.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

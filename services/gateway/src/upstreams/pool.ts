@@ -47,6 +47,17 @@ export function isTransportError(e: unknown): boolean {
   return e instanceof TypeError || (e instanceof Error && /fetch failed|ECONN|socket|closed|terminated/i.test(e.message));
 }
 
+/**
+ * Stricter retry rule for tools/call (GW-08): only when the upstream certainly did not run the tool,
+ * i.e. the connection was refused or the session was unknown (HTTP 404). A reset or timeout after the
+ * request was sent may mean it ran, and repeating e.g. create_product would duplicate it.
+ */
+export function isSafeCallRetry(e: unknown): boolean {
+  if (e instanceof StreamableHTTPError) return e.code === 404;
+  const err = e as { code?: string; cause?: { code?: string } };
+  return (err.cause?.code ?? err.code) === 'ECONNREFUSED';
+}
+
 export class UpstreamPool {
   private readonly entries = new Map<string, Entry>();
   private readonly dispatcher: Agent;

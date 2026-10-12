@@ -120,3 +120,20 @@ describe('ToolDiscovery (GW-05)', () => {
     expect(await d.discover()).toEqual({ upstreams: [], failed: [] });
   });
 });
+
+describe('ToolDiscovery.toolsFor (GW-08)', () => {
+  it('TC-GW-08-8: serves the fresh cache without an upstream request; refreshes when stale or changed', async () => {
+    const up = await fake({ tools: ['a'] });
+    const r = row({ url: up.url });
+    const { d, clock } = await setup([r]);
+    await d.discover();
+    expect(up.listCount()).toBe(1);
+    expect((await d.toolsFor(r)).map((t) => t.name)).toEqual(['a']);
+    expect(up.listCount()).toBe(1); // cache hit
+    clock.t += 60_001;
+    await d.toolsFor(r);
+    expect(up.listCount()).toBe(2); // too old → refreshed
+    await d.toolsFor({ ...r, updatedAt: new Date('2026-10-12T02:00:00Z') });
+    expect(up.listCount()).toBe(3); // config changed → refreshed
+  });
+});

@@ -1,12 +1,14 @@
 // In-process MCP server for tests. `sessionful` mimics server-everything (issues Mcp-Session-Id);
 // restart() forgets all sessions, like a pod restart. tools/list can be paginated (`pageSize`),
 // slowed down (setListDelay) or made to fail (setListError) to exercise discovery (GW-05).
+// tools/call echoes `{ tool, args }` as JSON text; tool `fail` returns isError, tool `boom` throws a
+// JSON-RPC error, unknown tools return isError (like the SDK) (GW-08).
 import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 
 export interface FakeUpstream {
   url: string;
@@ -14,6 +16,8 @@ export interface FakeUpstream {
   initializeCount: () => number;
   /** Number of tools/list requests received (one per page). */
   listCount: () => number;
+  /** Number of tools/call requests received. */
+  callCount: () => number;
   setListDelay: (ms: number) => void;
   setListError: (on: boolean) => void;
   restart: () => void;
@@ -27,6 +31,7 @@ export async function startFakeUpstream(
   const headers: IncomingHttpHeaders[] = [];
   let inits = 0;
   let lists = 0;
+  let calls = 0;
   let listDelayMs = 0;
   let listError = false;
   let sessions = new Map<string, StreamableHTTPServerTransport>();
@@ -45,6 +50,14 @@ export async function startFakeUpstream(
         name, description: `fake ${name}`, inputSchema: { type: 'object' as const, properties: {} },
       }));
       return start + size < tools.length ? { tools: page, nextCursor: String(start + size) } : { tools: page };
+    });
+    mcp.server.setRequestHandler(CallToolRequestSchema, async (req) => {
+      calls++;
+      const { name, arguments: args } = req.params;
+      if (!tools.includes(name)) return { isError: true, content: [{ type: 'text' as const, text: `Tool ${name} not found` }] };
+      if (name === 'boom') throw new McpError(-32603, 'boom failed');
+      const text = JSON.stringify({ tool: name, args: args ?? {} });
+      return name === 'fail' ? { isError: true, content: [{ type: 'text' as const, text }] } : { content: [{ type: 'text' as const, text }] };
     });
     return mcp;
   };
@@ -85,6 +98,7 @@ export async function startFakeUpstream(
     headers,
     initializeCount: () => inits,
     listCount: () => lists,
+    callCount: () => calls,
     setListDelay: (ms) => { listDelayMs = ms; },
     setListError: (on) => { listError = on; },
     restart: () => { sessions = new Map(); },

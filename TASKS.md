@@ -940,17 +940,17 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-08 — Routing tools/call
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** GW-06
 - **Requirements:** REQ-GW-03
 - **Description:** Parse → lookup → checks (exists, enabled) → forward → return result unchanged (except for error normalization).
-- **Output:** Router.
+- **Output:** `tools/call` handler in `src/mcp/route.ts`; `ToolDiscovery.toolsFor()`; `isSafeCallRetry()` in `pool.ts`.
 - **Acceptance:** `woo__list_orders` via the gateway returns orders.
-- **Tests:** TC-GW-08-1: call through gateway → result. TC-GW-08-2: unknown name → error `unknown_tool`.
+- **Tests:** TC-GW-08-1: call through gateway → result. TC-GW-08-2: unknown name → error `unknown_tool`. Unit TC-GW-08-1..8 (`mcp-route.test.ts`, `discovery.test.ts`): routing + arguments, unknown/malformed/unknown-slug, disabled, hashed long name, isError passthrough + JSON-RPC error not retried, unreachable < 3 s without URL, key not forwarded, `toolsFor` cache/refresh.
 - **Command:** Inspector CLI `--method tools/call --tool-name woo__list_orders`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: typecheck clean; `npm test -w services/gateway` → **48/48 passed** (3 runs). k3d (`gateway:sha-32a72cdfdcb4`, rev 11). **Day 2 vertical slice PASS** — Inspector CLI 2.10.1 → Traefik → gateway → woo-mcp → WooCommerce: **TC-GW-08-1** `--method tools/call --tool-name woo__list_products` → isError=false, 5 products (Urumi Mug 12.00, T-Shirt 25.00, Sticker Pack 5.00, 2 integration products); `woo__list_orders` → 6 orders (e.g. #20 processing 12.00 USD "1× Urumi Mug"); `woo__get_order {"order_id":20}` → order 20; `woo__get_order` with a wrong argument → upstream `isError` passed through unchanged. **TC-GW-08-2** raw JSON-RPC `woo__nope` → `-32602 unknown tool: woo__nope`, `data.code=unknown_tool`. Gateway log per call: `tools/call upstream=woo tool=list_products outcome=ok ms=210` (no arguments/results logged). Dev key occurrences in gateway and woo-mcp logs: 0.
+- **Regression risk:** Retry is limited to "certainly not executed" errors (404 session, ECONNREFUSED); widening it can duplicate writes such as create_product. 15 s default timeout until GW-09.
 
 ### GW-09 — Timeouts
 - **Priority:** P0

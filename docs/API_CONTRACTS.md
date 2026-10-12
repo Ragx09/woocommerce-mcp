@@ -30,6 +30,8 @@
 ## Error codes
 `unauthenticated` (401), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` (410), `rate_limited` (429), `internal` (500).
 
+`/mcp` (JSON-RPC, GW-08): `tools/call` with an unknown or malformed name → error `-32602` with `data.code = "unknown_tool"`; disabled upstream → `-32602`, `data.code = "upstream_disabled"`; registry (DB) failure → `-32603 "upstream registry unavailable"`. Upstream problems are returned as a tool result with `isError: true` and text `upstream_unreachable: …` / `upstream_timeout: …` / `upstream_error: …`; an upstream's own `isError` result is passed through unchanged.
+
 ## Upstream object (response)
 ```json
 { "id": "uuid", "name": "WooCommerce", "slug": "woo", "url": "http://woo-mcp.store.svc.cluster.local/mcp",

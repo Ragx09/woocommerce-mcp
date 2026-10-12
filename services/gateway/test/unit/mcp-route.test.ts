@@ -122,3 +122,80 @@ describe('gateway /mcp (GW-06)', () => {
     expect(res.headers.get('allow')).toBe('POST');
   });
 });
+
+const text = (r: unknown) => ((r as { content: { text: string }[] }).content[0]!.text);
+
+describe('gateway tools/call routing (GW-08)', () => {
+  it('TC-GW-08-1: call is routed to the owning upstream with its arguments; result returned unchanged', async () => {
+    const a = await fake({ tools: ['echo'] });
+    const b = await fake({ tools: ['echo'] });
+    const c = await client(await gateway({ current: [row({ id: 'a', slug: 'woo', url: a.url }), row({ id: 'b', slug: 'everything', url: b.url })] }));
+    const r = await c.callTool({ name: 'everything__echo', arguments: { msg: 'hi' } });
+    expect(r.isError).toBeFalsy();
+    expect(JSON.parse(text(r))).toEqual({ tool: 'echo', args: { msg: 'hi' } });
+    expect(b.callCount()).toBe(1);
+    expect(a.callCount()).toBe(0);
+  });
+
+  it('TC-GW-08-2: unknown tool, unknown slug or malformed name → unknown_tool error, nothing forwarded', async () => {
+    const up = await fake({ tools: ['echo'] });
+    const c = await client(await gateway({ current: [row({ url: up.url })] }));
+    for (const name of ['woo__nope', 'ghost__echo', 'echo', 'Woo__echo']) {
+      const err = await c.callTool({ name, arguments: {} }).catch((e) => e);
+      expect(err.code, name).toBe(-32602);
+      expect(err.data, name).toEqual({ code: 'unknown_tool' });
+    }
+    expect(up.callCount()).toBe(0);
+  });
+
+  it('TC-GW-08-3: disabled upstream → upstream_disabled, nothing forwarded', async () => {
+    const up = await fake({ tools: ['echo'] });
+    const c = await client(await gateway({ current: [row({ url: up.url, enabled: false })] }));
+    const err = await c.callTool({ name: 'woo__echo', arguments: {} }).catch((e) => e);
+    expect(err.data).toEqual({ code: 'upstream_disabled' });
+    expect(up.callCount()).toBe(0);
+  });
+
+  it('TC-GW-08-4: a shortened (hashed) public name routes to the full upstream tool name', async () => {
+    const long = `${'x'.repeat(70)}_tool`;
+    const up = await fake({ tools: [long] });
+    const c = await client(await gateway({ current: [row({ slug: 'github', url: up.url })] }));
+    const [t] = (await c.listTools()).tools;
+    expect(t!.name).toHaveLength(64);
+    const r = await c.callTool({ name: t!.name, arguments: {} });
+    expect(JSON.parse(text(r)).tool).toBe(long);
+  });
+
+  it('TC-GW-08-5: upstream isError result passed through; JSON-RPC error → upstream_error, not retried', async () => {
+    const up = await fake({ tools: ['fail', 'boom'] });
+    const c = await client(await gateway({ current: [row({ url: up.url })] }));
+    const r = await c.callTool({ name: 'woo__fail', arguments: { a: 1 } });
+    expect(r.isError).toBe(true);
+    expect(JSON.parse(text(r))).toEqual({ tool: 'fail', args: { a: 1 } });
+    const b = await c.callTool({ name: 'woo__boom', arguments: {} });
+    expect(b.isError).toBe(true);
+    expect(text(b)).toBe('upstream_error: upstream woo failed: MCP error -32603');
+    expect(up.callCount()).toBe(2); // one each: no retry
+  });
+
+  it('TC-GW-08-6: unreachable upstream → upstream_unreachable result quickly, no URL in the message', async () => {
+    const up = await fake({ tools: ['echo'] });
+    const rows = { current: [row({ url: up.url })] as Upstream[] | Error };
+    const c = await client(await gateway(rows));
+    await c.listTools(); // cached tool list, then the upstream dies
+    await up.close();
+    const t0 = Date.now();
+    const r = await c.callTool({ name: 'woo__echo', arguments: {} });
+    expect(Date.now() - t0).toBeLessThan(3_000);
+    expect(r.isError).toBe(true);
+    expect(text(r)).toMatch(/^upstream_unreachable: upstream woo unreachable/);
+    expect(text(r)).not.toContain('127.0.0.1');
+  });
+
+  it('TC-GW-08-7: the client key is not forwarded on calls', async () => {
+    const up = await fake({ tools: ['echo'] });
+    const c = await client(await gateway({ current: [row({ url: up.url })] }));
+    await c.callTool({ name: 'woo__echo', arguments: {} });
+    for (const h of up.headers) expect(JSON.stringify(h)).not.toContain(DEV_KEY);
+  });
+});
