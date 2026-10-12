@@ -16,3 +16,6 @@ tests/e2e/out/
 
 # Windows download markers (copied from /mnt/c)
 *:Zone.Identifier
+
+# Personal session checkpoint notes (local only)
+checkpoint.md

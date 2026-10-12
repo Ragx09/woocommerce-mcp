@@ -12,7 +12,23 @@ npm run tracker            # regenerate tracker/data.js from the Markdown docs
 ```
 
 ## Local setup
-_To be written in INF-15 / REL-12._
+Prerequisites: Docker (Desktop) running, `kubectl`, `helm` v3, `k3d` v5, Node 24, and a `.env` copied from `.env.example` (gitignored; see the comments in it). From the repository root:
+
+```bash
+scripts/up.sh            # create/start the k3d cluster, Secrets, build + import images, helm install, wait (~5–6 min first time, ~1 min after)
+k3d cluster stop mcp     # pause (keeps all data); `k3d cluster start mcp` or `scripts/up.sh` to resume
+scripts/down.sh          # remove the release, keep cluster, Secrets and data
+scripts/down.sh --all    # delete the cluster and ALL data
+```
+`up.sh` is safe to re-run: existing Secrets are kept, and unchanged code gives the same image tag, so nothing restarts. After code changes: `SERVICES=gateway scripts/build-images.sh && scripts/deploy.sh local`.
+
+| What | URL |
+|---|---|
+| Storefront | http://store.127.0.0.1.nip.io |
+| WP admin (user `admin`) | http://store.127.0.0.1.nip.io/wp-admin — password: `kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — temporary key until AUTH-08: `kubectl -n platform get secret gateway-dev-key -o jsonpath='{.data.key}' \| base64 -d` |
+
+More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Full instructions are finished in REL-12.
 
 ## VPS (k3s) setup
 _To be written in REL-12._

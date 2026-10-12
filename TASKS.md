@@ -604,11 +604,11 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Tests:** TC-INF-14-1: upgrade twice → `kubectl get pods` ages unchanged.
 - **Command:** `scripts/deploy.sh local && scripts/deploy.sh local`
 - **Evidence:** 2026-10-11: no-op `helm upgrade` (rev 2→3) → mariadb-0, wordpress, woo-mcp restart counts 0 and start times identical (diff empty); `wp-init-3` reran as a no-op (`rest key up to date`, no `sample products created`). Content-addressed image tags (`scripts/build-images.sh`) keep upgrades restart-free when code is unchanged.
-- **Regression risk:** Random values in templates (use `lookup` or external secrets).
+- **Regression risk:** Random values in templates (use `lookup` or external secrets). 2026-10-12 (INF-15): content-addressed tags were not stable across *rebuilds* (BuildKit provenance timestamps) → fixed in `build-images.sh` with `--provenance=false --sbom=false`.
 
 ### INF-15 — One-command up/down scripts
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-14
 - **Requirements:** REQ-DEL-01
@@ -617,8 +617,8 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** From a clean machine state, `up.sh` reaches all-Ready.
 - **Tests:** TC-INF-15-1: down → up → `kubectl wait --for=condition=Ready pods --all -A`.
 - **Command:** `scripts/up.sh`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-12: TC-INF-15-1 PASS — `scripts/down.sh --all` (cluster `mcp` deleted, 9 s) → `time scripts/up.sh` → exit 0, **real 5m31.7s**; `kubectl wait --for=condition=Ready pods --all -A --field-selector=status.phase!=Succeeded` → all 10 pods condition met (gateway, postgres-0, mariadb-0, woo-mcp, wordpress + kube-system); wp-init-1 Completed. Smoke on the fresh stack: `/shop/` 200; `/mcp` without key 401; with the new dev key `tools/list` → 5 `woo__*` tools, `tools/call woo__list_products` → 3 products. Re-run: secrets "exists (kept)", cluster "exists". **Found and fixed:** a no-op re-run restarted gateway and woo-mcp because BuildKit provenance attestations embed timestamps, changing the image id on every build (layers were identical) → `build-images.sh` now builds with `--provenance=false --sbom=false`; two builds → same id `sha256:7cde5207…`; second `up.sh` (1m02s, rev 4) → pod names and start times unchanged (diff empty). `up.sh` now also prints the gateway URL and how to read the dev key. README "Local setup" written.
+- **Regression risk:** Re-enabling provenance/SBOM in builds brings back restarts on every deploy. The first run pulls images (~5 min); slow networks may need a longer `--timeout`.
 
 ---
 

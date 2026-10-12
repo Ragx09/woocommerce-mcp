@@ -11,3 +11,5 @@ echo
 echo "Store:      http://store.127.0.0.1.nip.io"
 echo "WP admin:   http://store.127.0.0.1.nip.io/wp-admin  (user: admin; password:"
 echo "            kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' | base64 -d)"
+echo "Gateway:    http://app.127.0.0.1.nip.io/mcp  (Bearer key until AUTH-08:"
+echo "            kubectl -n platform get secret gateway-dev-key -o jsonpath='{.data.key}' | base64 -d)"

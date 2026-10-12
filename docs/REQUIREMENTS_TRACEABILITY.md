@@ -60,7 +60,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DOD-10 | DoD Team | Kill pod → others OK, Unreachable shown | gateway + dashboard | GW-16, E2E-09 | TC-E2E-10 | Not Started | — |
 | REQ-DOD-11 | DoD Team | All calls in audit, correct user | audit | AUTH-13, E2E-10 | TC-E2E-11 | Not Started | — |
 | REQ-DOD-12 | DoD | Demo with two users end to end | all | E2E-03, E2E-14, REL-15 | TC-E2E-12 | Not Started | — |
-| REQ-DEL-01 | Deliverables | README local setup | docs | INF-15, REL-12 | TC-REL-12-1 | Not Started | — |
+| REQ-DEL-01 | Deliverables | README local setup | docs | INF-15, REL-12 | TC-REL-12-1 | In Progress | README "Local setup" + `scripts/up.sh` verified from a deleted cluster (TASKS.md INF-15); final pass in REL-12 |
 | REQ-DEL-02 | Deliverables | README VPS setup | docs | REL-12 | TC-REL-12-1 | Not Started | — |
 | REQ-DEL-03 | Deliverables | README order / client / chat usage | docs | E2E-02, REL-12 | TC-EXT-02 | Not Started | — |
 | REQ-DEL-04 | Deliverables | Source code for all components | repo | INF-01, WC-06, GW-01, UI-01 | TC-INF-01-1 | Not Started | — |

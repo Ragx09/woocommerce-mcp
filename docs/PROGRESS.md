@@ -4,11 +4,12 @@
 Phase 2 — Gateway core (Day 2, 2026-10-12)
 
 ## Current task
-Day 2 exit gate met (vertical slice). Next: INF-15 (P1, Day 2 leftover) or Day 3 GW-09 — Timeouts
+Day 2 complete (vertical slice + INF-15). Next: Day 3 — GW-09 Timeouts
 
 ## Recently completed
+- 2026-10-12: INF-15 — `scripts/up.sh` from a deleted cluster → all Ready in 5m32s (smoke: shop 200, gateway list + call OK); re-run is a no-op after fixing non-reproducible image ids (`--provenance=false --sbom=false` in `build-images.sh`); README "Local setup" written; `checkpoint.md` gitignored. Note: the clean rebuild reset all local data (orders, gateway DB, dev key) — the old demo-pay DB rows are gone with it.
 - 2026-10-12: Brand docs → **TATVA as the current working concept (may change)**: D-015 rewritten (Proposed), D-016 points to `docs/v1-brand-ui-theme.md`, BRD-01..07 reference the TATVA docs (5 categories, ~50 proposed products, placeholder brands), **BRD-03 unblocked** (theme material exists). TATVA docs committed; `*:Zone.Identifier` ignored. Sample products still named "Urumi …" until BRD-05.
-- 2026-10-12: WC-16 (mock card payment page) **removed**: not in the problem statement (COD satisfies REQ-STORE-02); no code/task/doc left in the repo. Local k3d DB still has stale rows (`active_plugins` entry, `woocommerce_urumi_demo_card_settings`, gateway order) — harmless (plugin files gone); cleanup command awaits user approval.
+- 2026-10-12: WC-16 (mock card payment page) **removed**: not in the problem statement (COD satisfies REQ-STORE-02); no code/task/doc left in the repo. The stale k3d DB rows were cleared by the INF-15 clean rebuild: `active_plugins` = woocommerce only, no `urumi_demo` options (checked).
 - 2026-10-12: GW-08 — `tools/call` routing: public name → `ToolIndex` (works for hashed names) → forward → result unchanged; `unknown_tool` / `upstream_disabled` JSON-RPC errors; unreachable/timeout/error → readable `isError` results; retry only when the call certainly did not run. Unit 48/48. **Day 2 vertical slice PASS on k3d:** Inspector CLI → gateway → woo-mcp → WooCommerce returns 5 products and 6 orders.
 - 2026-10-12: GW-06 — gateway `POST /mcp` (stateless, low-level SDK `Server`): tools/list reloads upstreams from the DB, discovers (GW-05) and returns public names (GW-07); temporary shared `MCP_DEV_KEY` (Secret `gateway-dev-key`, fail closed) until AUTH-08. Unit 40/40; on k3d the Inspector CLI lists the 5 `woo__*` tools through Traefik; 401 without/with wrong key; key absent from logs.
 - 2026-10-12: GW-07 — `src/mcp/naming.ts`: `slug__tool`, 64-char limit with sha1 suffix, invalid characters sanitized + hashed, `ToolIndex` for routing (handles unsplittable hashed names, reports duplicates), `[slug]` description prefix capped at 1024. 8 tests (TC-UNIT-01), unit suite 33/33. D-005 addendum.
@@ -45,7 +46,7 @@ Day 2 exit gate met (vertical slice). Next: INF-15 (P1, Day 2 leftover) or Day 3
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-INF-15 (up/down scripts, P1), then Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub — needs `GITHUB_MCP_PAT`). `GITHUB_MCP_PAT` needed before Day 3.
+Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub — needs `GITHUB_MCP_PAT`). `GITHUB_MCP_PAT` needed before Day 3.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.
