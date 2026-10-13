@@ -4,9 +4,10 @@
 Phase 5 — Auth, API keys, audit (Day 4 work started 2026-10-13)
 
 ## Current task
-AUTH-03 Done. Next: AUTH-04 invitations
+AUTH-04 + AUTH-05 Done. Next: AUTH-06 API key generation
 
 ## Recently completed
+- 2026-10-13: **AUTH-04 + AUTH-05 — invitations**: admin creates a one-time link (`/invite#<token>`, hash-only, 72 h, newest invite wins), invitee checks and accepts with name + password and is signed in; single use enforced atomically (3 concurrent accepts → one user). Token moved from URL paths to request bodies (URLs are logged) — API_CONTRACTS updated. TC-AUTH-03 + TC-AUTH-05-1 PASS (mutation-checked), int 58/58; flaky timing test TC-AUTH-02-U2 replaced by a deterministic spy test (unit 65/65 ×6). k3d: invite → accept → Bob (member) logged in, reuse 410, member invite 403. Local user `bob@example.invalid` (member) now exists on k3d.
 - 2026-10-13: **AUTH-03 — sessions**: `GET /api/me`, idempotent logout, `requireSession`/`requireRole` guards (server-side), Origin/Sec-Fetch-Site check on every mutating `/api` request (incl. login) with `PUBLIC_ORIGIN` from the chart; disabled users and expired sessions lose access on the next request. TC-AUTH-03-1/2 PASS (mutation-checked), unit 65/65, int 51/51; k3d via Traefik: evil-origin logout/login → 403, own origin → 204, cookie dead after logout. T-12 implemented.
 - 2026-10-13: **AUTH-02 — admin seed + login**: first admin from Secret `gateway-admin` (created only while no admin exists); `POST /api/auth/login` with argon2id, one 401 for every failure (same timing for unknown emails), limiter 5/IP+email and 20/IP per 15 min → 429; `sid` cookie HttpOnly + SameSite=Strict (+ Secure on https), only the token hash stored. Unit 64/64, int 46/46, mutation-checked; k3d login through Traefik OK. **Finding:** the ingress SNATs all clients to one IP, so the limit becomes a global lockout → `vps-install-k3s.sh` sets Traefik `externalTrafficPolicy: Local` (validated on k3d, reverted locally; VPS check in REL-01).
 - 2026-10-13: **AUTH-01 + AUTH-12 — auth and audit schema**: migration `0002_auth.sql` with `users`, `sessions`, `invites`, `api_keys`, `audit_log` (+ FK `upstreams.created_by`); only hashes are storable (DB CHECKs refuse plaintext keys/tokens and non-argon2id passwords); audit rows keep no arguments/results, denied rows carry no user, history outlives users. TC-AUTH-01-1 6/6, int 41/41, unit 60/60; applied on the running k3d DB without data loss.
@@ -60,7 +61,7 @@ AUTH-03 Done. Next: AUTH-04 invitations
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Invites (AUTH-04/05), then API keys (AUTH-06..09) replacing the dev key. GW-15 once the throwaway repo name is known (one command).
+API keys (AUTH-06..09) replacing the dev key, then AUTH-10 role table test, AUTH-11/13 audit writes. GW-15 once the throwaway repo name is known (one command).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

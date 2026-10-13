@@ -15,9 +15,10 @@
 | DELETE | `/api/upstreams/:id` | session | admin | Remove |
 | GET | `/api/users` | session | admin | Members list |
 | PATCH | `/api/users/:id` | session | admin | `{disabled?, role?}` |
-| POST | `/api/invites` | session | admin | `{email, role}` → `{inviteUrl, expiresAt}` (shown once) |
-| GET | `/api/invites/:token` | — | — | Validate the invite (email, role) |
-| POST | `/api/invites/:token/accept` | — | — | `{name,password}` → creates the user, consumes the token |
+| POST | `/api/invites` | session | admin | `{email, role?}` → 201 `{id,email,role,expiresAt,inviteUrl}`; `inviteUrl` = `<origin>/invite#<token>` (shown once; the token is in the fragment so it never reaches a server log). A new invite replaces open ones for the email; existing user → 409 |
+| GET | `/api/invites` | session | admin | Open invites `[{id,email,role,createdAt,expiresAt}]` (no tokens) |
+| POST | `/api/invites/check` | — | — | `{token}` → `{email,role,expiresAt}`; 404 unknown, 410 `invite_used` / `invite_expired` |
+| POST | `/api/invites/accept` | — | — | `{token,name,password}` → 201 `{user}` + session cookie; consumes the token (single use, 72 h); 410 on reuse/expiry; 400 weak password (< 12) |
 | GET | `/api/keys` | session | any | Own keys (admin: `?all=1` for everyone's) `[{id,prefix,name,createdAt,lastUsedAt,revokedAt,owner}]` |
 | POST | `/api/keys` | session | any | `{name}` → `{id, key}` (plaintext once) |
 | POST | `/api/users/:id/keys` | session | admin | Issue a key for a user → `{id,key}` |
@@ -28,7 +29,7 @@
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
 
 ## Error codes
-`unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` (410), `rate_limited` (429), `internal` (500).
+`unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` / `invite_expired` (410), `rate_limited` (429), `internal` (500).
 
 `/mcp` (JSON-RPC, GW-08): `tools/call` with an unknown or malformed name → error `-32602` with `data.code = "unknown_tool"`; disabled upstream → `-32602`, `data.code = "upstream_disabled"`; registry (DB) failure → `-32603 "upstream registry unavailable"`. Upstream problems are returned as a tool result with `isError: true` and text `upstream_unreachable: …` / `upstream_timeout: …` / `upstream_error: …`; an upstream's own `isError` result is passed through unchanged.
 

@@ -1127,7 +1127,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-04 — Invitations
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-03
 - **Requirements:** REQ-AUTH-02
@@ -1136,12 +1136,12 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** TC-AUTH-03 passes.
 - **Tests:** TC-AUTH-03.
 - **Command:** `npm test -w services/gateway -- invite`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/auth/invites.ts` + `invite-routes.ts`: `POST /api/invites` (admin; `{email, role?}` → 201 `{id,email,role,expiresAt,inviteUrl}`; token = 32 random bytes, only SHA-256 stored, 72 h; the link carries the token in the `#fragment` so it never reaches a server or a log; a new invite deletes the open ones for that email; existing user → 409), `GET /api/invites` (admin; open invites, no token/hash). **Contract change:** the invitee endpoints take the token in the body (`POST /api/invites/check`, `POST /api/invites/accept`) instead of `/api/invites/:token`, because request URLs are logged. **TC-AUTH-03 PASS** (`test/int/invite.int.test.ts` 7/7): link format, hash-only storage, 72 h; member → 403, anonymous → 401, existing email → 409, bad email/role/extra field → 400; expired → 410 `invite_expired` (no user created); older invite replaced → 404; unknown → 404; used → 410. Mutation-checked (single-use, expiry and replacement removed → tests fail). **k3d** (rev 31) via Traefik: admin login → `POST /api/invites {"email":"bob@example.invalid"}` → `inviteUrl http://app.127.0.0.1.nip.io/invite#<token>`, expires +72 h; `/api/invites/check` 200; `/api/invites/accept` 201 `{user:{…role:"member"}}` + cookie, Bob `/api/me` 200; reuse → 410 `invite_used`; Bob creating an invite → 403; re-inviting Bob → 409; DB: invite `used`, `token_hash` 64 hex, Bob `$argon2id$`; invite token, Bob's and the admin's password in the gateway log: 0 / 0 / 0.
 - **Regression risk:** —
 
 ### AUTH-05 — Accept invite
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-04
 - **Requirements:** REQ-AUTH-02
@@ -1150,7 +1150,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Second use → 410.
 - **Tests:** TC-AUTH-05-1.
 - **Command:** `npm test -w services/gateway -- invite`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `POST /api/invites/accept {token,name,password}` → 201 `{user}` + session cookie (signed in at once); password rules (≥12, ≤256) checked before hashing; the invite is consumed by a conditional `UPDATE … WHERE used_at IS NULL AND expires_at > now() RETURNING` in the same transaction as the user insert, so concurrent accepts cannot both win; the role comes from the invite only. **TC-AUTH-05-1 PASS**: check → accept → `/api/me` and password login work, `used_at/used_by` set; second accept → **410** `invite_used`, user unchanged; 3 simultaneous accepts → `[201, 410, 410]`, one user; admin-role invite → admin; weak password → 400 and the invite stays usable; extra `role` field → 400; cross-origin accept → 403. Also replaced the timing-based TC-AUTH-02-U2 (flaky under parallel load, 1 in 6–8 runs) with a deterministic spy test: an unknown email runs a real argon2 `verify` against a hash with the same parameters (catches both "no dummy" and "cheaper dummy" mutations); unit 65/65 ×6. `scripts/gateway-db-int.sh` → **58/58**. **k3d** (rev 31) via Traefik: admin login → `POST /api/invites {"email":"bob@example.invalid"}` → `inviteUrl http://app.127.0.0.1.nip.io/invite#<token>`, expires +72 h; `/api/invites/check` 200; `/api/invites/accept` 201 `{user:{…role:"member"}}` + cookie, Bob `/api/me` 200; reuse → 410 `invite_used`; Bob creating an invite → 403; re-inviting Bob → 409; DB: invite `used`, `token_hash` 64 hex, Bob `$argon2id$`; invite token, Bob's and the admin's password in the gateway log: 0 / 0 / 0.
 - **Regression risk:** —
 
 ### AUTH-06 — API key generation

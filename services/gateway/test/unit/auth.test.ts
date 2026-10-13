@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Spy on argon2's verify while keeping the real implementation.
+const { verifySpy } = vi.hoisted(() => ({ verifySpy: vi.fn() }));
+vi.mock('@node-rs/argon2', async (orig) => {
+  const real = await orig<typeof import('@node-rs/argon2')>();
+  verifySpy.mockImplementation(real.verify);
+  return { ...real, verify: verifySpy };
+});
 import { LoginLimiter } from '../../src/auth/limiter.js';
 import { hashPassword, passwordProblem, verifyPassword } from '../../src/auth/password.js';
 import { loadAdminSeed } from '../../src/auth/seed-admin.js';
@@ -15,14 +23,16 @@ describe('passwords (AUTH-02)', () => {
     expect(await verifyPassword('not-a-hash', 'anything')).toBe(false);
   });
 
-  it('TC-AUTH-02-U2: an unknown user costs as much as a wrong password (no timing enumeration)', async () => {
+  it('TC-AUTH-02-U2: an unknown user runs a full argon2id verify, same parameters as a real one (no timing enumeration)', async () => {
     const h = await hashPassword('correct horse battery');
-    await verifyPassword(null, 'warm-up'); // the dummy hash is built once
-    const time = async (f: () => Promise<boolean>) => { const t = performance.now(); for (let i = 0; i < 5; i++) await f(); return performance.now() - t; };
-    const wrong = await time(() => verifyPassword(h, 'nope nope nope'));
-    const unknown = await time(() => verifyPassword(null, 'nope nope nope'));
-    expect(unknown).toBeGreaterThan(wrong * 0.5);
-    expect(unknown).toBeLessThan(wrong * 2);
+    verifySpy.mockClear();
+    expect(await verifyPassword(h, 'nope nope nope')).toBe(false);
+    expect(await verifyPassword(null, 'nope nope nope')).toBe(false);
+    expect(verifySpy).toHaveBeenCalledTimes(2); // the unknown user is not a shortcut
+    const params = (phc: string) => phc.split('$').slice(1, 4).join('$'); // argon2id$v=19$m=…,t=…,p=…
+    const [real, dummy] = verifySpy.mock.calls.map((c) => c[0] as string);
+    expect(params(dummy!)).toBe(params(real!));
+    expect(params(dummy!)).toBe('argon2id$v=19$m=19456,t=2,p=1');
   });
 
   it('password rules and the admin seed from env', () => {
