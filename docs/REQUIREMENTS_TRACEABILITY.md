@@ -28,12 +28,12 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-GW-10 | User story admin 2 | WooCommerce server pre-registered | gateway seed | GW-03 | TC-GW-03-1 | Not Started | — |
 | REQ-GW-11 | Problem statement | Only the gateway talks to upstreams | gateway + chat + NetworkPolicy | ARC-10, UI-15, WC-14 | TC-INT-07, TC-SEC-02 | Not Started | — |
 | REQ-GW-12 | User story member 2 | One URL + key shows all tools | gateway /mcp | GW-06, AUTH-08, E2E-01 | TC-EXT-01, TC-EXT-02 | In Progress | One URL works with a temporary shared dev key (GW-06); per-user keys in AUTH-08 |
-| REQ-AUTH-01 | Req. Team | Admin and member roles | gateway auth | AUTH-01, AUTH-10, ARC-03 | TC-AUTH-02 | Not Started | — |
+| REQ-AUTH-01 | Req. Team | Admin and member roles | gateway auth | AUTH-01, AUTH-10, ARC-03 | TC-AUTH-02 | In Progress | AUTH-01: `users.role` admin\|member enforced by a DB CHECK (TC-AUTH-01-1); route enforcement pending AUTH-10 |
 | REQ-AUTH-02 | User story admin 4 | Invite team members | gateway + dashboard | AUTH-04, AUTH-05, UI-09 | TC-AUTH-03, TC-UI-09-1 | Not Started | — |
 | REQ-AUTH-03 | Req. Team / story member 1 | Own API key; self-generate | gateway + dashboard | AUTH-06, AUTH-08, UI-11 | TC-AUTH-06-1, TC-UI-11-1 | Not Started | — |
 | REQ-AUTH-04 | Req. Team | Keys revocable | gateway | AUTH-09, UI-10 | TC-AUTH-01, TC-AUTH-09-1 | Not Started | — |
-| REQ-AUTH-05 | Req. Team | Keys stored hashed | gateway | AUTH-07 | TC-UNIT-02, TC-AUTH-07-1 | Not Started | — |
-| REQ-AUTH-06 | Req. Team | Audit every call (user, server, tool, ts, duration, outcome) | gateway audit | AUTH-12, AUTH-13 | TC-AUTH-05 | Not Started | — |
+| REQ-AUTH-05 | Req. Team | Keys stored hashed | gateway | AUTH-07 | TC-UNIT-02, TC-AUTH-07-1 | In Progress | AUTH-01: `api_keys.key_hash` accepts only a SHA-256 hex digest and `prefix` only `mgw_`+8 (a plaintext key is refused by the DB, TC-AUTH-01-1); key issuing pending AUTH-06/07 |
+| REQ-AUTH-06 | Req. Team | Audit every call (user, server, tool, ts, duration, outcome) | gateway audit | AUTH-12, AUTH-13 | TC-AUTH-05 | In Progress | AUTH-12: `audit_log` table + indexes (TC-AUTH-12-1); writes pending AUTH-13 |
 | REQ-AUTH-07 | Req. Team | Audit visible in dashboard | dashboard | AUTH-14, UI-12 | TC-UI-12-1 | Not Started | — |
 | REQ-CHAT-01 | Req. Chat | Chat uses LLM + tools via gateway | gateway chat | UI-14 | TC-INT-07, TC-UI-14-1 | Not Started | — |
 | REQ-CHAT-02 | Req. Chat | Shows tools called | dashboard chat | UI-16 | TC-UI-16-1 | Not Started | — |

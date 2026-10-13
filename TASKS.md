@@ -1085,7 +1085,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-01 — Users and roles schema
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** GW-02
 - **Requirements:** REQ-AUTH-01
@@ -1094,7 +1094,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Migration applies.
 - **Tests:** TC-AUTH-01-1: migrate fresh → tables exist.
 - **Command:** `npm run db:migrate -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/db/schema.ts` + migration `drizzle/0002_auth.sql` (drizzle-kit generate): `users` (email lower-case + unique, role admin|member, `password_hash` must be argon2id PHC, `disabled_at` — users are disabled, not deleted), `sessions` (keyed by **SHA-256 of the cookie token**, expiry > created, indexes user/expiry), `invites` (`token_hash`, role, 72 h expiry set by AUTH-04, `used_at/used_by`), `api_keys` (D-008: `key_hash` SHA-256 hex unique + `prefix` `mgw_`+8, owner, created_by, last_used, revoked_at/by), `audit_log` (see AUTH-12); `upstreams.created_by` now a FK to users (set null). Every invariant is a DB CHECK: a plaintext key, raw session/invite token or non-argon2 password is refused by the database itself. Found and fixed while writing the test: `\s` inside the Drizzle `sql` template lost its backslash (`[^@s]`), now `[[:space:]]`. **TC-AUTH-01-1 PASS** — `test/int/auth-schema.int.test.ts` 6/6 on a fresh DB: columns + indexes of all five tables; email case/unique/format, role, password-hash rules; plaintext key / whole key as prefix / duplicate hash refused; raw tokens and past expiry refused; user deletion cascades sessions + keys; `upstreams.created_by` FK. `scripts/gateway-db-int.sh` → **41/41**; unit 60/60; typecheck clean. **k3d** (`gateway:sha-b4130f09b570`, rev 28): migration applied on the existing DB (3 migrations recorded), `\dt` → api_keys app_meta audit_log invites sessions upstreams users; seeded upstreams kept (`unchanged`/`admin-edited`), `cross-server.mjs --dry-run` → 64 tools, `woo__list_orders` ok.
 - **Regression risk:** —
 
 ### AUTH-02 — Admin seed + login
@@ -1239,7 +1239,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-12 — Audit schema
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-01
 - **Requirements:** REQ-AUTH-06
@@ -1248,7 +1248,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Table exists with required columns.
 - **Tests:** TC-AUTH-12-1.
 - **Command:** `npm run db:migrate -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: delivered with the AUTH-01 migration (`drizzle/0002_auth.sql`). `audit_log`: `id` bigint identity, `ts`, `request_id` (the GW-17 request id), `user_id` (FK set null; **must** be null when outcome=denied), `api_key_id`, `source` mcp|chat, `method` tools/call|tools/list|initialize|other, `upstream_id` (no FK) + `upstream_slug` (text, survives upstream removal), `tool`, `duration_ms ≥ 0`, `outcome` ok|tool_error|error|timeout|unreachable|rejected|denied, `error_code` (`^[a-z_]{1,40}$`: codes only, no upstream free text); no argument/result columns. Indexes `audit_ts_idx (ts desc)`, `audit_user_ts_idx (user_id, ts desc)`, `audit_upstream_ts_idx (upstream_slug, ts desc)`. **TC-AUTH-12-1 PASS** (inside TC-AUTH-01-1, `auth-schema.int.test.ts`): columns and indexes present; all 7 outcomes accepted; denied-with-user, unknown outcome/source, negative duration and free-text error refused; rows remain after the user is deleted, with `user_id` cleared. On k3d: table present (rev 28). Outcome set extended from MCP_DESIGN §9 with `tool_error` and `rejected` (doc updated).
 - **Regression risk:** —
 
 ### AUTH-13 — Audit writes for all outcomes
