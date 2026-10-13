@@ -20,7 +20,8 @@ export function generateApiKey(): string {
   return `mgw_${out}`;
 }
 
-export interface Principal { userId: string; keyId: string; role: Role; email: string }
+/** The caller of /mcp. `source` is 'chat' for the dashboard agent's internal token (UI-15), else 'mcp'. */
+export interface Principal { userId: string; keyId: string | null; role: Role; email: string; source?: 'mcp' | 'chat' }
 
 export class KeyError extends Error {
   constructor(readonly status: 404 | 409, readonly code: string, message: string) { super(message); }

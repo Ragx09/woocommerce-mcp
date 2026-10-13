@@ -1225,7 +1225,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-11 — Request attribution context
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-08
 - **Requirements:** REQ-AUTH-06, REQ-CHAT-03
@@ -1234,7 +1234,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Audit rows carry the correct user.
 - **Tests:** TC-AUTH-11-1.
 - **Command:** `npm test -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `CallContext {requestId, userId, keyId, source}` (`src/audit/audit.ts`) built by `/mcp` auth from the principal and passed **explicitly** to the per-request MCP server (`buildServer(deps, log, ctx)`); AsyncLocalStorage was not needed because the gateway already builds one server per request — explicit is simpler to follow and to test. The same principal is bound to every log line (`userId`, `keyId`, AUTH-08). `Principal.source` defaults to `mcp`; the chat agent's internal token will set `chat` (UI-15). **TC-AUTH-11-1 PASS** (`test/int/audit.int.test.ts`): Alice and Bob call `woo__echo` 10× concurrently → 10 rows, 5 per user, each with that user's own key id. Mutation: dropping the key from the context → 2 tests fail. **k3d** (rev 34) audit rows after real traffic: Bob's key "audit check" → `tools/list ok`, `tools/call woo list_orders ok 464 ms`, `everything echo ok 36 ms`, `woo woo__nope rejected unknown_tool`; a forged key → `tools/call denied invalid_api_key` with no user/key; `cross-server.mjs` → two rows for admin@example.invalid with its temporary key.
 - **Regression risk:** —
 
 ### AUTH-12 — Audit schema
@@ -1253,7 +1253,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-13 — Audit writes for all outcomes
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-11, AUTH-12
 - **Requirements:** REQ-AUTH-06, REQ-DOD-11
@@ -1262,7 +1262,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** TC-AUTH-05 passes.
 - **Tests:** TC-AUTH-05.
 - **Command:** `npm run test:int -w services/gateway -- audit`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `dbAuditSink()` writes one `audit_log` row per `tools/call`, per `tools/list` and per refused `/mcp` request; the call handler is restructured so a single `finally` logs and audits exactly once whatever happens: `ok`, `tool_error` (upstream `isError`), `error`/`upstream_error`, `timeout`/`upstream_timeout`, `unreachable`/`upstream_unreachable`, `rejected` (`unknown_tool`, `upstream_disabled` — thrown JSON-RPC errors), registry failure → `error`/`registry_unavailable`; refused key → `denied`/`invalid_api_key` with user and key null and no client-supplied names; never arguments or results; codes validated `^[a-z_]{1,40}$`; a failed audit write is logged and never fails the call. **TC-AUTH-05 PASS** (`test/int/audit.int.test.ts` 5/5): list + 7 calls → exactly the 8 expected rows with method, upstream, tool, outcome, code, user, key, source, request id (unique per request), duration (timeout row ≥ 750 ms), upstream id; argument text absent; unreachable upstream → 2 `unreachable` rows; **TC-AUTH-01 audit part PASS**: no key / forged key / revoked key / unauthenticated list → 401 + `denied` rows without user; audit table renamed away → the call still succeeds. Mutation-checked (denied not audited, rejected not audited, wrong key attribution → tests fail). Unit test files now run one after another too (`--no-file-parallelism`, ~8 s): argon2 tests made the 300 ms discovery timing test TC-GW-05-2 fail 1 in 7 runs in parallel. Unit 66/66 ×6, `scripts/gateway-db-int.sh` **75/75** ×3. **k3d** (rev 34) audit rows after real traffic: Bob's key "audit check" → `tools/list ok`, `tools/call woo list_orders ok 464 ms`, `everything echo ok 36 ms`, `woo woo__nope rejected unknown_tool`; a forged key → `tools/call denied invalid_api_key` with no user/key; `cross-server.mjs` → two rows for admin@example.invalid with its temporary key.
 - **Regression risk:** Audit failure must not lose the call result (log the error).
 
 ### AUTH-14 — Audit query API

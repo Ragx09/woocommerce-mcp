@@ -16,6 +16,8 @@ import {
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { VERSION } from '../app.js';
 import type { Principal } from '../auth/api-keys.js';
+import type { AuditEvent, AuditMethod, AuditSink, CallContext } from '../audit/audit.js';
+import type { AuditOutcome } from '../db/schema.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
 import type { HealthMonitor } from '../upstreams/health.js';
@@ -38,6 +40,8 @@ export interface McpDeps {
   health?: HealthMonitor;
   /** Budget for one forwarded tools/call, including connecting and a reconnect (GW-09). */
   callTimeoutMs?: number;
+  /** Audit log (AUTH-13): one event per tools/call, tools/list and refused request. Omitted → not audited. */
+  audit?: AuditSink;
 }
 
 /** The token of an `Authorization: Bearer <token>` header, or '' (scheme is case-insensitive per RFC 9110). */
@@ -62,27 +66,67 @@ const errorResult = (code: string, message: string): CallToolResult =>
   ({ isError: true, content: [{ type: 'text', text: `${code}: ${message}` }] });
 
 /** Maps a failed forward to an isError result; messages carry no URLs or credentials. */
-function callFailure(slug: string, e: unknown, budgetMs: number): { outcome: string; result: CallToolResult } {
-  if (e instanceof UpstreamUnavailableError) return { outcome: 'unreachable', result: errorResult('upstream_unreachable', e.message) };
+function callFailure(slug: string, e: unknown, budgetMs: number): { outcome: AuditOutcome; code: string; result: CallToolResult } {
+  if (e instanceof UpstreamUnavailableError) {
+    return { outcome: 'unreachable', code: 'upstream_unreachable', result: errorResult('upstream_unreachable', e.message) };
+  }
   if (e instanceof UpstreamTimeoutError || (e instanceof McpError && e.code === ErrorCode.RequestTimeout)) {
     const ms = e instanceof UpstreamTimeoutError ? e.ms : budgetMs;
-    return { outcome: 'timeout', result: errorResult('upstream_timeout', `upstream ${slug} did not answer within ${ms / 1000} s`) };
+    return { outcome: 'timeout', code: 'upstream_timeout', result: errorResult('upstream_timeout', `upstream ${slug} did not answer within ${ms / 1000} s`) };
   }
-  return { outcome: 'error', result: errorResult('upstream_error', `upstream ${slug} failed: ${safeReason(e)}`) };
+  return { outcome: 'error', code: 'upstream_error', result: errorResult('upstream_error', `upstream ${slug} failed: ${safeReason(e)}`) };
 }
 
-function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
+/** What one tools/call did, filled in as the handler goes; logged and audited exactly once at the end. */
+interface CallRecord {
+  upstreamId: string | null;
+  upstreamSlug: string | null;
+  tool: string;
+  outcome: AuditOutcome;
+  errorCode: string | null;
+}
+
+/** A JSON-RPC error thrown by a handler → audit outcome and code. */
+function thrownOutcome(e: unknown): { outcome: AuditOutcome; code: string } {
+  if (e instanceof McpError) {
+    if (e.code === ErrorCode.InternalError) return { outcome: 'error', code: 'registry_unavailable' };
+    const code = (e.data as { code?: string } | undefined)?.code;
+    return { outcome: 'rejected', code: code ?? 'invalid_request' };
+  }
+  return { outcome: 'error', code: 'internal' };
+}
+
+function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext): Server {
   const server = new Server({ name: 'mcp-gateway', version: VERSION }, { capabilities: { tools: {} } });
   const callTimeoutMs = deps.callTimeoutMs ?? CALL_TIMEOUT_MS;
+  const audit = (method: AuditMethod, started: number, e: Omit<AuditEvent, 'requestId' | 'userId' | 'apiKeyId' | 'source' | 'method' | 'durationMs'>) =>
+    deps.audit?.({ requestId: ctx.requestId, userId: ctx.userId, apiKeyId: ctx.keyId, source: ctx.source, method, durationMs: Date.now() - started, ...e });
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const started = Date.now();
-    const publicName = req.params.name;
+    const rec: CallRecord = { upstreamId: null, upstreamSlug: parsePublicName(req.params.name)?.slug ?? null,
+      tool: req.params.name, outcome: 'error', errorCode: 'internal' };
+    try {
+      return await forwardCall(req.params.name, req.params.arguments, rec);
+    } catch (e) {
+      ({ outcome: rec.outcome, code: rec.errorCode } = thrownOutcome(e));
+      throw e;
+    } finally {
+      log.info({ upstream: rec.upstreamSlug ?? undefined, tool: rec.tool, outcome: rec.outcome, ms: Date.now() - started }, 'tools/call');
+      await audit('tools/call', started, { upstreamId: rec.upstreamId, upstreamSlug: rec.upstreamSlug, tool: rec.tool,
+        outcome: rec.outcome, errorCode: rec.errorCode });
+    }
+  });
+
+  /** Resolves and forwards one call; sets the outcome on `rec` for every result it returns. */
+  async function forwardCall(publicName: string, args: Record<string, unknown> | undefined, rec: CallRecord): Promise<CallToolResult> {
+    const settle = (outcome: AuditOutcome, errorCode: string | null) => { rec.outcome = outcome; rec.errorCode = errorCode; };
     const parsed = parsePublicName(publicName);
     if (!parsed) throw unknownTool(publicName);
     const rows = await loadRows(deps, log, 'tools/call');
     const row = rows.find((r) => r.slug === parsed.slug);
     if (!row) throw unknownTool(publicName);
+    rec.upstreamId = row.id;
     if (!row.enabled) {
       throw new McpError(ErrorCode.InvalidParams, `upstream ${row.slug} is disabled`, { code: 'upstream_disabled' });
     }
@@ -90,12 +134,10 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
 
     // Never the argument values or the result (they can hold personal data or secrets); at debug level
     // the argument names help to debug a failing call (GW-17).
-    log.debug({ upstream: row.slug, tool: publicName, argNames: Object.keys(req.params.arguments ?? {}) }, 'tools/call arguments');
-    const done = (outcome: string, tool?: string) =>
-      log.info({ upstream: row.slug, tool: tool ?? publicName, outcome, ms: Date.now() - started }, 'tools/call');
+    log.debug({ upstream: row.slug, tool: publicName, argNames: Object.keys(args ?? {}) }, 'tools/call arguments');
     if (deps.health?.isUnreachable(row.id)) {
       // Fail fast: the health loop brings it back within one interval once it answers again.
-      done('unreachable');
+      settle('unreachable', 'upstream_unreachable');
       return errorResult('upstream_unreachable', deps.health.get(row).lastError ?? `upstream ${row.slug} unreachable`);
     }
     let tool: string | undefined;
@@ -105,33 +147,40 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
       tool = index.resolve(publicName)?.tool;
     } catch (e) {
       const f = callFailure(row.slug, e, callTimeoutMs);
-      done(f.outcome);
+      settle(f.outcome, f.code);
       return f.result;
     }
     if (!tool) throw unknownTool(publicName);
+    rec.tool = tool;
 
     try {
       // One deadline for connect + call (+ the reconnect, when that is safe): the client never waits longer.
       const result = await withDeadline(row.slug, callTimeoutMs, (signal) => deps.pool.withClient(
         row.id,
-        (c) => c.callTool({ name: tool, arguments: req.params.arguments }, undefined, { signal, timeout: callTimeoutMs }),
+        (c) => c.callTool({ name: tool, arguments: args }, undefined, { signal, timeout: callTimeoutMs }),
         isSafeCallRetry,
       ));
-      done(result.isError ? 'tool_error' : 'ok', tool);
+      settle(result.isError ? 'tool_error' : 'ok', null);
       deps.health?.reportOk(row);
-      return result;
+      return result as CallToolResult;
     } catch (e) {
       // A slow tool says nothing about health; only "could not connect" marks the upstream unreachable.
       if (e instanceof UpstreamUnavailableError) deps.health?.reportFailure(row, e);
       const f = callFailure(row.slug, e, callTimeoutMs);
-      done(f.outcome, tool);
+      settle(f.outcome, f.code);
       return f.result;
     }
-  });
+  }
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const started = Date.now();
-    const rows = await loadRows(deps, log, 'tools/list');
+    let rows: Upstream[];
+    try {
+      rows = await loadRows(deps, log, 'tools/list');
+    } catch (e) {
+      await audit('tools/list', started, { upstreamId: null, upstreamSlug: null, tool: null, outcome: 'error', errorCode: 'registry_unavailable' });
+      throw e;
+    }
     await deps.pool.sync(rows);
     const result = await deps.discovery.discover();
     const { tools, index } = aggregateTools(result);
@@ -144,6 +193,7 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
       failed: result.failed.map((f) => f.upstream.slug),
       ms: Date.now() - started,
     }, 'tools/list');
+    await audit('tools/list', started, { upstreamId: null, upstreamSlug: null, tool: null, outcome: 'ok', errorCode: null });
     return { tools };
   });
 
@@ -157,6 +207,12 @@ declare module 'fastify' {
   }
 }
 
+/** The JSON-RPC method of a request body, reduced to what the audit log records. */
+function rpcMethod(body: unknown): AuditMethod {
+  const m = (body as { method?: unknown } | null)?.method;
+  return m === 'tools/call' || m === 'tools/list' || m === 'initialize' ? m : 'other';
+}
+
 export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
   const authenticate = async (req: FastifyRequest, reply: FastifyReply) => {
     const token = bearerToken(req.headers.authorization);
@@ -167,12 +223,16 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
       return;
     }
     req.log.warn({ ip: req.ip, hadToken: token !== '' }, 'rejected /mcp request: missing or invalid API key');
+    // Audited without a user (nobody was authenticated) and without any client-supplied names.
+    await deps.audit?.({ requestId: req.id, userId: null, apiKeyId: null, source: 'mcp', method: rpcMethod(req.body),
+      upstreamId: null, upstreamSlug: null, tool: null, durationMs: reply.elapsedTime, outcome: 'denied', errorCode: 'invalid_api_key' });
     return reply.code(401).header('www-authenticate', 'Bearer')
       .send({ error: 'invalid_api_key', message: 'missing or invalid API key' });
   };
 
   app.post('/mcp', { preHandler: authenticate }, async (req, reply) => {
-    const server = buildServer(deps, req.log);
+    const p = req.principal!;
+    const server = buildServer(deps, req.log, { requestId: req.id, userId: p.userId, keyId: p.keyId, source: p.source ?? 'mcp' });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     reply.raw.setHeader('x-request-id', req.id); // hijacked replies skip Fastify's headers
     reply.hijack(); // the SDK transport writes the raw response

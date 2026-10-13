@@ -9,6 +9,7 @@ import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadSeeds, seedUpstream } from './upstreams/seed.js';
 import { authenticateApiKey } from './auth/api-keys.js';
+import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 
@@ -62,6 +63,7 @@ await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
 registerMcp(app, {
   authenticate: (token) => authenticateApiKey(db, token),
+  audit: dbAuditSink(db, app.log),
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
   discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health }),
