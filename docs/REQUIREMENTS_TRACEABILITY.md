@@ -47,7 +47,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-K8S-06 | Req. K8s | Ingress stable URLs; local domain documented | charts + docs | INF-11 | TC-K8S-04 | Not Started | — |
 | REQ-K8S-07 | Req. K8s | Readiness + liveness everywhere | charts | INF-09, REL-10 | TC-K8S-02 | Not Started | — |
 | REQ-K8S-08 | Req. K8s | Requests + limits everywhere | charts | INF-08, REL-10 | TC-K8S-02 | Not Started | — |
-| REQ-K8S-09 | Req. K8s | No hardcoded secrets; K8s Secrets | charts + scripts | INF-06, GW-17 | TC-SEC-04, TC-INF-06-2 | Not Started | — |
+| REQ-K8S-09 | Req. K8s | No hardcoded secrets; K8s Secrets | charts + scripts | INF-06, GW-17 | TC-SEC-04, TC-INF-06-2, TC-UNIT-06 | In Progress | GW-17 Done: TC-UNIT-06 PASS (field + value redaction, no tool args at info; mutation-checked); k3d gateway log holds 0 occurrences of the PAT, dev key and woo token; TC-SEC-04 repo scan pending |
 | REQ-DOD-01 | DoD Store | Storefront checkout COD | store | WC-04, E2E-12 | TC-E2E-01 | Not Started | — |
 | REQ-DOD-02 | DoD Store | Order in WC admin | store | WC-04, E2E-12 | TC-E2E-02 | Not Started | — |
 | REQ-DOD-03 | DoD Chat A | Chat creates product → storefront | chat + woo-mcp | UI-19, E2E-11 | TC-E2E-03 | Not Started | — |

@@ -4,9 +4,10 @@
 Phase 4 — Gateway: multiple upstreams, timeouts, health (Day 3, 2026-10-13)
 
 ## Current task
-GW-16 Done; GW-15 Blocked (throwaway repo name). Next: GW-17 log redaction
+GW-17 Done. Day 3 gateway tasks done except GW-15 (Blocked: throwaway repo name). Next: Day 4 AUTH-*
 
 ## Recently completed
+- 2026-10-13: **GW-17 — logging with redaction**: random UUID request id (`x-request-id` on every response, on every log line; client ids ignored); redaction by field name extended and a value scrub for credential-shaped strings (Bearer, GitHub PATs, `mgw_` keys, `ck_/cs_`, LLM keys); `tools/call` logs no arguments/results at info (names at debug); probes no longer logged. TC-UNIT-06 5/5 (mutation-checked), unit 60/60, int 35/35; k3d log: 0 occurrences of PAT, dev key, woo token. T-10 implemented.
 - 2026-10-13: **GW-16 — kill-pod resilience**: `scripts/k8s-checks.sh killpod` 13/13 (×2): everything-mcp scaled to 0 → woo + github still listed in < 1 s, everything Unreachable at once, calls fail fast, woo calls fine; scaled back → Connected 7 s after Ready; `kubectl delete pod` → list complete, new pod served on a fresh session. Fixed a 30 s delete delay (node as PID 1 ignores SIGTERM) with `terminationGracePeriodSeconds: 5`.
 - 2026-10-13: **GW-15 — cross-server script (Blocked)**: `scripts/cross-server.mjs` (`woo__list_orders` → `github__issue_write`); dry run OK on k3d (2 orders summarised). Creating the issue needs the name of the throwaway repo the PAT can write to — not recorded anywhere, and an issue is public, so not guessed.
 - 2026-10-13: **GW-13 + GW-14 — three upstreams**: `everything-mcp` (server-everything 2026.8.31, own image, gateway-only ingress, no egress, no secrets in the pod because of its `get-env` tool; T-15 implemented) and GitHub remote MCP (PAT from `upstream-seed`, encrypted in the DB), both registered by the generalized seeder `loadSeeds()`. k3d: one `tools/list` through Traefik → 64 tools (woo 5, everything 13, github 46); `everything__echo`, `github__get_me` (login Ragx09) OK; SSRF via the gzip tool refused; PAT found 0 times in responses, logs and DB; netpol checks 12/12. Unit 55/55, chart 0 violations.
@@ -56,7 +57,7 @@ GW-16 Done; GW-15 Blocked (throwaway repo name). Next: GW-17 log redaction
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-17 (log redaction); GW-15 once the repo name is known. Then Day 4: AUTH-*.
+GW-15 once the throwaway repo name is known (one command). Then Day 4: AUTH-* (per-user API keys replace the temporary dev key).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

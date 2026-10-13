@@ -1,6 +1,6 @@
 # API Contracts
 
-> Status: **draft**. Base path `https://app.<domain>`. JSON everywhere. Errors use `{ "error": "<code>", "message": "<human text>" }`. The session cookie is `sid` (httpOnly, SameSite=Strict). Mutating requests require a matching `Origin`.
+> Status: **draft**. Base path `https://app.<domain>`. JSON everywhere. Errors use `{ "error": "<code>", "message": "<human text>" }`. The session cookie is `sid` (httpOnly, SameSite=Strict). Mutating requests require a matching `Origin`. Every response carries `X-Request-Id` (a server-generated UUID; a client-sent one is ignored), which appears on every gateway log line of that request — quote it when reporting a problem.
 
 ## Route table
 | Method | Path | Auth | Role | Purpose |

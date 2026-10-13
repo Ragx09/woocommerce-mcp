@@ -1066,7 +1066,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-17 — Structured logging with redaction
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-01
 - **Requirements:** REQ-K8S-09
@@ -1075,7 +1075,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-UNIT-06 passes.
 - **Tests:** TC-UNIT-06.
 - **Command:** `npm test -w services/gateway -- redact`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/logger.ts` — (1) request id = random UUID per request (`genReqId`; a client `X-Request-Id` is ignored), returned as `x-request-id` on every response incl. the hijacked `/mcp` replies, present on every line of the request; (2) name-based redaction extended (top level + one level down + nested `headers`: authorization, cookie, password, credential(Enc), token, pat, apiKey, secret, consumer/client secrets, `mcp-session-id` …); (3) value-based scrub as a second layer (`formatters.log` + `hooks.logMethod`): Bearer/Basic values, GitHub PATs (`github_pat_`, `gh?_`), our `mgw_` keys, WooCommerce `ck_/cs_` keys, `sk-`/`gsk_` LLM keys are masked anywhere — msg text, error messages, unknown fields, arrays; plain objects only, so Fastify `req`/`res` reach their serializers intact; (4) `tools/call` logs at info only `reqId, upstream, tool, outcome, ms`; at debug the argument *names*; never values or results; (5) `/healthz` and `/readyz` log at warn only (probe noise: 0 lines). `pino` 10.4.0 declared as a devDependency (was only transitive). **TC-UNIT-06 PASS** — `npm test -w services/gateway -- redact` → 5/5; **mutation-checked**: removing the value scrub, the msg scrub, the key list, logging `args`, or the UUID ids each fails the matching test; a scrubber that flattened `req` to `{}` (found on k3d, first deploy) is now caught too. Unit **60/60** (11 sequential runs; one earlier full run had 1 unexplained failure that did not recur; 5 suites in parallel overload the machine and fail across unrelated files, not a test signal); typecheck clean; `scripts/gateway-db-int.sh` → **35/35**. **k3d** (`gateway:sha-65e80bd829f8`, rev 27): `github__get_me` with a forged `X-Request-Id` → response `X-Request-Id: ec9a8fca-…` (UUID), the 3 log lines of that request carry it (`incoming request` with method/url/host, `tools/call upstream=github tool=get_me outcome=ok ms=2019`, `request completed statusCode=200`); forged id in log 0; probe lines 0; wrong key → 401 + `rejected /mcp request` line, key in log 0; GitHub PAT / dev key / woo token / `get_me` login in the log: **0 / 0 / 0 / 0**. `scripts/k8s-checks.sh killpod` 13/13 again; chart 0 violations.
 - **Regression risk:** —
 
 ---

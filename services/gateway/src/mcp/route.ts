@@ -89,6 +89,9 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
     }
     await deps.pool.sync(rows);
 
+    // Never the argument values or the result (they can hold personal data or secrets); at debug level
+    // the argument names help to debug a failing call (GW-17).
+    log.debug({ upstream: row.slug, tool: publicName, argNames: Object.keys(req.params.arguments ?? {}) }, 'tools/call arguments');
     const done = (outcome: string, tool?: string) =>
       log.info({ upstream: row.slug, tool: tool ?? publicName, outcome, ms: Date.now() - started }, 'tools/call');
     if (deps.health?.isUnreachable(row.id)) {
@@ -159,6 +162,7 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
   app.post('/mcp', { preHandler: authenticate }, async (req, reply) => {
     const server = buildServer(deps, req.log);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    reply.raw.setHeader('x-request-id', req.id); // hijacked replies skip Fastify's headers
     reply.hijack(); // the SDK transport writes the raw response
     reply.raw.on('close', () => { void transport.close(); void server.close(); });
     try {

@@ -1,7 +1,7 @@
 // Fastify app factory. Modules (mcp/, upstreams/, auth/, audit/, chat/, api/) register onto this in later tasks (D-004).
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Config } from './config.js';
-import { loggerOptions } from './logger.js';
+import { genReqId, loggerOptions } from './logger.js';
 
 export const VERSION = '0.1.0';
 
@@ -35,12 +35,16 @@ export function buildApp(cfg: Config, opts: AppOptions = {}): FastifyInstance {
     trustProxy: (_addr: string, hop: number) => hop < cfg.trustProxyHops, // trust exactly N proxies (Traefik)
     bodyLimit: cfg.bodyLimit,
     requestIdHeader: false, // never trust a client-supplied request id; generate our own
+    genReqId, // random UUID: unique across replicas and restarts (GW-17)
   });
+  // Every response names its request id, so a user can quote it and we can find the log lines.
+  app.addHook('onRequest', async (req, reply) => { reply.header('x-request-id', req.id); });
   const checks = opts.readinessChecks ?? [];
 
   // Probes: cheap, unauthenticated, not routed by the Ingress.
-  app.get('/healthz', async () => ({ status: 'ok', version: VERSION }));
-  app.get('/readyz', async (_req, reply) => {
+  // Logged only on warn and above: kubelet calls them every few seconds.
+  app.get('/healthz', { logLevel: 'warn' }, async () => ({ status: 'ok', version: VERSION }));
+  app.get('/readyz', { logLevel: 'warn' }, async (_req, reply) => {
     const results = await Promise.all(checks.map(async (c) => [c.name, await runCheck(c)] as const));
     const failed = results.filter(([, ok]) => !ok).map(([name]) => name);
     if (failed.length) return reply.code(503).send({ status: 'not_ready', failed });
