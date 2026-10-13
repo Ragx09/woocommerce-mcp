@@ -2126,6 +2126,20 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Evidence:** 2026-10-12: e2e checkout PASS (TATVA mug, Indian address, Bengaluru/Karnataka/560001, COD) — orders #83, #139; `scripts/woo-int.sh` 7/7 (product lookup now by search: catalogue + draft test products exceed one page); woo-mcp unit 26/26; gateway unit 48/48. 9 screenshots in `docs/evidence/brd-07-*.jpg`. §9 checklist: warm editorial direction, concept understandable from the homepage, coherent shop/category/brand/product pages, brand visible but not dominant, buy within the store, deliberate mobile layout (2-column category tiles, mobile menu), accessible contrast/focus/alt, claims marked as demo.
 - **Regression risk:** —
 
+### BRD-08 — Admin and login branding
+- **Priority:** P2
+- **Status:** Done
+- **Day:** 3
+- **Depends on:** BRD-06
+- **Requirements:** —
+- **Description:** TATVA look for wp-admin and `wp-login.php` (user request 2026-10-13). A registered admin colour scheme "TATVA" (forest menu, sand current item, terracotta counters; palette from `theme.json`), default for new users and for the admin user while still on the default scheme; login page with the TATVA wordmark, cream background and forest button; logo links to the store. Presentation only: no auth, capability or login-flow change. Users can still pick another scheme under Users → Profile, and wp-init keeps it.
+- **Output:** `services/store-assets/theme/tatva/inc/admin.php`, `assets/css/admin-colors.css`, `assets/css/login.css`, `assets/images/tatva-wordmark.svg`; `charts/platform/files/wp-init.sh` (scheme for the admin user); `scripts/admin-screens.sh`, `tests/e2e/admin-screens.mjs`.
+- **Acceptance:** Admin pages use the TATVA scheme; login page shows the wordmark and links to the store; a user-chosen scheme survives redeploys; storefront audit unchanged.
+- **Tests:** TC-BRD-08-1 admin scheme loaded and computed colours (desktop + mobile). TC-BRD-08-2 login wordmark (SVG 200), link to store, colours. TC-BRD-08-3 wp-init sets `tatva` only when the scheme is unset/default; storefront audit and chart check still pass.
+- **Command:** `SERVICES=store-assets scripts/build-images.sh && scripts/deploy.sh local && scripts/admin-screens.sh`
+- **Evidence:** 2026-10-13: `scripts/admin-screens.sh` → 11/11 PASS: `admin-color-tatva` body class + scheme stylesheet; `#adminmenuwrap` rgb(23, 61, 53), current item rgb(232, 220, 201), admin bar rgb(15, 44, 38) (desktop + mobile); login logo `/wp-content/themes/tatva/assets/images/tatva-wordmark.svg` → 200, link `http://store.127.0.0.1.nip.io/` "TATVA", body rgb(248, 246, 240), button rgb(23, 61, 53); Profile offers TATVA among 10 schemes. TC-BRD-08-3: users already on `modern` were left unchanged by wp-init rev 16 (no "admin colour scheme" line); after deleting the admin's `admin_color` meta, rev 18 logged `admin colour scheme: tatva` and the meta is `tatva`. Catalogue import still "0 created, 0 updated, 50 unchanged". `scripts/check-chart.sh` → 0 violations; `scripts/storefront-screens.sh` → 20 OK, 2 WARN (the known `/cart/undefinedwc/store/v1/cart` 404, unchanged). Screenshots `docs/evidence/brd-08-*.jpg`.
+- **Regression risk:** Low; a WordPress core admin CSS change could leave some elements in the default colours.
+
 ## Phase 10 — Security testing: attack and harden
 Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run, every finding in `docs/SECURITY_FINDINGS.md` is fixed (with a regression test) or explicitly accepted, and `docs/SECURITY_REPORT.md` is written. Added 2026-10-12 at the user's request. Starts after E2E-14 (Day 6–7) and continues after submission. **Scope: only our own targets** — the local k3d hosts (`*.127.0.0.1.nip.io`, the cluster) and later our own VPS. Third-party services we only connect to (GitHub remote MCP, Groq, OpenRouter) are out of scope.
 

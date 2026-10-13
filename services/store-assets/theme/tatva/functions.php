@@ -9,6 +9,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/inc/admin.php'; // wp-admin colour scheme and login page (BRD-08)
+
 add_action(
 	'wp_enqueue_scripts',
 	static function () {

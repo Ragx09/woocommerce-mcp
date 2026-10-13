@@ -23,4 +23,5 @@ Source material for the storefront brand (Phase 9 in `TASKS.md`, BRD-01…07). T
 | Importer (idempotent, run by wp-init) | `services/store-assets/import/import-catalogue.php` |
 | Image tools: search, fetch/crop, validate | `scripts/brand/` |
 | Logo, site icon | `brand/logo/` |
-| Screenshots | `docs/evidence/brd-07-*.jpg` |
+| wp-admin colour scheme and login page (BRD-08) | `services/store-assets/theme/tatva/inc/admin.php`, `assets/css/admin-colors.css`, `assets/css/login.css`; check: `scripts/admin-screens.sh` |
+| Screenshots | `docs/evidence/brd-07-*.jpg`, `docs/evidence/brd-08-*.jpg` |

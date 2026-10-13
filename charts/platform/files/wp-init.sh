@@ -40,6 +40,11 @@ if [ "${BRAND_ENABLED:-false}" = "true" ]; then
   [ -d "$T/tatva" ] && mv "$T/tatva" "$T/.tatva-old"; mv "$T/.tatva-new" "$T/tatva"; rm -rf "$T/.tatva-old"
   [ "$($WP option get stylesheet)" = "tatva" ] || q theme activate tatva
   q option update blogname "$TITLE"
+  # BRD-08: TATVA admin colour scheme for the admin user, only while it is still the default
+  # (a scheme the user picked under Users → Profile is kept).
+  case "$($WP user meta get "$ADMIN_USER" admin_color 2>/dev/null || true)" in
+    ''|fresh) q user meta update "$ADMIN_USER" admin_color tatva && echo "admin colour scheme: tatva" ;;
+  esac
   ASSETS_DIR=/assets $WP eval-file /assets/import/import-catalogue.php
 elif [ "$($WP post list --post_type=product --post_status=any --format=count)" = "0" ]; then
   for p in "Urumi Mug|12.00" "Urumi T-Shirt|25.00" "Urumi Sticker Pack|5.00"; do

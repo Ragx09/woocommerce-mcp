@@ -1,0 +1,64 @@
+/* BRD-08: TATVA login page. Colours from theme.json; logo URL and font are added inline by inc/admin.php. */
+body.login {
+	background: #F8F6F0;
+	color: #252A27;
+	font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#login h1 a {
+	width: 270px;
+	height: 48px;
+	background-size: 270px 48px;
+	background-position: center;
+	margin-bottom: 28px;
+}
+.login form {
+	background: #FFFFFF;
+	border: 1px solid #E8DCC9;
+	border-radius: 6px;
+	box-shadow: none;
+}
+.login label { color: #252A27; }
+.login input[type="text"]:focus,
+.login input[type="password"]:focus,
+.login input[type="checkbox"]:focus {
+	border-color: #173D35;
+	box-shadow: 0 0 0 1px #173D35;
+}
+.login .button-primary,
+.wp-core-ui .button-primary {
+	background: #173D35;
+	border-color: #173D35;
+	color: #FFFFFF;
+	border-radius: 4px;
+}
+.login .button-primary:hover,
+.login .button-primary:focus,
+.wp-core-ui .button-primary:hover,
+.wp-core-ui .button-primary:focus {
+	background: #0F2C26;
+	border-color: #0F2C26;
+	color: #FFFFFF;
+}
+.wp-core-ui .button-primary:focus {
+	box-shadow: 0 0 0 1px #FFFFFF, 0 0 0 3px #173D35;
+}
+.login .button.wp-hide-pw .dashicons { color: #173D35; }
+.login #nav a,
+.login #backtoblog a,
+.login .privacy-policy-page-link a {
+	color: #5F645F;
+}
+.login #nav a:hover,
+.login #backtoblog a:hover {
+	color: #A4532F;
+}
+.login .message,
+.login .notice,
+.login .success {
+	border-left-color: #173D35;
+}
+.login #login_error,
+.login .notice-error {
+	border-left-color: #A4532F;
+}
+.login .language-switcher { display: none; }
