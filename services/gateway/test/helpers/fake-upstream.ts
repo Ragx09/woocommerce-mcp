@@ -29,7 +29,7 @@ export interface FakeUpstream {
 }
 
 export async function startFakeUpstream(
-  opts: { sessionful?: boolean; tools?: string[]; pageSize?: number } = {},
+  opts: { sessionful?: boolean; tools?: string[]; pageSize?: number; port?: number } = {},
 ): Promise<FakeUpstream> {
   const tools = opts.tools ?? ['echo', 'ping'];
   const headers: IncomingHttpHeaders[] = [];
@@ -103,7 +103,7 @@ export async function startFakeUpstream(
     }
     return transport.handleRequest(req, res, body);
   });
-  await new Promise<void>((r) => http.listen(0, '127.0.0.1', r));
+  await new Promise<void>((r) => http.listen(opts.port ?? 0, '127.0.0.1', r)); // fixed port: restart on the same URL
   const { port } = http.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}/mcp`,

@@ -17,6 +17,7 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import { VERSION } from '../app.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
+import type { HealthMonitor } from '../upstreams/health.js';
 import {
   isSafeCallRetry, safeReason, UpstreamTimeoutError, UpstreamUnavailableError, withDeadline, type UpstreamPool,
 } from '../upstreams/pool.js';
@@ -32,6 +33,8 @@ export interface McpDeps {
   loadUpstreams: () => Promise<Upstream[]>;
   pool: UpstreamPool;
   discovery: ToolDiscovery;
+  /** GW-10: unreachable upstreams fail fast; call outcomes are reported back. */
+  health?: HealthMonitor;
   /** Budget for one forwarded tools/call, including connecting and a reconnect (GW-09). */
   callTimeoutMs?: number;
 }
@@ -88,6 +91,11 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
 
     const done = (outcome: string, tool?: string) =>
       log.info({ upstream: row.slug, tool: tool ?? publicName, outcome, ms: Date.now() - started }, 'tools/call');
+    if (deps.health?.isUnreachable(row.id)) {
+      // Fail fast: the health loop brings it back within one interval once it answers again.
+      done('unreachable');
+      return errorResult('upstream_unreachable', deps.health.get(row).lastError ?? `upstream ${row.slug} unreachable`);
+    }
     let tool: string | undefined;
     try {
       const index = new ToolIndex();
@@ -108,8 +116,11 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
         isSafeCallRetry,
       ));
       done(result.isError ? 'tool_error' : 'ok', tool);
+      deps.health?.reportOk(row);
       return result;
     } catch (e) {
+      // A slow tool says nothing about health; only "could not connect" marks the upstream unreachable.
+      if (e instanceof UpstreamUnavailableError) deps.health?.reportFailure(row, e);
       const f = callFailure(row.slug, e, callTimeoutMs);
       done(f.outcome, tool);
       return f.result;

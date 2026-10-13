@@ -48,6 +48,7 @@ spec:
             - { name: UPSTREAM_CONNECT_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.connect | quote }} }
             - { name: UPSTREAM_LIST_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.list | quote }} }
             - { name: UPSTREAM_CALL_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.call | quote }} }
+            - { name: HEALTH_INTERVAL_MS, value: {{ $v.healthIntervalMs | quote }} }
             - { name: PGHOST, value: "postgres.{{ $ns }}.svc.cluster.local" }
             - { name: PGUSER, value: gateway }
             - { name: PGDATABASE, value: gateway }

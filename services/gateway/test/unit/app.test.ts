@@ -85,5 +85,7 @@ describe('config', () => {
     expect(() => loadConfig({ UPSTREAM_CALL_TIMEOUT_MS: '0' })).toThrow(/UPSTREAM_CALL_TIMEOUT_MS/);
     expect(() => loadConfig({ UPSTREAM_LIST_TIMEOUT_MS: '1.5' })).toThrow(/UPSTREAM_LIST_TIMEOUT_MS/);
     expect(() => loadConfig({ UPSTREAM_CONNECT_TIMEOUT_MS: '999999' })).toThrow(/UPSTREAM_CONNECT_TIMEOUT_MS/);
+    expect(loadConfig({}).healthIntervalMs).toBe(10_000);
+    expect(() => loadConfig({ HEALTH_INTERVAL_MS: '10' })).toThrow(/HEALTH_INTERVAL_MS/);
   });
 });

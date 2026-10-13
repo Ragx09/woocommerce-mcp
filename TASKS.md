@@ -968,7 +968,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-10 — Failure isolation + health loop
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-09
 - **Requirements:** REQ-GW-05, REQ-GW-09, REQ-DOD-10
@@ -977,8 +977,8 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-INT-04 passes.
 - **Tests:** TC-INT-04.
 - **Command:** `npm run test:int -w services/gateway`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-13: `src/upstreams/health.ts` `HealthMonitor` (loop every `HEALTH_INTERVAL_MS`=10 s, parallel `ping` under the 3 s list budget; status connected/unreachable/disabled/unknown + `lastError`/`lastCheckedAt`/`lastOkAt`; passive reports from lists and calls; slow tool calls do not affect health), wired into discovery (unreachable → not contacted, no stale list) and `tools/call` (unreachable → `upstream_unreachable: <lastError>` at once). Typecheck clean. **TC-INT-04 PASS** — `test/int/health.int.test.ts` 5/5: dead upstream → unreachable with `lastError` "upstream everything unreachable: ECONNREFUSED" (no URL), other upstream listed and callable, list < 200 ms and call < 200 ms without contacting it, restart on the same port → connected, tools back; hung TCP upstream → unreachable within one check budget, next list skips it; disabled → `disabled`, 0 requests; refused call marks unreachable without the loop; loop alone notices death and recovery. Unit + TC-INT-03 + TC-INT-04 together 57/57 ×5; `scripts/gateway-db-int.sh` → **31/31**. Also fixed a pre-existing cold-start flake (TC-GW-05-1 failed 1 in 3 on the old code with a 300 ms budget) by giving non-timeout tests a larger budget. Chart: `HEALTH_INTERVAL_MS` from `gateway.healthIntervalMs`; `check-chart.sh` 0 violations, values diff PASS. **k3d** (`gateway:sha-2adb8f59d027`, rev 20): startup log `woo unknown→connected`; `kubectl -n store scale deploy/woo-mcp --replicas=0` → log `connected→unreachable err="upstream woo unreachable: ECONNREFUSED"` 4 s later; curl `tools/call woo__list_orders` → `isError` `upstream_unreachable: upstream woo unreachable: ECONNREFUSED` in **0.059 s** (gateway `ms=3`); `tools/list` → `[]` in 0.025 s (`failed=["woo"] ms=2`); scaled back to 1 → `unreachable→connected` 9 s after Ready, list → 5 tools. Dev key occurrences in gateway log: 0.
+- **Regression risk:** Health is per replica (in memory): with 2+ replicas each one checks on its own and the dashboard shows the answering replica's view. After a recovery, tools reappear only on the next loop round (≤ 10 s); a transient refused connection hides an upstream for up to one interval.
 
 ### GW-11 — Enable/disable behaviour
 - **Priority:** P0

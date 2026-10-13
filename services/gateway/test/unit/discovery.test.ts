@@ -34,7 +34,8 @@ const names = (r: { tools: { name: string }[] }) => r.tools.map((t) => t.name);
 describe('ToolDiscovery (GW-05)', () => {
   it('TC-GW-05-1: lists every page of tools and records when', async () => {
     const up = await fake({ tools: ['a', 'b', 'c', 'd', 'e'], pageSize: 2 });
-    const { d, clock } = await setup([row({ url: up.url })]);
+    // Generous budget: this is the file's first (cold) request and is not about timeouts.
+    const { d, clock } = await setup([row({ url: up.url })], { listTimeoutMs: 3_000 });
     const r = await d.discover();
     expect(r.failed).toEqual([]);
     expect(r.upstreams).toHaveLength(1);

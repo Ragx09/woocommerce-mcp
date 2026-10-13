@@ -20,11 +20,11 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04..07 Done; TC-GW-06-1 PASS on k3d (5 woo tools via Inspector CLI, TASKS.md GW-06); TC-INT-02 with 3 upstreams pending GW-13/14 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Verified | TASKS.md GW-08: Inspector CLI → gateway → woo-mcp → WooCommerce returns products/orders on k3d; unit TC-GW-08-1..8 |
 | REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 Accepted; TC-UNIT-01 8/8 PASS (GW-07); TC-INT-02 pending GW-06 |
-| REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | In Progress | TC-INT-03 PASS (GW-09: slow/hung upstream left out of the list and timed out on calls while the others answer); TC-INT-04 and TC-GW-16-1 pending GW-10/GW-16 |
+| REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | In Progress | TC-INT-03 PASS (GW-09: slow/hung upstream left out of the list and timed out on calls while the others answer); TC-INT-04 PASS (GW-10: dead/hung upstream marked Unreachable, skipped without waiting, recovers); TC-GW-16-1 pending GW-16 |
 | REQ-GW-06 | Req. Gateway | Timeouts + clear error | gateway | GW-09, UI-18 | TC-INT-03 | In Progress | GW-09 Done: TC-INT-03 PASS (slow call → `upstream_timeout` in 0.6 s budget, others unaffected; TASKS.md GW-09); showing the error in the UI pending UI-18 |
 | REQ-GW-07 | Req. Gateway | Upstream credentials server-side only | gateway | GW-12, AUTH-15 | TC-INT-06, TC-AUTH-04 | Not Started | — |
 | REQ-GW-08 | Req. Gateway | ≥3 upstreams (woo + 2) | gateway + charts | ARC-15, GW-13, GW-14 | TC-GW-13-1, TC-GW-14-1 | Not Started | — |
-| REQ-GW-09 | User story admin 1 | Server list with status + tools | dashboard | GW-10, UI-04 | TC-UI-04-1 | Not Started | — |
+| REQ-GW-09 | User story admin 1 | Server list with status + tools | dashboard | GW-10, UI-04 | TC-UI-04-1 | In Progress | GW-10 Done: status connected/unreachable/disabled + lastError per upstream (TC-INT-04, TASKS.md GW-10); dashboard view pending UI-04 |
 | REQ-GW-10 | User story admin 2 | WooCommerce server pre-registered | gateway seed | GW-03 | TC-GW-03-1 | Not Started | — |
 | REQ-GW-11 | Problem statement | Only the gateway talks to upstreams | gateway + chat + NetworkPolicy | ARC-10, UI-15, WC-14 | TC-INT-07, TC-SEC-02 | Not Started | — |
 | REQ-GW-12 | User story member 2 | One URL + key shows all tools | gateway /mcp | GW-06, AUTH-08, E2E-01 | TC-EXT-01, TC-EXT-02 | In Progress | One URL works with a temporary shared dev key (GW-06); per-user keys in AUTH-08 |
@@ -57,7 +57,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DOD-07 | DoD External B | Prompt using two upstreams | gateway | GW-15, E2E-06 | TC-E2E-07 | Not Started | — |
 | REQ-DOD-08 | DoD Team | Revoke B → rejected | gateway | AUTH-09, E2E-07 | TC-E2E-08 | Not Started | — |
 | REQ-DOD-09 | DoD Team | Disable upstream → tools gone (chat + external) | gateway | GW-11, E2E-08 | TC-E2E-09 | Not Started | — |
-| REQ-DOD-10 | DoD Team | Kill pod → others OK, Unreachable shown | gateway + dashboard | GW-16, E2E-09 | TC-E2E-10 | Not Started | — |
+| REQ-DOD-10 | DoD Team | Kill pod → others OK, Unreachable shown | gateway + dashboard | GW-16, E2E-09 | TC-E2E-10 | In Progress | GW-10: on k3d woo-mcp scaled to 0 → Unreachable in 4 s, calls fail fast (59 ms), recovered ≤ 10 s after Ready; full check with 3 upstreams pending GW-16, dashboard pending E2E-09 |
 | REQ-DOD-11 | DoD Team | All calls in audit, correct user | audit | AUTH-13, E2E-10 | TC-E2E-11 | Not Started | — |
 | REQ-DOD-12 | DoD | Demo with two users end to end | all | E2E-03, E2E-14, REL-15 | TC-E2E-12 | Not Started | — |
 | REQ-DEL-01 | Deliverables | README local setup | docs | INF-15, REL-12 | TC-REL-12-1 | In Progress | README "Local setup" + `scripts/up.sh` verified from a deleted cluster (TASKS.md INF-15); final pass in REL-12 |

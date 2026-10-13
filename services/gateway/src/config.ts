@@ -11,6 +11,8 @@ export interface Config {
   mcpDevKey: string | undefined;
   /** Upstream budgets in ms (GW-09, docs/MCP_DESIGN.md §6). */
   upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
+  /** Period of the upstream health loop in ms (GW-10). */
+  healthIntervalMs: number;
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -39,5 +41,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       listMs: int('UPSTREAM_LIST_TIMEOUT_MS', env.UPSTREAM_LIST_TIMEOUT_MS, 3_000, 100, 60_000),
       callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
     },
+    healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
   };
 }

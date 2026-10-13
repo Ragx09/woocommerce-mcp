@@ -4,9 +4,10 @@
 Phase 4 — Gateway: multiple upstreams, timeouts, health (Day 3, 2026-10-13)
 
 ## Current task
-GW-09 Done. Next: GW-10 Failure isolation + health loop
+GW-10 Done. Next: GW-11 Enable/disable behaviour
 
 ## Recently completed
+- 2026-10-13: **GW-10 — health loop + failure isolation**: `HealthMonitor` pings every enabled upstream every 10 s (parallel, 3 s budget) and listens to traffic; status connected/unreachable/disabled with `lastError`; unreachable upstreams are skipped by `tools/list` and calls fail fast. TC-INT-04 5/5, int 31/31, unit 49/49. k3d: woo-mcp scaled to 0 → Unreachable in 4 s, call fails in 59 ms, back to Connected 9 s after Ready. Fixed a pre-existing cold-start flake in TC-GW-05-1. Status is not visible in a UI/API yet (needs sessions, UI-04).
 - 2026-10-13: **GW-09 — timeouts**: `withDeadline()` puts one deadline over connect + call + reconnect (calls 15 s, lists 3 s, connect 2 s; env `UPSTREAM_*_TIMEOUT_MS`, Helm `gateway.upstreamTimeouts`); on expiry the request is aborted (`notifications/cancelled`) and the client gets `upstream_timeout`; timed-out calls are never retried. TC-INT-03 3/3 (5 runs), unit 49/49, int 26/26, chart checks PASS, k3d rev 19 smoke OK (5 tools, `list_orders` ok). Limitation: stateless woo-mcp cannot act on the cancel.
 - 2026-10-13: PROGRESS blockers cleaned up (stale BRD-03 line removed; BRD-03 is Done).
 - 2026-10-13: **BRD-08 — admin and login branding**: TATVA admin colour scheme (forest menu, sand current item, terracotta counters) registered by the `tatva` theme, default for new users and set by wp-init for the admin user only while on the default scheme; login page with the TATVA wordmark linking to the store. `scripts/admin-screens.sh` 11/11 PASS (desktop + mobile); storefront audit and chart check unchanged. Presentation only, no auth change.
@@ -49,7 +50,7 @@ GW-09 Done. Next: GW-10 Failure isolation + health loop
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
+Day 3: GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

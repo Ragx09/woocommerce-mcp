@@ -28,13 +28,21 @@
 ## 4. Discovery and aggregation
 1. On `tools/list`: load enabled upstreams from the DB (so replicas always agree).
 2. For each one in parallel (`Promise.allSettled`) with one 3 s deadline (covers connect, the single reconnect and all pages; the request is aborted): `client.listTools()` (follow `nextCursor`, max 20 pages). Concurrent `tools/list` requests share one in-flight upstream request.
-3. On success: update the cache `{version, tools, fetchedAt}` (`version` = URL/auth/credential/`updated_at`). On failure: serve the cached list marked `stale` if it is at most 60 s old and the version is unchanged; otherwise omit the upstream and report it (`failed[]`, safe message). The extra "health status is Connected" condition arrives with GW-10.
+3. On success: update the cache `{version, tools, fetchedAt}` (`version` = URL/auth/credential/`updated_at`). On failure: serve the cached list marked `stale` if it is at most 60 s old and the version is unchanged; otherwise omit the upstream and report it (`failed[]`, safe message). An upstream the health monitor has as **unreachable** is not contacted and gets no stale list (GW-10).
 4. Map to public names and return the concatenated list.
 Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 
+## 4a. Upstream health (GW-10)
+- `HealthMonitor` (`services/gateway/src/upstreams/health.ts`), in memory per replica (runtime state stays out of the DB, see `schema.ts`).
+- Loop every `HEALTH_INTERVAL_MS` (10 s): reload the registry from the DB, then `ping` every enabled upstream in parallel (`allSettled`), each under the list budget (3 s) including connect.
+- Status per upstream: `connected` · `unreachable` · `disabled` (· `unknown` before the first check), plus `lastError` (safe text, kept after recovery), `lastCheckedAt`, `lastOkAt`. Each change is logged once (`upstream status changed`, warn for unreachable).
+- Traffic feeds it too: a successful list or call → connected; could not connect (or no list within its budget) → unreachable at once. A tool call that times out does **not** change health (a slow tool is not a dead server).
+- Unreachable → skipped by `tools/list` and `tools/call` returns `upstream_unreachable: <lastError>` without contacting it. Recovery is noticed by the next loop round (≤ 10 s).
+- Read by `GET /api/upstreams` once sessions exist (UI-04/AUTH-03).
+
 ## 5. Routing `tools/call`
 1. Parse the public name → (slug, rest) (`parsePublicName`). Malformed or unknown slug → JSON-RPC `-32602`, `data.code = unknown_tool`.
-2. Upstream disabled → `-32602`, `data.code = upstream_disabled`. (Health-based fast fail arrives with GW-10.)
+2. Upstream disabled → `-32602`, `data.code = upstream_disabled`. Upstream marked unreachable by the health monitor → `isError` result `upstream_unreachable: <lastError>` at once (GW-10, §4a).
 3. Resolve the upstream tool name through a `ToolIndex` over `ToolDiscovery.toolsFor(row)` (cached list if ≤ 60 s old and the config is unchanged, otherwise refreshed). Not found → `unknown_tool`. This makes shortened (hashed) names routable.
 4. Forward `callTool({name: tool, arguments})` with a 15 s timeout → return the upstream result as-is (`isError` preserved). A transport failure is retried once **only** if the call certainly did not run (`isSafeCallRetry`: HTTP 404 stale session, `ECONNREFUSED`).
 5. Failures reaching the upstream become `isError` results the model can read: `upstream_unreachable: …`, `upstream_timeout: …`, `upstream_error: …` (no URLs, no credentials).

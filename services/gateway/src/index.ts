@@ -4,6 +4,7 @@ import { loadCredentialKey } from './crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
 import { registerMcp } from './mcp/route.js';
 import { ToolDiscovery } from './upstreams/discovery.js';
+import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadWooSeed, seedUpstream } from './upstreams/seed.js';
@@ -43,22 +44,31 @@ app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug), timeouts:
 
 // Gateway MCP endpoint (GW-06). Upstreams are reloaded from the DB on each tools/list.
 const db = createDb(dbPool);
+// Upstream health (GW-10): checked every interval, also fed by normal traffic.
+const health = new HealthMonitor(upstreamPool, {
+  loadUpstreams: () => listUpstreams(db),
+  intervalMs: cfg.healthIntervalMs,
+  checkTimeoutMs: cfg.upstreamTimeouts.listMs,
+  log: app.log,
+});
 registerMcp(app, {
   devKey: cfg.mcpDevKey,
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
-  discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log }),
+  discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health }),
+  health,
   callTimeoutMs: cfg.upstreamTimeouts.callMs,
 });
 if (!cfg.mcpDevKey) app.log.warn('MCP_DEV_KEY not set: /mcp refuses all requests');
 
 await app.listen({ port: cfg.port, host: cfg.host });
+health.start();
 app.log.info({ version: VERSION }, 'gateway listening');
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sig, () => {
     app.log.info({ sig }, 'shutting down');
     setTimeout(() => process.exit(0), 5_000).unref();
-    app.close().then(() => upstreamPool.close()).then(() => dbPool.end()).then(() => process.exit(0), () => process.exit(1));
+    app.close().then(() => health.stop()).then(() => upstreamPool.close()).then(() => dbPool.end()).then(() => process.exit(0), () => process.exit(1));
   });
 }

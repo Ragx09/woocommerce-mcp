@@ -4,11 +4,14 @@
 // - A successful list refreshes the cache. On failure or timeout the last list is served (marked
 //   stale) if it is at most 60 s old and the upstream's config has not changed since; otherwise the
 //   upstream is reported as failed and left out. One bad upstream never breaks the others.
+// - With a HealthMonitor (GW-10): an upstream marked unreachable is not contacted at all (fails fast
+//   with its last error, no stale tools), and every live list reports its outcome to the monitor.
 // - Concurrent discover() calls share one in-flight list request per upstream.
 // - Tools are returned exactly as the upstream sent them; public names and description caps are GW-07.
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { Upstream } from '../db/schema.js';
+import type { HealthMonitor } from './health.js';
 import { safeReason, UpstreamTimeoutError, UpstreamUnavailableError, versionOf, withDeadline, type UpstreamPool } from './pool.js';
 
 export { UpstreamTimeoutError };
@@ -22,6 +25,7 @@ export interface DiscoveryOptions {
   maxPages?: number;
   now?: () => number;
   log?: { warn: (obj: object, msg: string) => void };
+  health?: Pick<HealthMonitor, 'get' | 'isUnreachable' | 'reportOk' | 'reportFailure'>;
 }
 
 export interface UpstreamTools {
@@ -72,7 +76,12 @@ export class ToolDiscovery {
     const ids = new Set(rows.map((r) => r.id));
     for (const id of this.cache.keys()) if (!ids.has(id)) this.cache.delete(id);
 
-    const settled = await Promise.allSettled(rows.map((r) => this.refresh(r)));
+    const settled = await Promise.allSettled(rows.map((r) => {
+      if (this.opts.health?.isUnreachable(r.id)) {
+        return Promise.reject(new MarkedUnreachableError(this.opts.health.get(r).lastError ?? `upstream ${r.slug} unreachable`));
+      }
+      return this.refresh(r);
+    }));
     const result: DiscoveryResult = { upstreams: [], failed: [] };
     settled.forEach((s, i) => {
       const upstream = rows[i]!;
@@ -83,7 +92,8 @@ export class ToolDiscovery {
       const error = errorText(upstream.slug, s.reason);
       const cached = this.cache.get(upstream.id);
       const age = cached ? this.now() - cached.fetchedAt : Infinity;
-      if (cached && cached.version === versionOf(upstream) && age <= this.maxStaleMs) {
+      const healthy = !this.opts.health?.isUnreachable(upstream.id);
+      if (healthy && cached && cached.version === versionOf(upstream) && age <= this.maxStaleMs) {
         this.opts.log?.warn({ upstream: upstream.slug, err: error, ageMs: age }, 'tool discovery failed, serving cached list');
         result.upstreams.push({ upstream, tools: cached.tools, fetchedAt: cached.fetchedAt, stale: true, error });
       } else {
@@ -112,7 +122,12 @@ export class ToolDiscovery {
       .then((tools) => {
         const entry = { version, tools, fetchedAt: this.now() };
         this.cache.set(row.id, entry);
+        this.opts.health?.reportOk(row);
         return entry;
+      }, (e: unknown) => {
+        // Could not connect, or no full list within the budget: the upstream is not usable.
+        if (e instanceof UpstreamUnavailableError || e instanceof UpstreamTimeoutError) this.opts.health?.reportFailure(row, e);
+        throw e;
       })
       .finally(() => {
         if (this.inflight.get(row.id)?.promise === promise) this.inflight.delete(row.id);
@@ -140,7 +155,10 @@ export class ToolDiscovery {
   }
 }
 
+/** Not contacted because the health monitor has it as unreachable; the message is its last error. */
+class MarkedUnreachableError extends Error {}
+
 function errorText(slug: string, e: unknown): string {
-  if (e instanceof UpstreamUnavailableError || e instanceof UpstreamTimeoutError) return e.message;
+  if (e instanceof UpstreamUnavailableError || e instanceof UpstreamTimeoutError || e instanceof MarkedUnreachableError) return e.message;
   return `upstream ${slug} failed to list tools: ${safeReason(e)}`;
 }

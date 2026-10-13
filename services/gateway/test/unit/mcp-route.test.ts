@@ -34,7 +34,7 @@ async function gateway(rows: { current: Upstream[] | Error }, devKey: string | u
     devKey,
     loadUpstreams: async () => { if (rows.current instanceof Error) throw rows.current; return rows.current; },
     pool,
-    discovery: new ToolDiscovery(pool, { listTimeoutMs: 500 }),
+    discovery: new ToolDiscovery(pool, { listTimeoutMs: 2_000 }), // not a timeout test: room for cold starts
   });
   await app.listen({ port: 0, host: '127.0.0.1' });
   cleanup.unshift(async () => { await app.close(); await pool.close(); });
