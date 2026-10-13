@@ -16,7 +16,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-MCP-07 | Req. WooCommerce MCP | update order status tool | woo-mcp | WC-12 | TC-WC-12-1, TC-INT-01 | Not Started | — |
 | REQ-MCP-08 | Req. WooCommerce MCP | Internal only; gateway-only access | NetworkPolicy | ARC-02, WC-14 | TC-SEC-02, TC-SEC-03 | Not Started | — |
 | REQ-MCP-09 | Req. WooCommerce MCP | Document store integration + why | docs | ARC-14, WC-06 | TC-ARC-14-1, TC-UNIT-03 | In Progress | D-003 drafted |
-| REQ-GW-01 | Req. Gateway | Admin add/edit/disable/remove upstreams with optional credential | gateway API + dashboard | GW-02, GW-11, GW-12, UI-05, UI-06, UI-07 | TC-UI-05-1, TC-UI-06-1, TC-UI-07-1, TC-INT-05 | Not Started | — |
+| REQ-GW-01 | Req. Gateway | Admin add/edit/disable/remove upstreams with optional credential | gateway API + dashboard | GW-02, GW-11, GW-12, UI-05, UI-06, UI-07 | TC-UI-05-1, TC-UI-06-1, TC-UI-07-1, TC-INT-05 | In Progress | GW-11: disable/enable takes effect on the next request (TC-INT-05 PASS, TASKS.md GW-11); admin API/UI pending UI-05..07, credentials GW-12 |
 | REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04..07 Done; TC-GW-06-1 PASS on k3d (5 woo tools via Inspector CLI, TASKS.md GW-06); TC-INT-02 with 3 upstreams pending GW-13/14 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Verified | TASKS.md GW-08: Inspector CLI → gateway → woo-mcp → WooCommerce returns products/orders on k3d; unit TC-GW-08-1..8 |
 | REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 Accepted; TC-UNIT-01 8/8 PASS (GW-07); TC-INT-02 pending GW-06 |
@@ -56,7 +56,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DOD-06 | DoD External B | Sees all enabled tools; orders question | gateway | E2E-04, E2E-05 | TC-E2E-06 | Not Started | — |
 | REQ-DOD-07 | DoD External B | Prompt using two upstreams | gateway | GW-15, E2E-06 | TC-E2E-07 | Not Started | — |
 | REQ-DOD-08 | DoD Team | Revoke B → rejected | gateway | AUTH-09, E2E-07 | TC-E2E-08 | Not Started | — |
-| REQ-DOD-09 | DoD Team | Disable upstream → tools gone (chat + external) | gateway | GW-11, E2E-08 | TC-E2E-09 | Not Started | — |
+| REQ-DOD-09 | DoD Team | Disable upstream → tools gone (chat + external) | gateway | GW-11, E2E-08 | TC-E2E-09 | In Progress | GW-11: external `/mcp` hides a disabled upstream's tools and rejects calls with `upstream_disabled` (TC-INT-05, k3d check in TASKS.md GW-11); chat path pending E2E-08 |
 | REQ-DOD-10 | DoD Team | Kill pod → others OK, Unreachable shown | gateway + dashboard | GW-16, E2E-09 | TC-E2E-10 | In Progress | GW-10: on k3d woo-mcp scaled to 0 → Unreachable in 4 s, calls fail fast (59 ms), recovered ≤ 10 s after Ready; full check with 3 upstreams pending GW-16, dashboard pending E2E-09 |
 | REQ-DOD-11 | DoD Team | All calls in audit, correct user | audit | AUTH-13, E2E-10 | TC-E2E-11 | Not Started | — |
 | REQ-DOD-12 | DoD | Demo with two users end to end | all | E2E-03, E2E-14, REL-15 | TC-E2E-12 | Not Started | — |

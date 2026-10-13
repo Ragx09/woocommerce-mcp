@@ -982,7 +982,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-11 — Enable/disable behaviour
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-08
 - **Requirements:** REQ-GW-01, REQ-DOD-09
@@ -991,7 +991,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-INT-05 passes.
 - **Tests:** TC-INT-05.
 - **Command:** `npm run test:int -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: list/call/pool behaviour already existed (GW-06/08: registry read from the DB per request, `pool.sync` closes disabled entries); added `setUpstreamEnabled(db, id, enabled)` in `src/upstreams/repo.ts` (for PATCH `/api/upstreams/:id`) and **fixed** `pool.sync` to keep registry order — before, a disabled-then-enabled upstream moved to the end of `tools/list`, so replicas could disagree on order. **TC-INT-05 PASS** — `test/int/enable.int.test.ts` (real Postgres, two gateway replicas on one DB) 3/3: disable → both replicas on their next request list only `woo__echo`, `everything__add` → `-32602 upstream everything is disabled`, `data.code=upstream_disabled`, pooled client closed, woo calls fine, disabled upstream receives **0** requests (incl. health rounds; status `disabled`); enable → tools and calls back on both; a replica without `/mcp` traffic closes the connection on its next health round; unknown id → undefined. `scripts/gateway-db-int.sh` → **34/34** ×3; unit 49/49 ×3; typecheck clean. **k3d** (`gateway:sha-007a4d429950`, rev 21): `UPDATE upstreams SET enabled=false … WHERE slug='woo'` (psql in postgres-0; no admin API yet) → `tools/list` → `[]` (0.036 s), `tools/call woo__list_products` → `-32602 … upstream woo is disabled`, `data.code=upstream_disabled`; `enabled=true` → 5 tools, `list_products` ok (`ms=454`); no restart. Dev key occurrences in gateway log: 0.
 - **Regression risk:** Replicas see the change on next request (read from DB; no stale in-memory flag).
 
 ### GW-12 — Encrypted credential injection

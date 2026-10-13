@@ -42,7 +42,7 @@ Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 
 ## 5. Routing `tools/call`
 1. Parse the public name → (slug, rest) (`parsePublicName`). Malformed or unknown slug → JSON-RPC `-32602`, `data.code = unknown_tool`.
-2. Upstream disabled → `-32602`, `data.code = upstream_disabled`. Upstream marked unreachable by the health monitor → `isError` result `upstream_unreachable: <lastError>` at once (GW-10, §4a).
+2. Upstream disabled → `-32602`, `data.code = upstream_disabled`; the flag is read from the DB on every request, so all replicas apply a disable/enable on their next request and close the pooled connection (`setUpstreamEnabled`, GW-11). `tools/list` order follows the registry (oldest first). Upstream marked unreachable by the health monitor → `isError` result `upstream_unreachable: <lastError>` at once (GW-10, §4a).
 3. Resolve the upstream tool name through a `ToolIndex` over `ToolDiscovery.toolsFor(row)` (cached list if ≤ 60 s old and the config is unchanged, otherwise refreshed). Not found → `unknown_tool`. This makes shortened (hashed) names routable.
 4. Forward `callTool({name: tool, arguments})` with a 15 s timeout → return the upstream result as-is (`isError` preserved). A transport failure is retried once **only** if the call certainly did not run (`isSafeCallRetry`: HTTP 404 stale session, `ECONNREFUSED`).
 5. Failures reaching the upstream become `isError` results the model can read: `upstream_unreachable: …`, `upstream_timeout: …`, `upstream_error: …` (no URLs, no credentials).

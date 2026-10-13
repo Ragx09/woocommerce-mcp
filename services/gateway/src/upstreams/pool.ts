@@ -111,9 +111,11 @@ export class UpstreamPool {
         closing.push(this.closeEntry(entry));
       }
     }
-    for (const [id, row] of wanted) {
-      if (!this.entries.has(id)) this.entries.set(id, { row, version: versionOf(row) });
-    }
+    // Rebuild in registry order, so tools/list order follows the DB (stable across replicas and
+    // after a disable/enable), not the order in which entries happened to be created.
+    const kept = new Map(this.entries);
+    this.entries.clear();
+    for (const [id, row] of wanted) this.entries.set(id, kept.get(id) ?? { row, version: versionOf(row) });
     await Promise.all(closing);
   }
 
