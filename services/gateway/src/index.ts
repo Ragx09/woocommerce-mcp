@@ -57,7 +57,8 @@ const health = new HealthMonitor(upstreamPool, {
   checkTimeoutMs: cfg.upstreamTimeouts.listMs,
   log: app.log,
 });
-await registerAuth(app, { db, cookieSecure: cfg.cookieSecure });
+await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin });
+if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
 registerMcp(app, {
   devKey: cfg.mcpDevKey,
   loadUpstreams: () => listUpstreams(db),

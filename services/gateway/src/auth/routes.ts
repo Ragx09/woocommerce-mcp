@@ -7,12 +7,15 @@ import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { LoginLimiter } from './limiter.js';
 import { PASSWORD_MAX, verifyPassword } from './password.js';
-import { createSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
+import { registerOriginCheck, requireSession } from './guard.js';
+import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
 
 export interface AuthDeps {
   db: Db;
   /** Secure cookie flag: true behind HTTPS (prod). */
   cookieSecure: boolean;
+  /** The dashboard's origin, e.g. https://app.example.com; mutating /api requests from other origins → 403. */
+  publicOrigin: string | undefined;
   limiter?: LoginLimiter;
 }
 
@@ -28,7 +31,10 @@ const loginBody = {
 
 export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promise<void> {
   await app.register(cookie);
+  app.decorateRequest('user', null);
+  registerOriginCheck(app, deps.publicOrigin);
   const limiter = deps.limiter ?? new LoginLimiter();
+  const cookieOpts = { httpOnly: true, sameSite: 'strict', secure: deps.cookieSecure, path: '/' } as const;
 
   app.post<{ Body: { email: string; password: string } }>('/api/auth/login', { schema: { body: loginBody } }, async (req, reply) => {
     const email = req.body.email.trim().toLowerCase();
@@ -48,10 +54,17 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
     }
     limiter.succeed(req.ip, email);
     const { token } = await createSession(deps.db, user.id);
-    reply.setCookie(SESSION_COOKIE, token, {
-      httpOnly: true, sameSite: 'strict', secure: deps.cookieSecure, path: '/', maxAge: SESSION_TTL_MS / 1000,
-    });
+    reply.setCookie(SESSION_COOKIE, token, { ...cookieOpts, maxAge: SESSION_TTL_MS / 1000 });
     req.log.info({ userId: user.id, role: user.role }, 'login');
     return { user: { id: user.id, email: user.email, name: user.name, role: user.role } };
   });
+
+  // Idempotent: always clears the cookie; deletes the session row when there is one.
+  app.post('/api/auth/logout', async (req, reply) => {
+    await deleteSession(deps.db, req.cookies[SESSION_COOKIE]);
+    reply.clearCookie(SESSION_COOKIE, cookieOpts);
+    return reply.code(204).send();
+  });
+
+  app.get('/api/me', { preHandler: requireSession(deps.db) }, async (req) => req.user);
 }

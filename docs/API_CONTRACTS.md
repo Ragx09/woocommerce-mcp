@@ -1,13 +1,13 @@
 # API Contracts
 
-> Status: **draft**. Base path `https://app.<domain>`. JSON everywhere. Errors use `{ "error": "<code>", "message": "<human text>" }`. The session cookie is `sid` (httpOnly, SameSite=Strict). Mutating requests require a matching `Origin`. Every response carries `X-Request-Id` (a server-generated UUID; a client-sent one is ignored), which appears on every gateway log line of that request — quote it when reporting a problem.
+> Status: **draft**. Base path `https://app.<domain>`. JSON everywhere. Errors use `{ "error": "<code>", "message": "<human text>" }`. The session cookie is `sid` (httpOnly, SameSite=Strict). Mutating `/api` requests (POST/PUT/PATCH/DELETE) from a browser must carry `Origin` equal to the public origin (or `Sec-Fetch-Site: same-origin`), otherwise 403 `forbidden` "cross-origin request refused" (AUTH-03). Every response carries `X-Request-Id` (a server-generated UUID; a client-sent one is ignored), which appears on every gateway log line of that request — quote it when reporting a problem.
 
 ## Route table
 | Method | Path | Auth | Role | Purpose |
 |---|---|---|---|---|
 | POST | `/api/auth/login` | — | — | `{email,password}` → 200 `{user:{id,email,name,role}}` + cookie `sid` (HttpOnly, SameSite=Strict, Secure on https, 12 h). 401 `invalid_credentials` (same for unknown email, wrong password, disabled user); 429 `rate_limited` + `Retry-After` after 5 failures per IP+email or 20 per IP in 15 min; 400 on unknown fields |
-| POST | `/api/auth/logout` | session | any | Clears the session |
-| GET | `/api/me` | session | any | `{id,email,name,role}` |
+| POST | `/api/auth/logout` | cookie (optional) | any | Deletes the session row and clears the cookie; always 204 |
+| GET | `/api/me` | session | any | `{id,email,name,role}`; 401 `unauthenticated` without a valid session (expired, logged out, user disabled) |
 | GET | `/api/upstreams` | session | any | List with `status`, `lastError`, `toolCount`; never credentials |
 | GET | `/api/upstreams/:id/tools` | session | any | `[{publicName,name,description}]` |
 | POST | `/api/upstreams` | session | admin | `{name,slug,url,authType,authHeader?,credential?}` |

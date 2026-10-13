@@ -15,6 +15,8 @@ export interface Config {
   healthIntervalMs: number;
   /** Session cookie gets the Secure flag (true when the public URL is https). */
   cookieSecure: boolean;
+  /** Public origin of the dashboard/API (scheme://host[:port]); unset → browser mutations on /api refused. */
+  publicOrigin: string | undefined;
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -30,6 +32,15 @@ function bool(name: string, value: string | undefined, fallback: boolean): boole
   if (v === 'true' || v === '1') return true;
   if (v === 'false' || v === '0') return false;
   throw new Error(`${name} must be true or false`);
+}
+
+function origin(name: string, value: string | undefined): string | undefined {
+  const v = value?.trim();
+  if (!v) return undefined;
+  let u: URL;
+  try { u = new URL(v); } catch { throw new Error(`${name} must be an origin like https://app.example.com`); }
+  if (!['http:', 'https:'].includes(u.protocol) || u.origin !== v) throw new Error(`${name} must be an origin like https://app.example.com`);
+  return v;
 }
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
@@ -53,5 +64,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
+    publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),
   };
 }

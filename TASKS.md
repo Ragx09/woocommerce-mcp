@@ -1113,7 +1113,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-03 — Sessions
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-02
 - **Requirements:** REQ-AUTH-01
@@ -1122,7 +1122,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** `/api/me` works with the cookie; cross-origin POST rejected.
 - **Tests:** TC-AUTH-03-1/2.
 - **Command:** `npm test -w services/gateway -- session`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/auth/guard.ts` — `requireSession(db)` (401 `unauthenticated` unless the cookie maps to an unexpired session of an enabled user), `requireRole(...)` (403 `forbidden`; used by AUTH-10), Origin check on every mutating `/api` request (`Origin` must equal `PUBLIC_ORIGIN`; else `Sec-Fetch-Site` must be same-origin/none; neither header = not a browser → allowed; no configured origin → fail closed) → 403 before any route work; `routes.ts` `POST /api/auth/logout` (deletes the row, clears the cookie, idempotent 204), `GET /api/me`. Sessions: fixed 12 h, `last_seen_at` refreshed at most every 5 min. Chart: `PUBLIC_ORIGIN` = `<scheme>://app.<domain>`; `COOKIE_SECURE` (AUTH-02). **TC-AUTH-03-1 PASS** (`test/int/auth-session.int.test.ts` 5/5): `/api/me` with the cookie → `{id,email,name,role}`; missing/empty/forged/oversized cookie → 401; logout → old cookie 401, `Set-Cookie: sid=; Max-Age=0 … HttpOnly; SameSite=Strict`; disabled user and expired session → 401 on the next request; member on an admin-only route → 403, admin → 200, no session → 401. **TC-AUTH-03-2 PASS**: with a valid admin cookie, Origin `https://evil.example`, `http://` variant, look-alike suffix, `null`, `Sec-Fetch-Site: cross-site` and `same-site` → 403; own origin, same-origin, no browser headers → 200; cross-origin login → 403 without cookie (login CSRF); cross-origin GET still answered. TC-AUTH-03-U1 (rules + `PUBLIC_ORIGIN` validation). **Mutation-checked** (no origin hook, ignoring `Sec-Fetch-Site`, disabled users keeping sessions, logout keeping the row: each fails a test). Unit 65/65, `scripts/gateway-db-int.sh` 51/51, chart 0 violations. **k3d** (`gateway:sha-310f31ea3e5b`, rev 30) via Traefik: login with Origin → 200; `/api/me` with cookie 200, without 401; logout from `https://evil.example` → 403 and the session still works; login from evil origin → 403; logout with our Origin → 204, `/api/me` → 401; log lines `cross-origin /api request refused origin=https://evil.example`; admin password in log 0.
 - **Regression risk:** —
 
 ### AUTH-04 — Invitations

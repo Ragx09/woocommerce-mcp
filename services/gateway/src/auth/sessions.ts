@@ -19,13 +19,25 @@ export async function createSession(db: Db, userId: string, now = new Date()): P
   return { token, expiresAt };
 }
 
-/** The user behind a cookie token, if the session is unexpired and the user is not disabled. */
+const TOUCH_EVERY_MS = 5 * 60_000;
+
+/**
+ * The user behind a cookie token, if the session is unexpired and the user is not disabled (a disabled
+ * user loses access on the next request). Fixed 12 h lifetime, no sliding renewal; `last_seen_at` is
+ * refreshed at most every 5 minutes for the admin's overview.
+ */
 export async function sessionUser(db: Db, token: string | undefined, now = new Date()): Promise<SessionUser | null> {
   if (!token || token.length > 128) return null;
-  const [row] = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role })
+  const idHash = sha256Hex(token);
+  const [row] = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role, lastSeenAt: sessions.lastSeenAt })
     .from(sessions).innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.idHash, sha256Hex(token)), gt(sessions.expiresAt, now), isNull(users.disabledAt)));
-  return row ?? null;
+    .where(and(eq(sessions.idHash, idHash), gt(sessions.expiresAt, now), isNull(users.disabledAt)));
+  if (!row) return null;
+  if (now.getTime() - row.lastSeenAt.getTime() > TOUCH_EVERY_MS) {
+    await db.update(sessions).set({ lastSeenAt: now }).where(eq(sessions.idHash, idHash));
+  }
+  const { lastSeenAt: _seen, ...user } = row;
+  return user;
 }
 
 export async function deleteSession(db: Db, token: string | undefined): Promise<void> {

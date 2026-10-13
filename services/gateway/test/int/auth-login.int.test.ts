@@ -28,7 +28,7 @@ beforeAll(async () => {
   await runMigrations(pool);
   db = createDb(pool);
   app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
-  await registerAuth(app, { db, cookieSecure: true, limiter: new LoginLimiter({ perAccount: 5, perIp: 50 }) });
+  await registerAuth(app, { db, cookieSecure: true, publicOrigin: 'https://app.example.test', limiter: new LoginLimiter({ perAccount: 5, perIp: 50 }) });
 });
 afterAll(async () => {
   await app?.close();

@@ -29,3 +29,13 @@
 6. **Alternatives:** bcrypt (no memory hardness), scrypt (fine too), PBKDF2 (GPU-friendly); account lockout per email only (lets anyone lock out the admin); CAPTCHA (overkill here).
 7. **Debugging:** Always 429 for everyone? Check which IP the gateway logs for logins: if every request shows the same node address, the ingress is SNATing (`externalTrafficPolicy: Cluster`) and per-IP limits become global. Login 401 with the right password? Check `disabled_at` and that the email is stored lower-case.
 8. **Self-test:** Why does an unknown email still cost a full hash? Why is per-IP+email limiting safer than per-email lockout? Why is SHA-256 fine for session tokens but not for passwords?
+
+## Sessions, cookies and CSRF
+1. **What:** After login the browser holds a cookie `sid` with a random token; the server keeps `sha256(token)` → user and expiry. CSRF (cross-site request forgery) is another site making the victim's browser send a request that carries this cookie automatically.
+2. **Why:** Cookies are sent by the browser on its own, so "has a valid cookie" does not prove "our page made this request".
+3. **Why we need it:** REQ-AUTH-01 (dashboard users), D-007, T-12.
+4. **How:** Cookie flags: `HttpOnly` (JavaScript cannot read it, so XSS cannot steal it), `SameSite=Strict` (not sent on requests started from another site), `Secure` on https, `Max-Age` 12 h. Plus an `Origin` check on every POST/PUT/PATCH/DELETE under `/api`: browsers always add `Origin` to such requests, and it cannot be forged by page scripts; if it is not our origin → 403 before the route runs. `Sec-Fetch-Site` is the fallback signal. Requests with neither header are not from a browser page, so there is no ambient cookie to abuse. Server-side sessions mean logout and disabling a user take effect on the very next request.
+5. **Where:** `services/gateway/src/auth/{guard,sessions,routes}.ts`; chart env `PUBLIC_ORIGIN`, `COOKIE_SECURE`.
+6. **Alternatives:** CSRF tokens (synchroniser/double-submit; more moving parts for an SPA), JWT in localStorage (readable by XSS, hard to revoke).
+7. **Debugging:** 403 "cross-origin request refused" from your own dashboard → `PUBLIC_ORIGIN` must match the address bar exactly (scheme, host, port). Logged out at once on https → `COOKIE_SECURE` true behind plain http drops the cookie.
+8. **Self-test:** Why is `SameSite=Strict` alone not the whole answer? Why is a cross-origin GET not a CSRF risk here? What happens to an open session when an admin disables the user?

@@ -58,3 +58,23 @@ describe('LoginLimiter (AUTH-02)', () => {
     expect(l.retryAfter('4.4.4.4', 'c@x')).toBe(0);
   });
 });
+
+import type { FastifyRequest } from 'fastify';
+import { originAllowed } from '../../src/auth/guard.js';
+
+describe('Origin check (AUTH-03)', () => {
+  const req = (method: string, headers: Record<string, string>) => ({ method, headers }) as unknown as FastifyRequest;
+  it('TC-AUTH-03-U1: mutations need our origin; reads and non-browser clients pass; no configured origin → fail closed', () => {
+    const o = 'https://app.example.test';
+    expect(originAllowed(req('POST', { origin: o }), o)).toBe(true);
+    expect(originAllowed(req('DELETE', { origin: 'https://evil.example' }), o)).toBe(false);
+    expect(originAllowed(req('PATCH', { 'sec-fetch-site': 'cross-site' }), o)).toBe(false);
+    expect(originAllowed(req('GET', { origin: 'https://evil.example' }), o)).toBe(true);
+    expect(originAllowed(req('POST', {}), o)).toBe(true);
+    expect(originAllowed(req('POST', { origin: o }), undefined)).toBe(false);
+    expect(loadConfig({ PUBLIC_ORIGIN: 'http://app.127.0.0.1.nip.io' }).publicOrigin).toBe('http://app.127.0.0.1.nip.io');
+    for (const bad of ['app.example.test', 'https://app.example.test/', 'ftp://x.y', 'https://a.b/path']) {
+      expect(() => loadConfig({ PUBLIC_ORIGIN: bad }), bad).toThrow(/PUBLIC_ORIGIN/);
+    }
+  });
+});
