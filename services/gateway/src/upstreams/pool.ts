@@ -6,6 +6,10 @@
 // - Sessionful upstreams (server-everything) lose their session when they restart, so a request that
 //   fails at the transport level is retried once on a fresh connection.
 // - TCP connect is bounded by undici's connect timeout (the SDK request timeout does not cover it).
+// - Redirects are refused (GW-12): following one could send the credential to another server (undici
+//   drops Authorization on a cross-origin redirect but keeps custom headers like X-Api-Key). The SDK
+//   (1.32) already stops cross-origin redirects; `redirect: 'error'` is a second layer that does not
+//   depend on the SDK default. Registered URLs are exact endpoints, so no redirect is expected.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
@@ -172,17 +176,12 @@ export class UpstreamPool {
   }
 
   private async open(row: Upstream): Promise<Client> {
-    const headers: Record<string, string> = { 'user-agent': `${CLIENT_INFO.name}/${CLIENT_INFO.version}` };
-    if (row.authType !== 'none' && row.credentialEnc) {
-      const secret = decryptCredential(this.opts.key, row.slug, row.credentialEnc);
-      if (row.authType === 'bearer') headers.authorization = `Bearer ${secret}`;
-      else if (row.authHeader) headers[row.authHeader.toLowerCase()] = secret;
-    }
+    const headers = upstreamHeaders(this.opts.key, row);
     const dispatcher = this.dispatcher;
     const transport = new StreamableHTTPClientTransport(new URL(row.url), {
       requestInit: { headers },
       fetch: ((url: string | URL, init?: RequestInit) =>
-        undiciFetch(url, { ...(init as object), dispatcher })) as unknown as typeof fetch,
+        undiciFetch(url, { ...(init as object), dispatcher, redirect: 'error' })) as unknown as typeof fetch,
     });
     const client = new Client(CLIENT_INFO, { capabilities: {} });
     try {
@@ -205,6 +204,29 @@ export class UpstreamPool {
     await this.drop(entry);
     if (pending) await pending.then((c) => c.close(), () => {}).catch(() => {});
   }
+}
+
+/** Printable ASCII only: no CR/LF (header injection) and nothing undici would reject. */
+const HEADER_VALUE = /^[\x20-\x7e]{1,4096}$/;
+
+/**
+ * The headers sent to one upstream (GW-12): our user agent plus that upstream's own stored credential,
+ * decrypted here and only here. Built from the row alone, so nothing from the inbound request (the
+ * client's API key) can end up in it (T-04). Failures name the upstream, never the value.
+ */
+export function upstreamHeaders(key: CredentialKey, row: Upstream): Record<string, string> {
+  const headers: Record<string, string> = { 'user-agent': `${CLIENT_INFO.name}/${CLIENT_INFO.version}` };
+  if (row.authType === 'none' || !row.credentialEnc) return headers;
+  let secret: string;
+  try {
+    secret = decryptCredential(key, row.slug, row.credentialEnc);
+  } catch {
+    throw new UpstreamUnavailableError(row.slug, 'stored credential cannot be decrypted (wrong CREDENTIALS_KEY?)');
+  }
+  if (!HEADER_VALUE.test(secret)) throw new UpstreamUnavailableError(row.slug, 'stored credential is not a valid header value');
+  if (row.authType === 'bearer') headers.authorization = `Bearer ${secret}`;
+  else if (row.authHeader) headers[row.authHeader.toLowerCase()] = secret;
+  return headers;
 }
 
 /** A short reason without URLs or headers (they could contain secrets in query strings). */

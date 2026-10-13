@@ -67,7 +67,10 @@ Implemented in GW-09 (`withDeadline` in `services/gateway/src/upstreams/pool.ts`
 
 ## 7. Credential injection
 - Stored per upstream: `auth_type` (none | bearer | header), `auth_header` (e.g. `X-API-Key`), `credential_enc` (AES-256-GCM).
-- On connect: decrypt and build `requestInit.headers` for the SDK transport. The inbound client `Authorization` is **never** copied (T-04).
+- On connect: `upstreamHeaders(key, row)` (`services/gateway/src/upstreams/pool.ts`) decrypts and builds `requestInit.headers` for the SDK transport: `Authorization: Bearer <secret>` or `<auth_header>: <secret>`, plus the gateway user agent. It is built from the row alone, so the inbound client `Authorization` (or any other inbound header) is **never** copied (T-04).
+- An undecryptable credential (wrong `CREDENTIALS_KEY`, ciphertext moved to another slug — the slug is the AAD) or a value with CR/LF/control characters → `upstream_unreachable: … stored credential …`, never the value.
+- Redirects from an upstream are not followed (`redirect: 'error'`, on top of the SDK's same-origin policy): a 3xx could otherwise carry a custom credential header to another host.
+- Key rotation is not supported: changing `CREDENTIALS_KEY` makes stored credentials undecryptable until they are re-entered.
 - The API exposes `{authType, authHeader, hasCredential}` only.
 
 ## 8. External client authentication

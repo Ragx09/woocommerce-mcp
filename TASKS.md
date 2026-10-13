@@ -996,7 +996,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-12 — Encrypted credential injection
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-04
 - **Requirements:** REQ-GW-01, REQ-GW-07
@@ -1005,7 +1005,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-UNIT-05, TC-INT-06 pass.
 - **Tests:** TC-UNIT-05, TC-INT-06.
 - **Command:** `npm test -w services/gateway`
-- **Evidence:** Partial (2026-10-12, GW-03): `src/crypto/credentials.ts` (AES-256-GCM, slug as AAD) + `gateway-secrets/credentials-key` done and tested; injection into the upstream transport still open.
+- **Evidence:** 2026-10-13 (encryption itself: GW-03): header builder extracted to `upstreamHeaders(key, row)` in `src/upstreams/pool.ts` — decrypts per row (slug as AAD), bearer or custom header, built from the row only; undecryptable credential or a value with CR/LF/control chars → `UpstreamUnavailableError` "stored credential …" without the value; upstream fetch uses `redirect: 'error'`. Probe: undici follows a 307 and keeps `X-Api-Key` (drops only `Authorization`) — SDK 1.32 already stops cross-origin redirects (`redirectPolicy: 'same-origin'`), ours is a second layer. **TC-UNIT-05** = TC-GW-03-U1/U2 (round trip, tampered/other key/other slug rejected), plus TC-GW-12-U1 (headers per auth type), U2 (4 bad credentials → error without the value), U3 (redirecting upstream → nothing reaches the target): `npm test -w services/gateway` → **52/52** ×3. **TC-INT-06 PASS** — `test/int/credentials.int.test.ts` (real Postgres): woo (header `X-Internal-Token`, stateless), github (bearer, sessionful, session restarted mid-test), plain (none); client sends its key + a spoofed `x-internal-token`; across list, calls, an `isError` call, health pings and the reconnect, every woo request carried exactly the woo token, every github request `Bearer <PAT>`, plain none; client key and spoofed value in 0 upstream requests; DB rows, `/mcp` responses and trace-level gateway logs contain neither secret nor the client key. Mutation check: also sending the woo token as `Authorization` → TC-INT-06 fails. `scripts/gateway-db-int.sh` → **35/35**. **k3d** (`gateway:sha-44fd77c114ca`, rev 22): `woo__list_orders` → 2 orders (woo-mcp accepted the injected token); woo token in the response 0, in gateway and woo-mcp logs 0; dev key in both logs 0; `credential_enc` does not contain the token.
 - **Regression risk:** Key rotation not supported (documented).
 
 ### GW-13 — everything-mcp upstream in cluster
