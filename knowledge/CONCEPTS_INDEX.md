@@ -12,6 +12,7 @@ Status: `Not Started` · `Learning` · `Understood`. Mark a concept **Understood
 | WooCommerce REST API and OAuth 1.0a | Learning | [backend-and-security.md#woocommerce-rest-and-oauth1](backend-and-security.md#woocommerce-rest-and-oauth1) | ARC-14, WC-08 |
 | API key hashing and revocation | Learning | [backend-and-security.md#api-keys](backend-and-security.md#api-keys) | AUTH-06..AUTH-09 |
 | Sessions, cookies and CSRF | Learning | [backend-and-security.md#sessions-cookies-and-csrf](backend-and-security.md#sessions-cookies-and-csrf) | AUTH-03 |
+| Default-deny authorization (route access table) | Learning | [backend-and-security.md#default-deny-authorization](backend-and-security.md#default-deny-authorization) | AUTH-10 |
 | Password hashing (argon2id) and login rate limits | Learning | [backend-and-security.md#password-login-and-brute-force-limits](backend-and-security.md#password-login-and-brute-force-limits) | AUTH-02 |
 | Encryption at rest (AES-GCM) | Not Started | backend-and-security.md | GW-12 |
 | SSRF | Not Started | backend-and-security.md | REL-08 |

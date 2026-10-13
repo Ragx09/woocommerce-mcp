@@ -1211,7 +1211,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-10 — Server-side authorization on /api
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-03
 - **Requirements:** REQ-AUTH-01, REQ-GW-07
@@ -1220,7 +1220,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** TC-AUTH-02 passes.
 - **Tests:** TC-AUTH-02.
 - **Command:** `npm test -w services/gateway -- authz`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: **default-deny router** `src/auth/access.ts`: every `/api` route must declare `config.access` = public | session | admin, otherwise registering it throws (startup fails); the matching guard (`requireSession` [+ `requireRole('admin')`]) is attached as the route's first `onRequest` hook, so authentication and role run **before the body is parsed or validated**; `accessTable(app)` lists the policy of every registered route. All auth/invite/key routes converted. **TC-AUTH-02 PASS** — `test/int/authz.int.test.ts` 5/5 walks the routes actually registered (11): public set is exactly login, logout, invites/check, invites/accept; admin set exactly `GET/POST /api/invites`, `POST /api/users/:id/keys`; anonymous → 401 `unauthenticated` on every non-public route (empty body: auth before validation); member → 403 `forbidden` on every admin route, admin passes; member passes every session route; a `/api` route without a policy cannot be registered. **Mutation-checked**: dropping the admin role check (4 tests fail), moving the guard to `preHandler` after validation (2 fail), downgrading the issue-key route to session (2 fail). Server and member API routes (`/api/upstreams`, `/api/users`, `/api/audit`) do not exist yet (UI-04..09, AUTH-14); they are covered automatically by this table test when added. Unit 66/66, `scripts/gateway-db-int.sh` **70/70**. **k3d** (rev 33): member Bob → `POST /api/invites` 403, `GET /api/invites` 403, `POST /api/users/<uuid>/keys` 403; anonymous → 401 on all three.
 - **Regression risk:** New routes forgetting the guard → default-deny router.
 
 ### AUTH-11 — Request attribution context

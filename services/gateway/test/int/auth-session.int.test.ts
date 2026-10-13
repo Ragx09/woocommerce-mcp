@@ -6,7 +6,6 @@ import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
-import { requireRole, requireSession } from '../../src/auth/guard.js';
 import { registerAuth } from '../../src/auth/routes.js';
 import { seedAdmin } from '../../src/auth/seed-admin.js';
 import { hashPassword } from '../../src/auth/password.js';
@@ -33,7 +32,7 @@ beforeAll(async () => {
   app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
   await registerAuth(app, { db, cookieSecure: false, publicOrigin: ORIGIN });
   // A stand-in admin-only mutation, to prove the guards compose (the real routes come with AUTH-04+).
-  app.post('/api/admin-only', { preHandler: [requireSession(db), requireRole('admin')] }, async () => ({ ok: true }));
+  app.post('/api/admin-only', { config: { access: 'admin' } }, async () => ({ ok: true }));
 });
 afterAll(async () => {
   await app?.close();

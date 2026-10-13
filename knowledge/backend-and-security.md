@@ -39,3 +39,13 @@
 6. **Alternatives:** CSRF tokens (synchroniser/double-submit; more moving parts for an SPA), JWT in localStorage (readable by XSS, hard to revoke).
 7. **Debugging:** 403 "cross-origin request refused" from your own dashboard → `PUBLIC_ORIGIN` must match the address bar exactly (scheme, host, port). Logged out at once on https → `COOKIE_SECURE` true behind plain http drops the cookie.
 8. **Self-test:** Why is `SameSite=Strict` alone not the whole answer? Why is a cross-origin GET not a CSRF risk here? What happens to an open session when an admin disables the user?
+
+## Default-deny authorization
+1. **What:** Instead of remembering to add a guard to each route, every `/api` route must *declare* who may call it (`public`, `session`, `admin`); a route that declares nothing is refused at startup.
+2. **Why:** The classic authorization bug is not a wrong check but a *missing* one on a newly added route (OWASP API1/API5: broken object/function level authorization).
+3. **Why we need it:** REQ-AUTH-01, T-05; the brief demands server-side enforcement, not hidden buttons.
+4. **How:** A Fastify `onRoute` hook sees every route as it is registered, throws if `config.access` is missing, and prepends the guards as `onRequest` hooks — so they run before body parsing and validation (anonymous callers learn nothing about the schema). The same hook records a table that the test walks: anonymous → 401 everywhere non-public, member → 403 on every admin route.
+5. **Where:** `services/gateway/src/auth/access.ts`, `test/int/authz.int.test.ts`.
+6. **Alternatives:** Per-route `preHandler` guards (easy to forget), a global middleware with a URL allowlist (drifts from the real routes), a policy engine (OPA/Casbin: overkill for two roles).
+7. **Debugging:** Startup error "needs config.access" → add the policy to the new route. Unexpected 400 instead of 401 → the guard is running after validation (check it is an `onRequest`, not a `preHandler`).
+8. **Self-test:** Why test against the registered routes rather than a list in the test? Why should authentication run before body validation?

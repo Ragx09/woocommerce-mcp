@@ -2,7 +2,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { Db } from '../db/index.js';
 import { ROLES, type Role } from '../db/schema.js';
-import { requireRole, requireSession } from './guard.js';
 import { acceptInvite, checkInvite, createInvite, InviteError, listOpenInvites } from './invites.js';
 import { PASSWORD_MAX, passwordProblem } from './password.js';
 import { createSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
@@ -21,7 +20,7 @@ function fail(reply: FastifyReply, e: unknown) {
 }
 
 export function registerInviteRoutes(app: FastifyInstance, deps: InviteDeps): void {
-  const admin = { preHandler: [requireSession(deps.db), requireRole('admin')] };
+  const admin = { config: { access: 'admin' } } as const;
 
   app.post<{ Body: { email: string; role?: Role } }>('/api/invites', {
     ...admin,
@@ -44,12 +43,14 @@ export function registerInviteRoutes(app: FastifyInstance, deps: InviteDeps): vo
 
   // Public (the invitee has no account yet); the 256-bit token is the credential.
   app.post<{ Body: { token: string } }>('/api/invites/check', {
+    config: { access: 'public' },
     schema: { body: { type: 'object', required: ['token'], additionalProperties: false, properties: { token } } },
   }, async (req, reply) => {
     try { return await checkInvite(deps.db, req.body.token); } catch (e) { return fail(reply, e); }
   });
 
   app.post<{ Body: { token: string; name: string; password: string } }>('/api/invites/accept', {
+    config: { access: 'public' },
     schema: { body: { type: 'object', required: ['token', 'name', 'password'], additionalProperties: false, properties: {
       token, name: { type: 'string', minLength: 1, maxLength: 100 }, password: { type: 'string', minLength: 1, maxLength: PASSWORD_MAX },
     } } },

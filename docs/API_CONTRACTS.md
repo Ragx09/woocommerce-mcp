@@ -28,6 +28,8 @@
 | POST | `/mcp` | `Authorization: Bearer mgw_…` (per-user API key, AUTH-08; internal chat token with UI-15) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
 
+Every `/api` route declares its access (`public`, `session`, `admin`) in code; the guard runs before the body is parsed, so an anonymous request gets 401 and a member on an admin route 403 regardless of the body (AUTH-10).
+
 ## Error codes
 `unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` / `invite_expired` (410), `rate_limited` (429), `internal` (500).
 

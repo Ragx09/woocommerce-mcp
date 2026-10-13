@@ -7,7 +7,8 @@ import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { LoginLimiter } from './limiter.js';
 import { PASSWORD_MAX, verifyPassword } from './password.js';
-import { registerOriginCheck, requireSession } from './guard.js';
+import { enforceAccessPolicy } from './access.js';
+import { registerOriginCheck } from './guard.js';
 import { registerInviteRoutes } from './invite-routes.js';
 import { registerKeyRoutes } from './key-routes.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
@@ -34,11 +35,12 @@ const loginBody = {
 export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promise<void> {
   await app.register(cookie);
   app.decorateRequest('user', null);
+  enforceAccessPolicy(app, deps.db);
   registerOriginCheck(app, deps.publicOrigin);
   const limiter = deps.limiter ?? new LoginLimiter();
   const cookieOpts = { httpOnly: true, sameSite: 'strict', secure: deps.cookieSecure, path: '/' } as const;
 
-  app.post<{ Body: { email: string; password: string } }>('/api/auth/login', { schema: { body: loginBody } }, async (req, reply) => {
+  app.post<{ Body: { email: string; password: string } }>('/api/auth/login', { config: { access: 'public' }, schema: { body: loginBody } }, async (req, reply) => {
     const email = req.body.email.trim().toLowerCase();
     const wait = limiter.retryAfter(req.ip, email);
     if (wait > 0) {
@@ -62,13 +64,13 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
   });
 
   // Idempotent: always clears the cookie; deletes the session row when there is one.
-  app.post('/api/auth/logout', async (req, reply) => {
+  app.post('/api/auth/logout', { config: { access: 'public' } }, async (req, reply) => {
     await deleteSession(deps.db, req.cookies[SESSION_COOKIE]);
     reply.clearCookie(SESSION_COOKIE, cookieOpts);
     return reply.code(204).send();
   });
 
-  app.get('/api/me', { preHandler: requireSession(deps.db) }, async (req) => req.user);
+  app.get('/api/me', { config: { access: 'session' } }, async (req) => req.user);
 
   registerInviteRoutes(app, { db: deps.db, publicOrigin: deps.publicOrigin, cookie: cookieOpts });
   registerKeyRoutes(app, deps.db);
