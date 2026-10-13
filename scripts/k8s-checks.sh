@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -57,11 +57,88 @@ ingress() {
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://woo-mcp.$DOMAIN/mcp"); [ "$code" = 404 ] && pass "no public route to woo-mcp → 404" || fail "woo-mcp public route → $code"
 }
 
+# --- GW-16: kill the everything-mcp pod; the gateway must keep serving woo + github ---------------
+GW_URL="http://app.$DOMAIN/mcp"
+# rpc <json-body> → "<seconds> <body>" (stateless /mcp: no initialize needed)
+rpc() {
+  curl -s -m 20 -w '\n%{time_total}' -X POST "$GW_URL" -H "Authorization: Bearer $MCP_KEY" \
+    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d "$1"
+}
+# list_check <label> <everything yes|no|any>: list must answer in < 3 s with woo + github.
+list_check() {
+  local out secs slugs
+  out="$(rpc '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')"; secs="$(tail -1 <<<"$out")"
+  slugs="$(head -n -1 <<<"$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const c={};for(const t of JSON.parse(s).result.tools){const k=t.name.split("__")[0];c[k]=(c[k]||0)+1}console.log(Object.entries(c).map(([k,v])=>k+":"+v).join(" "))}catch{console.log("unparseable")}})')"
+  local ok=1
+  awk -v t="$secs" 'BEGIN{exit !(t<3)}' || ok=0
+  grep -q 'woo:' <<<"$slugs" && grep -q 'github:' <<<"$slugs" || ok=0
+  case "$2" in
+    yes) grep -q 'everything:' <<<"$slugs" || ok=0 ;;
+    no) grep -q 'everything:' <<<"$slugs" && ok=0 ;;
+  esac
+  [ $ok = 1 ] && pass "$1 → ${secs}s [$slugs]" || fail "$1 → ${secs}s [$slugs] (want < 3 s, woo + github, everything=$2)"
+}
+call_text() { # call_text <tool> <args-json> → first text content
+  rpc "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":$2}}" | head -n -1 |
+    node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const r=JSON.parse(s);console.log(r.result?(r.result.isError?"ERROR ":"")+r.result.content[0].text:"RPCERR "+r.error.message)}catch{console.log("unparseable")}})'
+}
+# wait_status <from-time> <status> <timeout-s> → seconds until the gateway logs everything → <status>
+wait_status() {
+  local i
+  for ((i = 0; i < $3; i++)); do
+    kubectl -n "$PLATFORM" logs -l app=gateway --since-time="$1" --tail=-1 2>/dev/null |
+      grep '"upstream status changed"' | grep '"upstream":"everything"' | grep -q "\"to\":\"$2\"" && { echo "$i"; return 0; }
+    sleep 1
+  done
+  return 1
+}
+killpod() {
+  MCP_KEY="${MCP_KEY:-$(kubectl -n "$PLATFORM" get secret gateway-dev-key -o jsonpath='{.data.key}' | base64 -d)}"
+  local t secs out
+  list_check "TC-GW-16-0 baseline list" yes
+
+  # 1. Scale to 0 (the pod is gone, the Service has no endpoints).
+  t="$(date -u +%FT%TZ)"
+  kubectl -n "$PLATFORM" scale deploy/everything-mcp --replicas=0 >/dev/null
+  kubectl -n "$PLATFORM" wait --for=delete pod -l app=everything-mcp --timeout=60s >/dev/null 2>&1
+  list_check "TC-GW-16-1a list right after scale 0" no
+  secs="$(wait_status "$t" unreachable 30)" && pass "TC-GW-16-1b everything → Unreachable (${secs}s after the pod was gone)" || fail "TC-GW-16-1b no Unreachable status within 30 s"
+  list_check "TC-GW-16-1c list while Unreachable" no
+  out="$(call_text everything__echo '{"message":"x"}')"
+  [[ "$out" == "ERROR upstream_unreachable:"* ]] && pass "TC-GW-16-1d everything__echo → ${out:0:70}" || fail "TC-GW-16-1d everything__echo → ${out:0:120}"
+  out="$(call_text woo__list_products '{"per_page":1}')"
+  [[ "$out" != ERROR* && "$out" != RPCERR* && "$out" != unparseable ]] && pass "TC-GW-16-1e woo__list_products still works" || fail "TC-GW-16-1e woo__list_products → ${out:0:120}"
+
+  # 2. Scale back to 1 → Connected within 20 s of the pod being Ready.
+  t="$(date -u +%FT%TZ)"
+  kubectl -n "$PLATFORM" scale deploy/everything-mcp --replicas=1 >/dev/null
+  kubectl -n "$PLATFORM" rollout status deploy/everything-mcp --timeout=120s >/dev/null
+  secs="$(wait_status "$t" connected 20)" && pass "TC-GW-16-2a everything → Connected ${secs}s after Ready" || fail "TC-GW-16-2a not Connected within 20 s of Ready"
+  list_check "TC-GW-16-2b list after recovery" yes
+  out="$(call_text everything__echo '{"message":"back"}')"
+  [ "$out" = "Echo: back" ] && pass "TC-GW-16-2c everything__echo → $out" || fail "TC-GW-16-2c everything__echo → ${out:0:120}"
+
+  # 3. kubectl delete pod: the Deployment starts a replacement at once, so everything may already be
+  # back (or briefly missing) when we look; woo + github must be there either way. The old MCP
+  # session dies with the pod, so the gateway must reconnect to the new one.
+  kubectl -n "$PLATFORM" delete pod -l app=everything-mcp --wait=true >/dev/null
+  list_check "TC-GW-16-3a list right after the pod was deleted" any
+  kubectl -n "$PLATFORM" rollout status deploy/everything-mcp --timeout=120s >/dev/null
+  kubectl -n "$PLATFORM" wait --for=condition=Ready pod -l app=everything-mcp --timeout=120s >/dev/null
+  local i
+  for ((i = 0; i < 20; i++)); do
+    out="$(call_text everything__echo '{"message":"new pod"}')"; [ "$out" = "Echo: new pod" ] && break; sleep 1
+  done
+  [ "$out" = "Echo: new pod" ] && pass "TC-GW-16-3b new pod serves everything__echo ${i}s after Ready (new session)" || fail "TC-GW-16-3b everything__echo → ${out:0:120}"
+  list_check "TC-GW-16-3c list after the new pod" yes
+}
+
 case "${1:-all}" in
   netpol) netpol ;;
   ingress) ingress ;;
+  killpod) killpod ;;
   all) ingress; netpol ;;
-  *) echo "usage: $0 netpol|ingress|all" >&2; exit 2 ;;
+  *) echo "usage: $0 netpol|ingress|killpod|all" >&2; exit 2 ;;
 esac
 echo "failures: $fails"
 exit $((fails > 0))

@@ -4,9 +4,11 @@
 Phase 4 — Gateway: multiple upstreams, timeouts, health (Day 3, 2026-10-13)
 
 ## Current task
-GW-13 + GW-14 Done. Next: GW-15 cross-server test (needs the throwaway repo name), GW-16 kill-pod test, GW-17 log redaction
+GW-16 Done; GW-15 Blocked (throwaway repo name). Next: GW-17 log redaction
 
 ## Recently completed
+- 2026-10-13: **GW-16 — kill-pod resilience**: `scripts/k8s-checks.sh killpod` 13/13 (×2): everything-mcp scaled to 0 → woo + github still listed in < 1 s, everything Unreachable at once, calls fail fast, woo calls fine; scaled back → Connected 7 s after Ready; `kubectl delete pod` → list complete, new pod served on a fresh session. Fixed a 30 s delete delay (node as PID 1 ignores SIGTERM) with `terminationGracePeriodSeconds: 5`.
+- 2026-10-13: **GW-15 — cross-server script (Blocked)**: `scripts/cross-server.mjs` (`woo__list_orders` → `github__issue_write`); dry run OK on k3d (2 orders summarised). Creating the issue needs the name of the throwaway repo the PAT can write to — not recorded anywhere, and an issue is public, so not guessed.
 - 2026-10-13: **GW-13 + GW-14 — three upstreams**: `everything-mcp` (server-everything 2026.8.31, own image, gateway-only ingress, no egress, no secrets in the pod because of its `get-env` tool; T-15 implemented) and GitHub remote MCP (PAT from `upstream-seed`, encrypted in the DB), both registered by the generalized seeder `loadSeeds()`. k3d: one `tools/list` through Traefik → 64 tools (woo 5, everything 13, github 46); `everything__echo`, `github__get_me` (login Ragx09) OK; SSRF via the gzip tool refused; PAT found 0 times in responses, logs and DB; netpol checks 12/12. Unit 55/55, chart 0 violations.
 - 2026-10-13: **GW-12 — credential injection**: `upstreamHeaders()` builds each upstream's headers from its own row only (bearer or custom header); bad/undecryptable credentials fail with a safe message; upstream redirects refused (second layer over the SDK's same-origin policy — undici would otherwise carry `X-Api-Key` to another host). TC-INT-06 PASS on real Postgres (own credential on every request incl. pings and reconnect, client key and spoofed header never forwarded, no secret in DB/responses/trace logs; mutation-checked), unit 52/52, int 35/35; k3d: token in response/logs 0. THREAT_MODEL T-03 partial, T-04 implemented, T-08 partial.
 - 2026-10-13: **GW-11 — enable/disable**: disabled upstream hidden from `tools/list`, calls rejected with `upstream_disabled`, pooled connection closed, on every replica from the next request (flag read from the DB); `setUpstreamEnabled()` repo function for the future PATCH API; fixed `tools/list` order drifting after disable/enable (pool now follows registry order). TC-INT-05 3/3 with two replicas on real Postgres, int 34/34, unit 49/49; k3d DB toggle → `[]` + `upstream_disabled`, re-enable → 5 tools, no restart.
@@ -45,6 +47,7 @@ GW-13 + GW-14 Done. Next: GW-15 cross-server test (needs the throwaway repo name
 - Environment checks (read-only): Docker 29.6.2 running, 12 CPU / ~15 GB RAM; kubectl 1.36.1; Node 24.19; helm, k3d, kind and minikube missing; no kubeconfig; no LLM keys in env.
 
 ## Blockers
+- **GW-15** needs the throwaway GitHub repo (owner/repo) the PAT may write issues to.
 - SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
@@ -53,7 +56,7 @@ GW-13 + GW-14 Done. Next: GW-15 cross-server test (needs the throwaway repo name
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-15 (needs the throwaway repo the PAT can write to; not recorded in P0-04), GW-16, GW-17.
+Day 3: GW-17 (log redaction); GW-15 once the repo name is known. Then Day 4: AUTH-*.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

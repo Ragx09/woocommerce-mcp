@@ -33,6 +33,8 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false   # no *_SERVICE_HOST variables for get-env to reveal
+      # node runs as PID 1 and the server has no SIGTERM handler: without this a delete waits 30 s.
+      terminationGracePeriodSeconds: 5
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

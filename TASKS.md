@@ -1038,7 +1038,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-15 — Cross-server call test
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Blocked
 - **Day:** 3
 - **Depends on:** GW-13, GW-14
 - **Requirements:** REQ-DOD-07
@@ -1047,12 +1047,12 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** Issue created in the throwaway repo.
 - **Tests:** TC-GW-15-1: run → issue URL printed.
 - **Command:** `node scripts/cross-server.mjs`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `scripts/cross-server.mjs` written (one SDK client → gateway `/mcp`; checks both tools are listed, `woo__list_orders` → summary by status/value + table → `github__issue_write {method:create}`; prints the issue URL; `--dry-run` stops before writing; `GITHUB_REPO=owner/repo` required, key read from Secret `gateway-dev-key` and never printed). Dry run on k3d: `ok tools/list (64 tools, woo + github present)`, `ok woo__list_orders (501 ms)`, issue text with 2 orders (processing 2, 2598.00 INR). **Blocked:** the throwaway repo the PAT may write to is not recorded (P0-04) and is not visible through `search_repositories` (only public repos, none a throwaway); not guessing, because the issue would be public. Needs the repo name from the user, then `GITHUB_REPO=<owner/repo> node scripts/cross-server.mjs`.
 - **Regression risk:** —
 
 ### GW-16 — Kill-pod resilience test
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-10, GW-13
 - **Requirements:** REQ-DOD-10, REQ-GW-05
@@ -1061,7 +1061,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** As described.
 - **Tests:** TC-GW-16-1: scale 0 → list ok without everything → status Unreachable. TC-GW-16-2: scale 1 → Connected within 20 s.
 - **Command:** `scripts/k8s-checks.sh killpod`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `scripts/k8s-checks.sh killpod` (curl JSON-RPC to the public `/mcp`, gateway log `upstream status changed` as the status source until the API exists). Chart: `terminationGracePeriodSeconds: 5` for everything-mcp (node is PID 1 without a SIGTERM handler; a delete used to wait the full 30 s — found by this test). **k3d rev 25, 13/13 PASS, twice:** baseline list 0.97 s [woo:5 everything:13 github:46]; **TC-GW-16-1** scale 0 → list 0.69 s [woo:5 github:46], everything → Unreachable at once (the refused connect is reported passively), list while Unreachable 0.85 s, `everything__echo` → `upstream_unreachable: upstream everything unreachable: ECONNREFUSED`, `woo__list_products` still OK; **TC-GW-16-2** scale 1 → Connected **7 s** after Ready (≤ 20 s), list 0.97 s with all 64 tools, `everything__echo` → `Echo: back`; **kubectl delete pod** → list 0.66 s with woo + github (replacement already serving), new pod answers `everything__echo` at once on a new MCP session (stale session reconnect, D-013 finding), list complete. Run time 75 s → 33 s after the grace-period fix. Dashboard status display: E2E-09.
 - **Regression risk:** —
 
 ### GW-17 — Structured logging with redaction
