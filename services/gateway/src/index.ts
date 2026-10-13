@@ -37,9 +37,9 @@ if (wooSeed) {
 }
 
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
-const upstreamPool = new UpstreamPool({ key: credentialKey, log: app.log });
+const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, log: app.log });
 await upstreamPool.sync(await listUpstreams(createDb(dbPool)));
-app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug) }, 'upstream pool ready');
+app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug), timeouts: cfg.upstreamTimeouts }, 'upstream pool ready');
 
 // Gateway MCP endpoint (GW-06). Upstreams are reloaded from the DB on each tools/list.
 const db = createDb(dbPool);
@@ -47,7 +47,8 @@ registerMcp(app, {
   devKey: cfg.mcpDevKey,
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
-  discovery: new ToolDiscovery(upstreamPool, { log: app.log }),
+  discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log }),
+  callTimeoutMs: cfg.upstreamTimeouts.callMs,
 });
 if (!cfg.mcpDevKey) app.log.warn('MCP_DEV_KEY not set: /mcp refuses all requests');
 

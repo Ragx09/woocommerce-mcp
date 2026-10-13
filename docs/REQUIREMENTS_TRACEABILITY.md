@@ -20,8 +20,8 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-GW-02 | Req. Gateway | One endpoint; list returns all enabled tools | gateway /mcp | GW-04, GW-05, GW-06 | TC-GW-05-1..7, TC-GW-06-1, TC-INT-02 | In Progress | GW-04..07 Done; TC-GW-06-1 PASS on k3d (5 woo tools via Inspector CLI, TASKS.md GW-06); TC-INT-02 with 3 upstreams pending GW-13/14 |
 | REQ-GW-03 | Req. Gateway | Calls routed to the right server | gateway router | GW-08 | TC-GW-08-1, TC-UNIT-01 | Verified | TASKS.md GW-08: Inspector CLI → gateway → woo-mcp → WooCommerce returns products/orders on k3d; unit TC-GW-08-1..8 |
 | REQ-GW-04 | Req. Gateway | Documented collision scheme | gateway naming | ARC-06, GW-07 | TC-UNIT-01, TC-INT-02 | In Progress | D-005 Accepted; TC-UNIT-01 8/8 PASS (GW-07); TC-INT-02 pending GW-06 |
-| REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | Not Started | — |
-| REQ-GW-06 | Req. Gateway | Timeouts + clear error | gateway | GW-09, UI-18 | TC-INT-03 | Not Started | — |
+| REQ-GW-05 | Req. Gateway | Slow/dead upstream does not break others | gateway | GW-10, GW-16 | TC-INT-03, TC-INT-04, TC-GW-16-1 | In Progress | TC-INT-03 PASS (GW-09: slow/hung upstream left out of the list and timed out on calls while the others answer); TC-INT-04 and TC-GW-16-1 pending GW-10/GW-16 |
+| REQ-GW-06 | Req. Gateway | Timeouts + clear error | gateway | GW-09, UI-18 | TC-INT-03 | In Progress | GW-09 Done: TC-INT-03 PASS (slow call → `upstream_timeout` in 0.6 s budget, others unaffected; TASKS.md GW-09); showing the error in the UI pending UI-18 |
 | REQ-GW-07 | Req. Gateway | Upstream credentials server-side only | gateway | GW-12, AUTH-15 | TC-INT-06, TC-AUTH-04 | Not Started | — |
 | REQ-GW-08 | Req. Gateway | ≥3 upstreams (woo + 2) | gateway + charts | ARC-15, GW-13, GW-14 | TC-GW-13-1, TC-GW-14-1 | Not Started | — |
 | REQ-GW-09 | User story admin 1 | Server list with status + tools | dashboard | GW-10, UI-04 | TC-UI-04-1 | Not Started | — |

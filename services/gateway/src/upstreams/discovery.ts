@@ -9,7 +9,9 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { Upstream } from '../db/schema.js';
-import { safeReason, UpstreamUnavailableError, versionOf, type UpstreamPool } from './pool.js';
+import { safeReason, UpstreamTimeoutError, UpstreamUnavailableError, versionOf, withDeadline, type UpstreamPool } from './pool.js';
+
+export { UpstreamTimeoutError };
 
 export interface DiscoveryOptions {
   /** Budget per upstream for the whole list, all pages (docs/MCP_DESIGN.md §6: 3 s). */
@@ -41,12 +43,6 @@ export interface DiscoveryFailure {
 export interface DiscoveryResult {
   upstreams: UpstreamTools[];
   failed: DiscoveryFailure[];
-}
-
-export class UpstreamTimeoutError extends Error {
-  constructor(public readonly slug: string, ms: number) {
-    super(`upstream ${slug} timed out after ${ms} ms`);
-  }
 }
 
 interface CacheEntry {
@@ -126,20 +122,8 @@ export class ToolDiscovery {
   }
 
   /** All pages, under one deadline that also covers connecting and the pool's single reconnect. */
-  private async fetchAll(row: Upstream): Promise<Tool[]> {
-    const abort = new AbortController();
-    let timer: NodeJS.Timeout | undefined;
-    const deadline = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        reject(new UpstreamTimeoutError(row.slug, this.listTimeoutMs));
-        abort.abort();
-      }, this.listTimeoutMs);
-    });
-    try {
-      return await Promise.race([this.pool.withClient(row.id, (c) => this.listAll(c, row.slug, abort.signal)), deadline]);
-    } finally {
-      clearTimeout(timer);
-    }
+  private fetchAll(row: Upstream): Promise<Tool[]> {
+    return withDeadline(row.slug, this.listTimeoutMs, (signal) => this.pool.withClient(row.id, (c) => this.listAll(c, row.slug, signal)));
   }
 
   private async listAll(client: Client, slug: string, signal: AbortSignal): Promise<Tool[]> {

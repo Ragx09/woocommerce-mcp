@@ -954,7 +954,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-09 — Timeouts
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-08
 - **Requirements:** REQ-GW-06
@@ -963,8 +963,8 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** TC-INT-03 passes.
 - **Tests:** TC-INT-03.
 - **Command:** `npm run test:int -w services/gateway`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-13: `withDeadline()` in `src/upstreams/pool.ts` (one deadline over connect + call + the single reconnect; AbortController → SDK sends `notifications/cancelled`), used by `tools/call` and discovery; budgets from env `UPSTREAM_CONNECT/LIST/CALL_TIMEOUT_MS` (2000/3000/15000, range-checked) and Helm `gateway.upstreamTimeouts`. Typecheck clean. `npm test -w services/gateway` → **49/49** (3 runs; new TC-GW-09-1 config defaults/validation). **TC-INT-03 PASS** — `npx vitest run test/int/timeouts.int.test.ts` → 3/3 (5 runs), budgets connect 300 / list 400 / call 600 ms: slow call → `upstream_timeout: upstream everything did not answer within 0.6 s` in ~600 ms while a parallel `woo__echo` succeeds, upstream received the cancel, call not repeated, same upstream serves the next call; slow `tools/list` → only `woo__echo` listed within the budget; hung TCP upstream (accepts, never answers) → list without it and a readable call error without the URL, both within budget. `scripts/gateway-db-int.sh` → **26/26** (DB + seed + timeouts). `scripts/check-chart.sh` → kubeconform 24/24 valid, policy 0 violations, values diff PASS. k3d: `gateway:sha-bc5d9c54189e`, rev 19, rollout OK, log `upstream pool ready timeouts={connectMs:2000,listMs:3000,callMs:15000}`; Inspector CLI 2.10.1 through Traefik → 5 `woo__*` tools, `woo__list_orders` → 2 orders (`outcome=ok ms=353`); dev key occurrences in gateway log: 0.
+- **Regression risk:** A stateless upstream (woo-mcp) cannot act on `notifications/cancelled` (arrives on a fresh server instance): only the HTTP request is aborted, so a slow write may still complete after the client saw `upstream_timeout`. Budgets are gateway-wide, not per upstream (MCP_DESIGN §6).
 
 ### GW-10 — Failure isolation + health loop
 - **Priority:** P0

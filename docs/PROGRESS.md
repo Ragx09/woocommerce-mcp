@@ -1,12 +1,14 @@
 # Progress
 
 ## Current phase
-Phase 2 — Gateway core (Day 2, 2026-10-12)
+Phase 4 — Gateway: multiple upstreams, timeouts, health (Day 3, 2026-10-13)
 
 ## Current task
-Day 2 complete; Phase 9 (TATVA storefront) done early at the user's request. Next: Day 3 — GW-09 Timeouts
+GW-09 Done. Next: GW-10 Failure isolation + health loop
 
 ## Recently completed
+- 2026-10-13: **GW-09 — timeouts**: `withDeadline()` puts one deadline over connect + call + reconnect (calls 15 s, lists 3 s, connect 2 s; env `UPSTREAM_*_TIMEOUT_MS`, Helm `gateway.upstreamTimeouts`); on expiry the request is aborted (`notifications/cancelled`) and the client gets `upstream_timeout`; timed-out calls are never retried. TC-INT-03 3/3 (5 runs), unit 49/49, int 26/26, chart checks PASS, k3d rev 19 smoke OK (5 tools, `list_orders` ok). Limitation: stateless woo-mcp cannot act on the cancel.
+- 2026-10-13: PROGRESS blockers cleaned up (stale BRD-03 line removed; BRD-03 is Done).
 - 2026-10-13: **BRD-08 — admin and login branding**: TATVA admin colour scheme (forest menu, sand current item, terracotta counters) registered by the `tatva` theme, default for new users and set by wp-init for the admin user only while on the default scheme; login page with the TATVA wordmark linking to the store. `scripts/admin-screens.sh` 11/11 PASS (desktop + mobile); storefront audit and chart check unchanged. Presentation only, no auth change.
 - 2026-10-12: **Phase 9 BRD-01..07 — TATVA V1 storefront**: `tatva` child theme (palette/type from the V1 spec, header/footer, homepage sections in spec order, shop/category/brand/search archives with category/brand/price filters, product page, brand + category directories, concept page), 50-product INR catalogue with 9 placeholder brands imported idempotently by wp-init from the new `store-assets` image (D-016), 49/50 product images + 8 editorial images (CC0/PD only, no on-site credits per user; Openverse + Wikimedia Commons; manifest + `validate_images.py`). Old sample products retired. Verified: 22 page views audited (0 broken images/alt/h-scroll), COD e2e PASS with Indian address, woo-int 7/7, unit 26/26 + 48/48, chart 0 violations, pod-deletion keeps branding. Open: TAT-005 has no image; `/cart/` logs a WooCommerce `undefinedwc/store/v1/cart` 404 (cart works); clean-cluster run with branding not yet repeated.
 - 2026-10-12: P0-04 + ARC-15 Done — `GITHUB_MCP_PAT` verified against GitHub remote MCP (46 tools, `get_me` OK, 401 without token), put into Secret `upstream-seed`; D-013 Accepted. `.env` converted from CRLF to LF.
@@ -39,8 +41,7 @@ Day 2 complete; Phase 9 (TATVA storefront) done early at the user's request. Nex
 - Environment checks (read-only): Docker 29.6.2 running, 12 CPU / ~15 GB RAM; kubectl 1.36.1; Node 24.19; helm, k3d, kind and minikube missing; no kubeconfig; no LLM keys in env.
 
 ## Blockers
-- **BRD-03 theme** waits for the user's theme material in `brand/` (Phase 9, added 2026-10-12). SEC-07 TLS part waits for the VPS / REL-04.
-- BRD-03 no longer blocked (theme spec in `docs/v1-brand-ui-theme.md`).
+- SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
 
@@ -48,7 +49,7 @@ Day 2 complete; Phase 9 (TATVA storefront) done early at the user's request. Nex
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-09 (timeouts), GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
+Day 3: GW-10 (health), GW-11, GW-12, GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

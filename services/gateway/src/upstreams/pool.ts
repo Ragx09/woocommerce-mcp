@@ -29,6 +29,36 @@ export class UpstreamUnavailableError extends Error {
   }
 }
 
+/** An upstream did not finish within its budget (GW-09). The message is safe to show. */
+export class UpstreamTimeoutError extends Error {
+  constructor(public readonly slug: string, public readonly ms: number) {
+    super(`upstream ${slug} timed out after ${ms} ms`);
+  }
+}
+
+/**
+ * Runs `fn` under one deadline (GW-09). It covers everything `fn` does — connecting, the request and
+ * the pool's single reconnect — so the caller never waits longer than `ms`. On expiry the signal is
+ * aborted (the SDK then sends notifications/cancelled to the upstream) and UpstreamTimeoutError is thrown.
+ */
+export async function withDeadline<T>(slug: string, ms: number, fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const abort = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new UpstreamTimeoutError(slug, ms));
+      abort.abort();
+    }, ms);
+  });
+  const work = fn(abort.signal);
+  work.catch(() => {}); // after the deadline wins, the late rejection is expected and not unhandled
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface Entry {
   row: Upstream;
   version: string;

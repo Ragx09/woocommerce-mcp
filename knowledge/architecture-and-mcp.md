@@ -32,3 +32,13 @@ Each concept follows the same structure: what, why it exists, why we need it, ho
    Discovery (GW-05) keeps the last good list per upstream for 60 s, so a slow upstream (> 3 s) still shows its tools (marked stale) instead of vanishing; a cached list is never served after the upstream's URL or credential changes.
 7. **Debugging:** Compare `tools/list` from the gateway with the upstream directly (port-forward). Check the health status and `last_error` in `/api/upstreams`.
 8. **Self-test:** Two servers both expose `search`. What names does the client see, and how does the gateway route `github__search`?
+
+## Timeouts and failure isolation
+1. **What:** Every upstream step has a time budget: connect 2 s, `tools/list` 3 s, `tools/call` 15 s (env `UPSTREAM_*_TIMEOUT_MS`, Helm `gateway.upstreamTimeouts`).
+2. **Why:** Without a deadline, one hung server makes the whole gateway (and the chat agent waiting on it) hang. The client must get a clear answer, not a socket that never closes.
+3. **Why we need it:** REQ-GW-05/06: "a slow or dead upstream must not break the others; calls have timeouts and return a clear error".
+4. **How:** `withDeadline()` in `upstreams/pool.ts` races the work against a timer. One deadline covers connecting, the request and the pool's single reconnect, so the budget is the real upper bound. When it expires an `AbortController` aborts the SDK request; the SDK then sends `notifications/cancelled` so a sessionful upstream can stop the work (a stateless one only sees its HTTP request aborted). The caller gets an `isError` result `upstream_timeout: upstream <slug> did not answer within 15 s`. A timed-out call is **never retried** — it may already have run. Lists use `Promise.allSettled`, so a slow upstream is simply left out (or served from the 60 s cache).
+5. **Where:** `services/gateway/src/upstreams/pool.ts` (`withDeadline`, `UpstreamTimeoutError`), `discovery.ts`, `mcp/route.ts`; tests `test/int/timeouts.int.test.ts` (TC-INT-03).
+6. **Alternatives:** Only the SDK's per-request `timeout` (does not cover connect + reconnect, so a call could take 2 + 15 + 2 + 15 s); a per-upstream budget column (deferred until the admin API exists; one env-wide budget is enough for the brief).
+7. **Debugging:** Gateway log line `tools/call ... outcome=timeout ms=…`; `kubectl logs` of the upstream for the cancelled request.
+8. **Self-test:** Why must a timed-out `create_product` not be retried, while a refused connection may be?

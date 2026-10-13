@@ -7,7 +7,7 @@ Status: `Not Started` · `Learning` · `Understood`. Mark a concept **Understood
 | MCP basics (hosts, clients, servers, tools) | Learning | [architecture-and-mcp.md#mcp-basics](architecture-and-mcp.md#mcp-basics) | ARC-13, WC-06 |
 | Streamable HTTP transport and stateless mode | Learning | [architecture-and-mcp.md#streamable-http](architecture-and-mcp.md#streamable-http) | ARC-13, WC-07, GW-06 |
 | Gateway aggregation and namespacing | Learning | [architecture-and-mcp.md#gateway-aggregation](architecture-and-mcp.md#gateway-aggregation) | GW-05..GW-08 |
-| Failure isolation (timeouts, allSettled, health) | Not Started | architecture-and-mcp.md | GW-09, GW-10 |
+| Failure isolation (timeouts, allSettled, health) | Learning | [architecture-and-mcp.md#timeouts-and-failure-isolation](architecture-and-mcp.md#timeouts-and-failure-isolation) | GW-09, GW-10 |
 | LLM tool-calling loop | Not Started | architecture-and-mcp.md | UI-14 |
 | WooCommerce REST API and OAuth 1.0a | Learning | [backend-and-security.md#woocommerce-rest-and-oauth1](backend-and-security.md#woocommerce-rest-and-oauth1) | ARC-14, WC-08 |
 | API key hashing and revocation | Learning | [backend-and-security.md#api-keys](backend-and-security.md#api-keys) | AUTH-06..AUTH-09 |

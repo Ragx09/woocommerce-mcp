@@ -78,4 +78,12 @@ describe('config', () => {
     expect(() => loadConfig({ LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
     expect(loadConfig({}).port).toBe(8080);
   });
+
+  it('TC-GW-09-1: upstream timeouts default to 2/3/15 s, are configurable and range-checked', () => {
+    expect(loadConfig({}).upstreamTimeouts).toEqual({ connectMs: 2_000, listMs: 3_000, callMs: 15_000 });
+    expect(loadConfig({ UPSTREAM_CALL_TIMEOUT_MS: '30000' }).upstreamTimeouts.callMs).toBe(30_000);
+    expect(() => loadConfig({ UPSTREAM_CALL_TIMEOUT_MS: '0' })).toThrow(/UPSTREAM_CALL_TIMEOUT_MS/);
+    expect(() => loadConfig({ UPSTREAM_LIST_TIMEOUT_MS: '1.5' })).toThrow(/UPSTREAM_LIST_TIMEOUT_MS/);
+    expect(() => loadConfig({ UPSTREAM_CONNECT_TIMEOUT_MS: '999999' })).toThrow(/UPSTREAM_CONNECT_TIMEOUT_MS/);
+  });
 });

@@ -2,7 +2,8 @@
 // restart() forgets all sessions, like a pod restart. tools/list can be paginated (`pageSize`),
 // slowed down (setListDelay) or made to fail (setListError) to exercise discovery (GW-05).
 // tools/call echoes `{ tool, args }` as JSON text; tool `fail` returns isError, tool `boom` throws a
-// JSON-RPC error, unknown tools return isError (like the SDK) (GW-08).
+// JSON-RPC error, unknown tools return isError (like the SDK) (GW-08). Tool `slow` waits setCallDelay ms and
+// records whether the gateway cancelled it (notifications/cancelled aborts the handler's signal) (GW-09).
 import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -18,6 +19,9 @@ export interface FakeUpstream {
   listCount: () => number;
   /** Number of tools/call requests received. */
   callCount: () => number;
+  /** Number of `slow` calls the gateway cancelled (notifications/cancelled). */
+  cancelledCount: () => number;
+  setCallDelay: (ms: number) => void;
   setListDelay: (ms: number) => void;
   setListError: (on: boolean) => void;
   restart: () => void;
@@ -33,6 +37,8 @@ export async function startFakeUpstream(
   let lists = 0;
   let calls = 0;
   let listDelayMs = 0;
+  let callDelayMs = 0;
+  let cancelled = 0;
   let listError = false;
   let sessions = new Map<string, StreamableHTTPServerTransport>();
 
@@ -51,11 +57,17 @@ export async function startFakeUpstream(
       }));
       return start + size < tools.length ? { tools: page, nextCursor: String(start + size) } : { tools: page };
     });
-    mcp.server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    mcp.server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
       calls++;
       const { name, arguments: args } = req.params;
       if (!tools.includes(name)) return { isError: true, content: [{ type: 'text' as const, text: `Tool ${name} not found` }] };
       if (name === 'boom') throw new McpError(-32603, 'boom failed');
+      if (name === 'slow') {
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, callDelayMs);
+          extra.signal.addEventListener('abort', () => { cancelled++; clearTimeout(t); r(); }, { once: true });
+        });
+      }
       const text = JSON.stringify({ tool: name, args: args ?? {} });
       return name === 'fail' ? { isError: true, content: [{ type: 'text' as const, text }] } : { content: [{ type: 'text' as const, text }] };
     });
@@ -99,9 +111,22 @@ export async function startFakeUpstream(
     initializeCount: () => inits,
     listCount: () => lists,
     callCount: () => calls,
+    cancelledCount: () => cancelled,
+    setCallDelay: (ms) => { callDelayMs = ms; },
     setListDelay: (ms) => { listDelayMs = ms; },
     setListError: (on) => { listError = on; },
     restart: () => { sessions = new Map(); },
+    close: () => new Promise((r) => { http.closeAllConnections(); http.close(() => r()); }),
+  };
+}
+
+/** A TCP server that accepts connections and never answers: models a hung upstream (GW-09). */
+export async function startBlackhole(): Promise<{ url: string; close: () => Promise<void> }> {
+  const http = createServer(() => { /* never respond */ });
+  await new Promise<void>((r) => http.listen(0, '127.0.0.1', r));
+  const { port } = http.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/mcp`,
     close: () => new Promise((r) => { http.closeAllConnections(); http.close(() => r()); }),
   };
 }

@@ -9,6 +9,8 @@ export interface Config {
   bodyLimit: number;
   /** TEMPORARY shared key for /mcp until per-user API keys (AUTH-08). Unset → /mcp refuses all. */
   mcpDevKey: string | undefined;
+  /** Upstream budgets in ms (GW-09, docs/MCP_DESIGN.md §6). */
+  upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -32,5 +34,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxyHops: int('TRUST_PROXY_HOPS', env.TRUST_PROXY_HOPS, 1, 0, 5),
     bodyLimit: int('BODY_LIMIT_BYTES', env.BODY_LIMIT_BYTES, 1024 * 1024, 1024, 10 * 1024 * 1024),
     mcpDevKey,
+    upstreamTimeouts: {
+      connectMs: int('UPSTREAM_CONNECT_TIMEOUT_MS', env.UPSTREAM_CONNECT_TIMEOUT_MS, 2_000, 100, 30_000),
+      listMs: int('UPSTREAM_LIST_TIMEOUT_MS', env.UPSTREAM_LIST_TIMEOUT_MS, 3_000, 100, 60_000),
+      callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
+    },
   };
 }

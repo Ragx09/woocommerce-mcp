@@ -17,11 +17,13 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import { VERSION } from '../app.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
-import { isSafeCallRetry, safeReason, UpstreamUnavailableError, type UpstreamPool } from '../upstreams/pool.js';
+import {
+  isSafeCallRetry, safeReason, UpstreamTimeoutError, UpstreamUnavailableError, withDeadline, type UpstreamPool,
+} from '../upstreams/pool.js';
 import { aggregateTools } from './aggregate.js';
 import { parsePublicName, ToolIndex } from './naming.js';
 
-/** Default budget for one tools/call (docs/MCP_DESIGN.md §6); per-upstream budgets come with GW-09. */
+/** Default budget for one tools/call (docs/MCP_DESIGN.md §6); set by UPSTREAM_CALL_TIMEOUT_MS. */
 const CALL_TIMEOUT_MS = 15_000;
 
 export interface McpDeps {
@@ -30,6 +32,8 @@ export interface McpDeps {
   loadUpstreams: () => Promise<Upstream[]>;
   pool: UpstreamPool;
   discovery: ToolDiscovery;
+  /** Budget for one forwarded tools/call, including connecting and a reconnect (GW-09). */
+  callTimeoutMs?: number;
 }
 
 const digest = (s: string) => createHash('sha256').update(s).digest();
@@ -56,16 +60,18 @@ const errorResult = (code: string, message: string): CallToolResult =>
   ({ isError: true, content: [{ type: 'text', text: `${code}: ${message}` }] });
 
 /** Maps a failed forward to an isError result; messages carry no URLs or credentials. */
-function callFailure(slug: string, e: unknown): { outcome: string; result: CallToolResult } {
+function callFailure(slug: string, e: unknown, budgetMs: number): { outcome: string; result: CallToolResult } {
   if (e instanceof UpstreamUnavailableError) return { outcome: 'unreachable', result: errorResult('upstream_unreachable', e.message) };
-  if (e instanceof McpError && e.code === ErrorCode.RequestTimeout) {
-    return { outcome: 'timeout', result: errorResult('upstream_timeout', `upstream ${slug} did not answer within ${CALL_TIMEOUT_MS / 1000} s`) };
+  if (e instanceof UpstreamTimeoutError || (e instanceof McpError && e.code === ErrorCode.RequestTimeout)) {
+    const ms = e instanceof UpstreamTimeoutError ? e.ms : budgetMs;
+    return { outcome: 'timeout', result: errorResult('upstream_timeout', `upstream ${slug} did not answer within ${ms / 1000} s`) };
   }
   return { outcome: 'error', result: errorResult('upstream_error', `upstream ${slug} failed: ${safeReason(e)}`) };
 }
 
 function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
   const server = new Server({ name: 'mcp-gateway', version: VERSION }, { capabilities: { tools: {} } });
+  const callTimeoutMs = deps.callTimeoutMs ?? CALL_TIMEOUT_MS;
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const started = Date.now();
@@ -88,22 +94,23 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
       for (const t of await deps.discovery.toolsFor(row)) if (t.name) index.add(row.id, row.slug, t.name);
       tool = index.resolve(publicName)?.tool;
     } catch (e) {
-      const f = callFailure(row.slug, e);
+      const f = callFailure(row.slug, e, callTimeoutMs);
       done(f.outcome);
       return f.result;
     }
     if (!tool) throw unknownTool(publicName);
 
     try {
-      const result = await deps.pool.withClient(
+      // One deadline for connect + call (+ the reconnect, when that is safe): the client never waits longer.
+      const result = await withDeadline(row.slug, callTimeoutMs, (signal) => deps.pool.withClient(
         row.id,
-        (c) => c.callTool({ name: tool, arguments: req.params.arguments }, undefined, { timeout: CALL_TIMEOUT_MS }),
+        (c) => c.callTool({ name: tool, arguments: req.params.arguments }, undefined, { signal, timeout: callTimeoutMs }),
         isSafeCallRetry,
-      );
+      ));
       done(result.isError ? 'tool_error' : 'ok', tool);
       return result;
     } catch (e) {
-      const f = callFailure(row.slug, e);
+      const f = callFailure(row.slug, e, callTimeoutMs);
       done(f.outcome, tool);
       return f.result;
     }

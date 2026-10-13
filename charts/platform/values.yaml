@@ -72,6 +72,10 @@ gateway:
     tag: dev
   replicas: 1
   logLevel: info
+  upstreamTimeouts:                          # ms (GW-09, docs/MCP_DESIGN.md §6)
+    connect: 2000
+    list: 3000
+    call: 15000
   secrets: gateway-secrets                   # key: credentials-key (64 hex chars)
   devKeySecret: gateway-dev-key              # key: key — TEMPORARY /mcp key until AUTH-08; missing → /mcp refuses all
   seed:

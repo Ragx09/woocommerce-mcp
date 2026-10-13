@@ -46,10 +46,16 @@ Implemented in `services/gateway/src/mcp/route.ts` (GW-08).
 |---|---|---|
 | connect | 2 s | `upstream_unreachable` |
 | list per upstream | 3 s | (omitted from the list, logged) |
-| call | 15 s (configurable per upstream) | `upstream_timeout` |
+| call | 15 s | `upstream_timeout` |
 | upstream returned an error | — | passed through as `isError: true` |
 | auth failure | — | HTTP 401 (no JSON-RPC body processing) |
 Error messages are human-readable and never include credentials, URLs with secrets, or stack traces.
+
+Implemented in GW-09 (`withDeadline` in `services/gateway/src/upstreams/pool.ts`):
+- Budgets are set gateway-wide by `UPSTREAM_CONNECT_TIMEOUT_MS` / `UPSTREAM_LIST_TIMEOUT_MS` / `UPSTREAM_CALL_TIMEOUT_MS` (Helm `gateway.upstreamTimeouts`). A per-upstream override is deferred until the admin API exists.
+- One deadline covers connect + request + the pool's single reconnect, so the budget is the real upper bound for the client. Resolving the tool name in `tools/call` uses the cached list or a fresh list under the list budget.
+- On expiry the SDK request is aborted, which sends `notifications/cancelled`. A sessionful upstream can stop the work; a stateless one only sees its HTTP request aborted.
+- A timed-out call is never retried (it may have run).
 
 ## 7. Credential injection
 - Stored per upstream: `auth_type` (none | bearer | header), `auth_header` (e.g. `X-API-Key`), `credential_enc` (AES-256-GCM).
