@@ -37,6 +37,16 @@ netpol() {
   expect OPEN   "TC-SEC-03c mariadb from app=wordpress" "$STORE" app=wordpress "$db" 3306
   # WordPress itself is public only through Traefik.
   expect CLOSED "wordpress from a random pod in $PLATFORM" "$PLATFORM" app=intruder "$wp" 80
+  # GW-13: everything-mcp ← the gateway only, and it cannot open connections itself (gzip tool SSRF).
+  local ev="everything-mcp.$PLATFORM.svc.cluster.local"
+  expect CLOSED "TC-GW-13-2a everything-mcp from a random pod in $PLATFORM" "$PLATFORM" app=intruder "$ev" 80
+  expect CLOSED "TC-GW-13-2b everything-mcp from $STORE" "$STORE" app=gateway "$ev" 80
+  expect OPEN   "TC-GW-13-2c everything-mcp from app=gateway in $PLATFORM" "$PLATFORM" app=gateway "$ev" 80
+  local out
+  # Raw TCP connect to the API server's ClusterIP (the gateway, with open egress, gets OPEN here).
+  out=$(kubectl -n "$PLATFORM" exec deploy/everything-mcp -- node -e \
+    "const s=require('net').connect(443,'$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')');s.setTimeout(4000);s.on('connect',()=>{console.log('OPEN');s.destroy()});s.on('timeout',()=>{console.log('CLOSED');s.destroy()});s.on('error',()=>console.log('CLOSED'))" 2>/dev/null)
+  [ "$out" = CLOSED ] && pass "TC-GW-13-2d everything-mcp egress (API server by IP) → CLOSED" || fail "TC-GW-13-2d everything-mcp egress → ${out:-no result} (want CLOSED)"
 }
 
 ingress() {

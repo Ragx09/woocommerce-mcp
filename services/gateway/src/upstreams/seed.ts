@@ -1,4 +1,5 @@
-// GW-03: register the WooCommerce MCP server on first start, so a fresh install works without setup.
+// GW-03/13/14: register the chart's upstreams (woo, everything, github) on first start, so a fresh
+// install works without setup.
 // Rules ("never overwrite admin edits"):
 //  - seeded once; a record in app_meta remembers it, so an upstream the admin deleted is not re-created;
 //  - while the row is untouched since seeding (updated_at unchanged), URL and credential follow the
@@ -86,4 +87,32 @@ export function loadWooSeed(env: NodeJS.ProcessEnv = process.env): SeedUpstream 
   const token = env.SEED_WOO_TOKEN?.trim();
   if (!token) throw new Error('SEED_WOO_TOKEN is required when SEED_WOO_URL is set');
   return { slug: 'woo', name: env.SEED_WOO_NAME?.trim() || 'WooCommerce', url, authType: 'bearer', credential: token };
+}
+
+export interface SeedPlan {
+  seeds: SeedUpstream[];
+  /** Upstreams turned on in the chart but left out, with a reason that is safe to log. */
+  skipped: { slug: string; reason: string }[];
+}
+
+/**
+ * Every upstream the chart asks for, in registry order: woo (GW-03), everything (GW-13, no auth),
+ * github (GW-14, PAT as bearer). The woo token is required (the store is the core); a missing GitHub
+ * PAT only skips github, so an install without one still starts.
+ */
+export function loadSeeds(env: NodeJS.ProcessEnv = process.env): SeedPlan {
+  const plan: SeedPlan = { seeds: [], skipped: [] };
+  const woo = loadWooSeed(env);
+  if (woo) plan.seeds.push(woo);
+
+  const evUrl = env.SEED_EVERYTHING_URL?.trim();
+  if (evUrl) plan.seeds.push({ slug: 'everything', name: env.SEED_EVERYTHING_NAME?.trim() || 'Everything (reference)', url: evUrl, authType: 'none' });
+
+  const ghUrl = env.SEED_GITHUB_URL?.trim();
+  if (ghUrl) {
+    const pat = env.SEED_GITHUB_TOKEN?.trim();
+    if (pat) plan.seeds.push({ slug: 'github', name: env.SEED_GITHUB_NAME?.trim() || 'GitHub', url: ghUrl, authType: 'bearer', credential: pat });
+    else plan.skipped.push({ slug: 'github', reason: 'SEED_GITHUB_TOKEN is empty (set GITHUB_MCP_PAT in .env and rotate upstream-seed)' });
+  }
+  return plan;
 }

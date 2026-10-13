@@ -64,6 +64,17 @@ wooMcp:
     requests: { cpu: 50m, memory: 96Mi }
     limits: { memory: 256Mi }
 
+# GW-13: reference upstream server-everything (in the platform namespace, gateway-only).
+everythingMcp:
+  enabled: true
+  image:
+    repository: everything-mcp
+    tag: dev
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { memory: 192Mi }
+
 gateway:
   enabled: true
   host: app                                  # → app.<domain>: /api and /mcp (dashboard / lands with UI-20)
@@ -84,6 +95,13 @@ gateway:
     woo:
       enabled: true
       name: WooCommerce
+    everything:                              # GW-13: needs everythingMcp.enabled
+      enabled: true
+      name: Everything (reference)
+    github:                                  # GW-14: PAT from the seed Secret (key github-pat); empty → skipped
+      enabled: true
+      name: GitHub
+      url: https://api.githubcopilot.com/mcp/
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { memory: 384Mi }

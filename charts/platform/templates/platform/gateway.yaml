@@ -68,6 +68,16 @@ spec:
             - name: SEED_WOO_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: woo-token } }
             {{- end }}
+            {{- if and $v.seed.everything.enabled .Values.everythingMcp.enabled }}
+            - { name: SEED_EVERYTHING_URL, value: "http://everything-mcp.{{ $ns }}.svc.cluster.local/mcp" }
+            - { name: SEED_EVERYTHING_NAME, value: {{ $v.seed.everything.name | quote }} }
+            {{- end }}
+            {{- if $v.seed.github.enabled }}
+            - { name: SEED_GITHUB_URL, value: {{ $v.seed.github.url | quote }} }
+            - { name: SEED_GITHUB_NAME, value: {{ $v.seed.github.name | quote }} }
+            - name: SEED_GITHUB_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: github-pat, optional: true } }
+            {{- end }}
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
           # Migrations run before the server listens; give startup up to 3 min before liveness applies.
           startupProbe:

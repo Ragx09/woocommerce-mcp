@@ -7,12 +7,12 @@ import { ToolDiscovery } from './upstreams/discovery.js';
 import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
-import { loadWooSeed, seedUpstream } from './upstreams/seed.js';
+import { loadSeeds, seedUpstream } from './upstreams/seed.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
 const credentialKey = loadCredentialKey();
-const wooSeed = loadWooSeed();
+const seedPlan = loadSeeds();
 const dbPool = createPool(dbCfg);
 const app = buildApp(cfg, { readinessChecks: [{ name: 'database', check: () => pingDb(dbPool) }] });
 
@@ -32,10 +32,11 @@ try {
 }
 app.log.info('database migrations applied');
 
-if (wooSeed) {
-  const result = await seedUpstream(createDb(dbPool), credentialKey, wooSeed);
-  app.log.info({ slug: wooSeed.slug, result }, 'seed upstream');
+for (const seed of seedPlan.seeds) {
+  const result = await seedUpstream(createDb(dbPool), credentialKey, seed);
+  app.log.info({ slug: seed.slug, result }, 'seed upstream');
 }
+for (const s of seedPlan.skipped) app.log.warn(s, 'seed upstream skipped');
 
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
 const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, log: app.log });

@@ -44,6 +44,8 @@ npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp
 ```
 Storefront (TATVA, D-016): `scripts/build-images.sh` also builds `store-assets` (theme, catalogue, images); every deploy's wp-init Job installs the theme and imports `services/store-assets/catalogue/catalogue.json` (idempotent; log line `catalogue: 50 products (… unchanged)`). To change products or copy: edit the catalogue/theme, then `SERVICES=store-assets scripts/build-images.sh && scripts/deploy.sh local`. `store.init.brand.enabled=false` gives the plain store. Visual check: `scripts/storefront-screens.sh` (screenshots in `tests/e2e/out/screens`).
 
+Upstreams (GW-13/14): the gateway seeds `woo`, `everything` (in-cluster `everything-mcp`, `everythingMcp.enabled`) and `github` (`gateway.seed.github`, PAT from `upstream-seed` key `github-pat`; empty → skipped with a log warning) on first start; rows an admin edited are never overwritten. A PAT added later: put it in `.env`, `scripts/make-secrets.sh --rotate platform/upstream-seed`, restart the gateway.
+
 Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
 
 Local domains: `http://store.127.0.0.1.nip.io`, `http://app.127.0.0.1.nip.io`. nip.io resolves `*.127.0.0.1.nip.io` to 127.0.0.1, so no hosts-file edits are needed. Fallback: add both hosts to `/etc/hosts` and `C:\Windows\System32\drivers\etc\hosts`.
@@ -68,7 +70,7 @@ Steps:
 2. Preflight (read-only): `ssh <alias> 'bash -s' < scripts/vps-preflight.sh` must exit 0.
 3. Install k3s, pinned to the local k3d version: `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
 4. Kubeconfig over an SSH tunnel (the script prints the exact commands) → `~/.kube/vps.yaml`, never committed.
-5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard}:<tag>` (multi-arch if the VPS is arm64).
+5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard,store-assets,everything-mcp}:<tag>` (multi-arch if the VPS is arm64).
 6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
 7. Optional TLS: cert-manager + Let's Encrypt (REL-04).
 

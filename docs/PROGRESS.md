@@ -4,9 +4,10 @@
 Phase 4 — Gateway: multiple upstreams, timeouts, health (Day 3, 2026-10-13)
 
 ## Current task
-GW-12 Done. Next: GW-13 everything-mcp upstream in cluster
+GW-13 + GW-14 Done. Next: GW-15 cross-server test (needs the throwaway repo name), GW-16 kill-pod test, GW-17 log redaction
 
 ## Recently completed
+- 2026-10-13: **GW-13 + GW-14 — three upstreams**: `everything-mcp` (server-everything 2026.8.31, own image, gateway-only ingress, no egress, no secrets in the pod because of its `get-env` tool; T-15 implemented) and GitHub remote MCP (PAT from `upstream-seed`, encrypted in the DB), both registered by the generalized seeder `loadSeeds()`. k3d: one `tools/list` through Traefik → 64 tools (woo 5, everything 13, github 46); `everything__echo`, `github__get_me` (login Ragx09) OK; SSRF via the gzip tool refused; PAT found 0 times in responses, logs and DB; netpol checks 12/12. Unit 55/55, chart 0 violations.
 - 2026-10-13: **GW-12 — credential injection**: `upstreamHeaders()` builds each upstream's headers from its own row only (bearer or custom header); bad/undecryptable credentials fail with a safe message; upstream redirects refused (second layer over the SDK's same-origin policy — undici would otherwise carry `X-Api-Key` to another host). TC-INT-06 PASS on real Postgres (own credential on every request incl. pings and reconnect, client key and spoofed header never forwarded, no secret in DB/responses/trace logs; mutation-checked), unit 52/52, int 35/35; k3d: token in response/logs 0. THREAT_MODEL T-03 partial, T-04 implemented, T-08 partial.
 - 2026-10-13: **GW-11 — enable/disable**: disabled upstream hidden from `tools/list`, calls rejected with `upstream_disabled`, pooled connection closed, on every replica from the next request (flag read from the DB); `setUpstreamEnabled()` repo function for the future PATCH API; fixed `tools/list` order drifting after disable/enable (pool now follows registry order). TC-INT-05 3/3 with two replicas on real Postgres, int 34/34, unit 49/49; k3d DB toggle → `[]` + `upstream_disabled`, re-enable → 5 tools, no restart.
 - 2026-10-13: **GW-10 — health loop + failure isolation**: `HealthMonitor` pings every enabled upstream every 10 s (parallel, 3 s budget) and listens to traffic; status connected/unreachable/disabled with `lastError`; unreachable upstreams are skipped by `tools/list` and calls fail fast. TC-INT-04 5/5, int 31/31, unit 49/49. k3d: woo-mcp scaled to 0 → Unreachable in 4 s, call fails in 59 ms, back to Connected 9 s after Ready. Fixed a pre-existing cold-start flake in TC-GW-05-1. Status is not visible in a UI/API yet (needs sessions, UI-04).
@@ -52,7 +53,7 @@ GW-12 Done. Next: GW-13 everything-mcp upstream in cluster
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 3: GW-13 (everything-mcp), GW-14 (GitHub; PAT in place).
+Day 3: GW-15 (needs the throwaway repo the PAT can write to; not recorded in P0-04), GW-16, GW-17.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

@@ -1,0 +1,10 @@
+{
+  "name": "@platform/everything-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GW-13: @modelcontextprotocol/server-everything packaged for the cluster (reference upstream, Streamable HTTP)",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/server-everything": "2026.8.31"
+  }
+}

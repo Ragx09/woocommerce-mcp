@@ -1,0 +1,76 @@
+{{- if .Values.everythingMcp.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $v := .Values.everythingMcp }}
+{{- $ctx := dict "root" . "app" "everything-mcp" }}
+# GW-13: reference upstream (@modelcontextprotocol/server-everything, Streamable HTTP, sessionful).
+# No Ingress: only the gateway may call it (networkpolicies.yaml). It has a get-env tool that
+# returns its environment, so the pod gets no Secrets, no credentials and no SA token (T-15).
+apiVersion: v1
+kind: Service
+metadata:
+  name: everything-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: everything-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ $v.replicas }}
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false   # no *_SERVICE_HOST variables for get-env to reveal
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: everything-mcp
+          image: {{ include "platform.image" (dict "root" . "image" $v.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: PORT, value: "8080" }
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          # The server has no health endpoint (and keeps a session per initialize), so the probes
+          # check that the port accepts connections.
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources: {{- include "platform.resources" (dict "name" "everything-mcp" "resources" $v.resources) | nindent 12 }}
+---
+# everything-mcp ← the gateway only; no egress at all (its gzip tool can fetch URLs: SSRF guard).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: everything-mcp-from-gateway
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" (dict "root" . "app" "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: everything-mcp } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+      ports: [{ port: 8080 }]
+  egress: []
+{{- end }}

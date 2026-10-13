@@ -7,6 +7,7 @@ args=()
 if [ -f .images.env ]; then . ./.images.env; args+=(--set "wooMcp.image.tag=${woo_mcp_tag}")
   if [ -n "${gateway_tag:-}" ]; then args+=(--set "gateway.image.tag=${gateway_tag}"); fi
   if [ -n "${store_assets_tag:-}" ]; then args+=(--set "store.init.brand.image.tag=${store_assets_tag}"); fi
+  if [ -n "${everything_mcp_tag:-}" ]; then args+=(--set "everythingMcp.image.tag=${everything_mcp_tag}"); fi
 fi
 helm upgrade --install platform charts/platform -n default -f "charts/platform/values-$env.yaml" \
   "${args[@]}" --wait --wait-for-jobs --timeout 15m "$@"

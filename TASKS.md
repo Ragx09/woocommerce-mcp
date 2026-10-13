@@ -1010,7 +1010,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-13 — everything-mcp upstream in cluster
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** ARC-15, INF-10
 - **Requirements:** REQ-GW-08
@@ -1019,12 +1019,12 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** Gateway lists `everything__*` tools.
 - **Tests:** TC-GW-13-1: list via gateway → includes everything tools.
 - **Command:** Inspector CLI list
-- **Evidence:** —
+- **Evidence:** 2026-10-13: new workspace `services/everything-mcp` (`@modelcontextprotocol/server-everything@2026.8.31`, locked in the root `package-lock.json`; image `node:24.19.0-alpine3.24`, uid 1000, `GZIP_ALLOWED_DOMAINS=invalid`); chart `templates/platform/everything-mcp.yaml`: Deployment (TCP readiness/liveness probes — the server has no health route; requests 20m/64Mi, limit 192Mi; read-only root FS, all caps dropped, no SA token, `enableServiceLinks: false`, **no Secrets or credentials in the pod** — it has a `get-env` tool, T-15), ClusterIP Service, NetworkPolicy ingress from `app=gateway` only and **no egress**. Registered by the gateway seeder (`loadSeeds()` in `src/upstreams/seed.ts`: woo, everything [auth none], github; `SEED_EVERYTHING_URL` from `gateway.seed.everything`). `docker run --read-only` + `probe.mjs` → 13 tools, sessionful. Unit **55/55** (new TC-GW-13-U1, TC-GW-14-U1); `scripts/check-chart.sh` → 27/27 valid, 0 violations, values diff PASS. **k3d** (rev 24, `everything-mcp:sha-54d4fbad9d2e`, `gateway:sha-f923b4c2a35a`): log `seed upstream everything created`, `everything unknown→connected`. **TC-GW-13-1 PASS** — Inspector CLI 2.10.1 through Traefik `tools/list` → **64 tools {woo:5, everything:13, github:46}** incl. `everything__echo … everything__simulate-research-query`; `everything__echo` → `Echo: via gateway` (58 ms), `everything__get-sum {2,40}` → 42; `get-env` → only PORT/NODE_ENV/HOME/PATH/KUBERNETES_*/GZIP_ALLOWED_DOMAINS (no secret); SSRF attempt `gzip-file-as-resource data=http://wordpress.store.svc…` → `isError` "Domain … is not in the allowed domains list". `scripts/k8s-checks.sh netpol` → **12/12 PASS** incl. TC-GW-13-2a/b everything-mcp from an intruder pod / from `store` → CLOSED, 2c from `app=gateway` → OPEN, 2d raw TCP egress from the everything pod to the API server ClusterIP → CLOSED (same probe from the gateway → OPEN).
 - **Regression risk:** Image or command differences → pin the version.
 
 ### GW-14 — GitHub remote upstream
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 3
 - **Depends on:** GW-12, P0-04
 - **Requirements:** REQ-GW-08, REQ-GW-07
@@ -1033,7 +1033,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** `github__*` tools listed; the PAT never appears in any response or log.
 - **Tests:** TC-GW-14-1: list → github tools. TC-AUTH-04 scan.
 - **Command:** Inspector CLI list
-- **Evidence:** —
+- **Evidence:** 2026-10-13: seeded from Secret `upstream-seed` key `github-pat` (`SEED_GITHUB_URL`=`gateway.seed.github.url` https://api.githubcopilot.com/mcp/, `SEED_GITHUB_TOKEN` secretKeyRef optional; empty PAT → github skipped with a warning, the gateway still starts — TC-GW-14-U1), bearer credential AES-GCM encrypted in Postgres; gateway egress was already open (NetworkPolicy restricts ingress only). **k3d**: log `seed upstream github created`, `github unknown→connected`. **TC-GW-14-1 PASS** — Inspector CLI `tools/list` through Traefik → 46 `github__*` tools (64 total, 4.9 s cold); `github__get_me` → `login=Ragx09` (1383 ms); `github__list_issues` on a missing repo → readable `isError` passed through. **PAT scan** (exact value and 20-char prefix, `grep -cF`): tools/list output 0, call results 0, error result 0, `everything__get-env` 0, gateway log (141 lines) 0, `upstreams.credential_enc` 0. TC-AUTH-04 (`/api` responses) still runs with AUTH-15. Toolset not limited: all 46 tools kept for now (GitHub toolset URL `/mcp/x/issues` is the fallback if the chat model struggles, UI-14).
 - **Regression risk:** GitHub tool count is large (many tools) → consider a toolset header `X-MCP-Toolsets: issues` to limit.
 
 ### GW-15 — Cross-server call test
