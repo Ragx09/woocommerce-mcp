@@ -1099,7 +1099,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-02 — Admin seed + login
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-01
 - **Requirements:** REQ-AUTH-01
@@ -1108,7 +1108,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Correct password → session cookie; wrong → 401.
 - **Tests:** TC-AUTH-02-1/2.
 - **Command:** `npm test -w services/gateway -- auth`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/auth/` — `password.ts` (argon2id via `@node-rs/argon2` 2.2.1, m=19456 t=2 p=1, PHC strings; unknown users verified against a dummy hash so timing does not reveal accounts; >256-char passwords refused unhashed), `tokens.ts` (32-byte base64url tokens, SHA-256), `sessions.ts` (row keyed by SHA-256 of the cookie token, 12 h), `limiter.ts` (failures per IP+email 5 and per IP 20 in a sliding 15 min window → 429 + Retry-After; success clears the account counter; in memory per replica), `seed-admin.ts` (Secret `gateway-admin` → `ADMIN_EMAIL`/`ADMIN_PASSWORD`, created only while no admin exists, advisory lock), `routes.ts` `POST /api/auth/login` (`@fastify/cookie` 11.1.2; `sid` cookie HttpOnly, SameSite=Strict, Secure from `COOKIE_SECURE` = chart `global.scheme == https`, Path=/, Max-Age 43200; one answer `401 invalid_credentials` for unknown email, wrong password and disabled user). Fastify now rejects unknown body fields (`removeAdditional: false`). Dependency versions picked ≥ 2 weeks old. `scripts/make-secrets.sh` creates `platform/gateway-admin`. Int tests now run file by file (`--no-file-parallelism`): argon2 CPU load made the cold-start timing of TC-INT-03 flaky once (1 failure, then 7/7 green). **Tests:** unit 64/64 (TC-AUTH-02-U1 hash/verify, U2 unknown-user timing within 0.5–2× of a wrong password, U3 limiter); **TC-AUTH-02-1/2/3/4 PASS** in `test/int/auth-login.int.test.ts` (seed once/never overwrite; right password → cookie attrs + only the token hash in `sessions`; wrong/unknown/disabled → identical 401 without cookie; 5 failures → 429 even with the right password while another IP logs in; malformed or extra fields → 400); **mutation-checked** (dropping the disabled check, the failure count, the cookie flags or the dummy verify each fails a test); `scripts/gateway-db-int.sh` → **46/46** ×3; chart 0 violations, values diff PASS (COOKIE_SECURE allowed: derived from the scheme). **k3d** (`gateway:sha-f8fe13344435`, rev 29, musl argon2 binary in the image): `seed admin created`; through Traefik: right password → 200 `{user:{…role:"admin"}}` + `Set-Cookie: sid=<43>; Max-Age=43200; Path=/; HttpOnly; SameSite=Strict` (0.28 s); wrong → 401 (0.078 s), unknown → identical 401 (0.078 s); 5 failures → right password 429 `Retry-After: 900`; DB: `$argon2id$v=19$m=19456,t=2,p=1…`, session `id_hash` 64 hex; admin password in the gateway log 0. **Finding:** every request reaches the gateway as `10.42.0.1` (Traefik Service `externalTrafficPolicy: Cluster` SNATs), so per-IP limits are global and 5 bad logins from anyone lock the admin out for 15 min. Fix for the VPS: `scripts/vps-install-k3s.sh` writes a Traefik `HelmChartConfig` with `externalTrafficPolicy: Local`; validated on k3d (Service switched to Local in 12 s, store 200, the gateway saw `172.19.0.4` instead of the SNAT address), then reverted locally. Real-IP check on the VPS: REL-01.
 - **Regression risk:** —
 
 ### AUTH-03 — Sessions

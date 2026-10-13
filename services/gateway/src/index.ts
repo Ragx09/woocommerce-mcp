@@ -8,11 +8,14 @@ import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadSeeds, seedUpstream } from './upstreams/seed.js';
+import { registerAuth } from './auth/routes.js';
+import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
 const credentialKey = loadCredentialKey();
 const seedPlan = loadSeeds();
+const adminSeed = loadAdminSeed();
 const dbPool = createPool(dbCfg);
 const app = buildApp(cfg, { readinessChecks: [{ name: 'database', check: () => pingDb(dbPool) }] });
 
@@ -37,6 +40,8 @@ for (const seed of seedPlan.seeds) {
   app.log.info({ slug: seed.slug, result }, 'seed upstream');
 }
 for (const s of seedPlan.skipped) app.log.warn(s, 'seed upstream skipped');
+if (adminSeed) app.log.info({ result: await seedAdmin(createDb(dbPool), adminSeed) }, 'seed admin');
+else app.log.warn('ADMIN_EMAIL not set: no admin is seeded');
 
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
 const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, log: app.log });
@@ -52,6 +57,7 @@ const health = new HealthMonitor(upstreamPool, {
   checkTimeoutMs: cfg.upstreamTimeouts.listMs,
   log: app.log,
 });
+await registerAuth(app, { db, cookieSecure: cfg.cookieSecure });
 registerMcp(app, {
   devKey: cfg.mcpDevKey,
   loadUpstreams: () => listUpstreams(db),

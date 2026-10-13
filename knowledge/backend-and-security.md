@@ -19,3 +19,13 @@
 6. **Alternatives:** JWTs (can't be revoked instantly without a denylist), OAuth (stand-out item).
 7. **Debugging:** Revoked but still working? Look for caching. 401 for a valid key? Check whitespace in the header and the `Bearer ` prefix.
 8. **Self-test:** Why don't we need bcrypt or argon2 for API keys? What does the prefix help with?
+
+## Password login and brute-force limits
+1. **What:** Email + password login for the dashboard. The password is stored as an **argon2id** hash; a successful login creates a server-side session.
+2. **Why:** Humans pick guessable passwords. A slow, memory-hard hash makes every guess expensive for an attacker who steals the database, and a rate limit makes online guessing slow.
+3. **Why we need it:** REQ-AUTH-01 (admin vs member needs real identities); D-007.
+4. **How:** `hashPassword()` → `$argon2id$v=19$m=19456,t=2,p=1$salt$hash` (the PHC string carries salt and parameters). Login: look up the user → `verify()` → on success insert a session row keyed by `sha256(token)` and send the token in an `HttpOnly; SameSite=Strict` cookie. Three anti-enumeration habits: the same 401 for unknown email / wrong password / disabled user, and an unknown email still runs a full argon2 verify (against a dummy hash) so response *time* does not reveal accounts. The limiter counts failures per IP+email (5) and per IP (20) in 15 minutes.
+5. **Where:** `services/gateway/src/auth/{password,sessions,limiter,routes,seed-admin}.ts`.
+6. **Alternatives:** bcrypt (no memory hardness), scrypt (fine too), PBKDF2 (GPU-friendly); account lockout per email only (lets anyone lock out the admin); CAPTCHA (overkill here).
+7. **Debugging:** Always 429 for everyone? Check which IP the gateway logs for logins: if every request shows the same node address, the ingress is SNATing (`externalTrafficPolicy: Cluster`) and per-IP limits become global. Login 401 with the right password? Check `disabled_at` and that the email is stored lower-case.
+8. **Self-test:** Why does an unknown email still cost a full hash? Why is per-IP+email limiting safer than per-email lockout? Why is SHA-256 fine for session tokens but not for passwords?

@@ -5,7 +5,7 @@
 ## Route table
 | Method | Path | Auth | Role | Purpose |
 |---|---|---|---|---|
-| POST | `/api/auth/login` | — | — | `{email,password}` → sets cookie, `{user}` |
+| POST | `/api/auth/login` | — | — | `{email,password}` → 200 `{user:{id,email,name,role}}` + cookie `sid` (HttpOnly, SameSite=Strict, Secure on https, 12 h). 401 `invalid_credentials` (same for unknown email, wrong password, disabled user); 429 `rate_limited` + `Retry-After` after 5 failures per IP+email or 20 per IP in 15 min; 400 on unknown fields |
 | POST | `/api/auth/logout` | session | any | Clears the session |
 | GET | `/api/me` | session | any | `{id,email,name,role}` |
 | GET | `/api/upstreams` | session | any | List with `status`, `lastError`, `toolCount`; never credentials |
@@ -28,7 +28,7 @@
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
 
 ## Error codes
-`unauthenticated` (401), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` (410), `rate_limited` (429), `internal` (500).
+`unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` (410), `rate_limited` (429), `internal` (500).
 
 `/mcp` (JSON-RPC, GW-08): `tools/call` with an unknown or malformed name → error `-32602` with `data.code = "unknown_tool"`; disabled upstream → `-32602`, `data.code = "upstream_disabled"`; registry (DB) failure → `-32603 "upstream registry unavailable"`. Upstream problems are returned as a tool result with `isError: true` and text `upstream_unreachable: …` / `upstream_timeout: …` / `upstream_error: …`; an upstream's own `isError` result is passed through unchanged.
 

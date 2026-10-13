@@ -55,6 +55,14 @@ spec:
             - { name: DB_CONNECT_TIMEOUT_MS, value: "150000" }   # first install: Postgres pulls + initdb
             - name: PGPASSWORD
               valueFrom: { secretKeyRef: { name: {{ $v.postgres.existingSecret }}, key: password } }
+            - { name: COOKIE_SECURE, value: {{ eq .Values.global.scheme "https" | quote }} }
+            {{- if $v.adminSecret }}
+            # AUTH-02: first admin, created only while the DB has no admin.
+            - name: ADMIN_EMAIL
+              valueFrom: { secretKeyRef: { name: {{ $v.adminSecret }}, key: admin-email } }
+            - name: ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $v.adminSecret }}, key: admin-password } }
+            {{- end }}
             - name: CREDENTIALS_KEY   # AES-256-GCM key for upstream credentials at rest (D-009)
               valueFrom: { secretKeyRef: { name: {{ $v.secrets }}, key: credentials-key } }
             {{- if $v.devKeySecret }}

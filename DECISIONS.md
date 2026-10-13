@@ -64,6 +64,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Choice:** Email + password (argon2id). Server-side sessions in Postgres, with the ID in an httpOnly, Secure (prod), SameSite=Strict cookie. Mutating requests check `Origin`. The first admin is seeded from a Secret. Members join via one-time invite tokens (stored hashed, 72 h expiry).
 - **Why:** Simple, standard, and keeps tokens out of JS.
 - **Trade-offs:** No SSO/OAuth (stand-out item 3).
+- **Implementation (AUTH-01/02, 2026-10-13):** `@node-rs/argon2` (prebuilt, incl. musl) with OWASP parameters m=19456 KiB, t=2, p=1; sessions keyed by SHA-256 of a 32-byte cookie token (a DB dump holds no usable session); login throttled per IP+email and per IP in memory per replica; one 401 for every login failure. Needs real client IPs at the ingress (Traefik `externalTrafficPolicy: Local` on the VPS).
 
 ## D-008 — Gateway API keys
 - **Date:** 2026-10-11

@@ -89,6 +89,7 @@ gateway:
     call: 15000
   healthIntervalMs: 10000                    # upstream health loop (GW-10)
   secrets: gateway-secrets                   # key: credentials-key (64 hex chars)
+  adminSecret: gateway-admin                 # keys: admin-email, admin-password — first admin (AUTH-02)
   devKeySecret: gateway-dev-key              # key: key — TEMPORARY /mcp key until AUTH-08; missing → /mcp refuses all
   seed:
     secret: upstream-seed                    # keys: woo-token, github-pat

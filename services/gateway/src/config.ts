@@ -13,6 +13,8 @@ export interface Config {
   upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
   /** Period of the upstream health loop in ms (GW-10). */
   healthIntervalMs: number;
+  /** Session cookie gets the Secure flag (true when the public URL is https). */
+  cookieSecure: boolean;
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -20,6 +22,14 @@ function int(name: string, value: string | undefined, fallback: number, min: num
   const n = Number(value);
   if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${name} must be an integer in [${min}, ${max}]`);
   return n;
+}
+
+function bool(name: string, value: string | undefined, fallback: boolean): boolean {
+  const v = value?.trim().toLowerCase();
+  if (!v) return fallback;
+  if (v === 'true' || v === '1') return true;
+  if (v === 'false' || v === '0') return false;
+  throw new Error(`${name} must be true or false`);
 }
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
@@ -42,5 +52,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
     },
     healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
+    cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
   };
 }

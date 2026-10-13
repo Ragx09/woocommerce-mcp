@@ -78,6 +78,12 @@ secret "$PLATFORM_NS" gateway-dev-key <<EOF
 key=mgw_dev_$(rand 40)
 EOF
 
+# First dashboard admin (AUTH-02): seeded only while the gateway DB has no admin; never overwritten.
+secret "$PLATFORM_NS" gateway-admin <<EOF
+admin-email=${GATEWAY_ADMIN_EMAIL:-admin@example.invalid}
+admin-password=$(rand 24)
+EOF
+
 # Gateway secrets (used from Phase 4 on). Upstream credentials seeded into the gateway DB.
 [ -f .env ] && set -a && . ./.env && set +a
 secret "$PLATFORM_NS" upstream-seed <<EOF
@@ -88,3 +94,4 @@ unset WOO_MCP_TOKEN
 
 echo "done. Read a value without printing it elsewhere, e.g.:"
 echo "  kubectl -n $STORE_NS get secret wordpress-admin -o jsonpath='{.data.admin-password}' | base64 -d"
+echo "  kubectl -n $PLATFORM_NS get secret gateway-admin -o jsonpath='{.data.admin-password}' | base64 -d"

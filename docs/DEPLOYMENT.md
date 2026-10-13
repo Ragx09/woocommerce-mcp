@@ -57,7 +57,7 @@ Teardown: `scripts/down.sh` removes the release but keeps namespaces, Secrets an
 ## 4. Secrets
 Never in git or values files. `scripts/make-secrets.sh` creates:
 - `store/mariadb-secrets` (root and user passwords), `store/wordpress-admin`, `store/woo-api` (consumer key/secret; the wp-init Job registers its hash in WooCommerce), `store/woo-mcp-auth` (token the gateway presents to woo-mcp)
-- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (seed admin email and password), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
+- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (`admin-email`, default `admin@example.invalid` or `GATEWAY_ADMIN_EMAIL`; random `admin-password` — the first dashboard admin, created only while the DB has no admin), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
 
 ## 5. VPS (k3s) — planned
 **Choosing a VPS (P0-03).** Needs ≥4 GB RAM, ≥2 vCPU, ≥20 GB disk, Ubuntu LTS.
@@ -68,7 +68,7 @@ Never in git or values files. `scripts/make-secrets.sh` creates:
 Steps:
 1. Open TCP 22/80/443 in the provider firewall. Keep 6443 closed.
 2. Preflight (read-only): `ssh <alias> 'bash -s' < scripts/vps-preflight.sh` must exit 0.
-3. Install k3s, pinned to the local k3d version: `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
+3. Install k3s, pinned to the local k3d version (the script also sets Traefik `externalTrafficPolicy: Local`, so the gateway sees real client IPs for its login rate limit): `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
 4. Kubeconfig over an SSH tunnel (the script prints the exact commands) → `~/.kube/vps.yaml`, never committed.
 5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard,store-assets,everything-mcp}:<tag>` (multi-arch if the VPS is arm64).
 6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.

@@ -36,6 +36,8 @@ export function buildApp(cfg: Config, opts: AppOptions = {}): FastifyInstance {
     bodyLimit: cfg.bodyLimit,
     requestIdHeader: false, // never trust a client-supplied request id; generate our own
     genReqId, // random UUID: unique across replicas and restarts (GW-17)
+    // Unknown body fields are an error (400), not silently dropped: `additionalProperties: false` means it.
+    ajv: { customOptions: { removeAdditional: false } },
   });
   // Every response names its request id, so a user can quote it and we can find the log lines.
   app.addHook('onRequest', async (req, reply) => { reply.header('x-request-id', req.id); });
