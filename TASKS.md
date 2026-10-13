@@ -1267,7 +1267,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-14 — Audit query API
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-13
 - **Requirements:** REQ-AUTH-07
@@ -1276,12 +1276,12 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Filters work; members → 403.
 - **Tests:** TC-AUTH-14-1.
 - **Command:** `npm test -w services/gateway -- audit`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/audit/query.ts` `GET /api/audit` (access `admin`, default-deny table updated): filters `user` (uuid), `upstream` (slug), `outcome`, `source`, `from`/`to` (ISO date-time, from ≤ to), `limit` 1..200 (default 50), `cursor`; newest first; **keyset pagination** by id (no OFFSET; stable while new rows arrive); items `{id, ts, requestId, source, method, upstream, tool, durationMs, outcome, errorCode, keyPrefix, user:{id,email,name}|null}` — no hashes. **Tests PASS** (`test/int/audit-query.int.test.ts` 4/4): 31 seeded rows newest first with exact fields; each filter and a combination return the right counts; pages of 7 → 5 pages, 31 distinct ids in order, unaffected by a row inserted mid-way; member 403, anonymous 401, 10 bad filters (non-uuid user, unknown outcome, limit 0/500, bad date, negative/text cursor, path in upstream, unknown param, from > to) → 400. `scripts/gateway-db-int.sh` **80/80**; unit 66/66. **k3d** (rev 35): admin `GET /api/audit?limit=3` → the cross-server rows (admin, key `mgw_rYJGjz5e`) and the denied row, `nextCursor` 5; `?user=<Bob>&outcome=rejected` → 1; `?outcome=denied` → 1 row, no user; member 403, anonymous 401, `?outcome=maybe` 400. Note: an intermittent 10 s `beforeAll` timeout in `credentials.int.test.ts` (database create/drop checkpoints on the WSL Docker disk) → integration hook timeout raised to 30 s.
 - **Regression risk:** —
 
 ### AUTH-15 — Secret redaction tests
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-10, GW-12
 - **Requirements:** REQ-GW-07, REQ-K8S-09
@@ -1290,7 +1290,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** TC-AUTH-04 passes.
 - **Tests:** TC-AUTH-04.
 - **Command:** `npm run test:int -w services/gateway -- leak`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: **TC-AUTH-04 PASS** — `test/int/secrets-scan.int.test.ts`: full app at **debug** log level with known secrets in play (admin + member passwords, invite token, two API keys incl. their secret part, a revoked key, the upstream bearer token, the credentials encryption key, and every stored hash: key hashes, session hashes, invite hash, argon2 hashes, credential ciphertext); drives login (right + wrong), invite create/list/check/accept/re-accept, key create/issue/list/list-all, `/api/me`, `/mcp` list/call/error/bad key/revoked key, revoke, `/api/audit`, logout, and **every route in the live access table anonymously and as a member** (> 30 responses, > 30 log lines). No secret in any response body (except the one response that creates a key/invite) nor in any log line; the upstream did receive its token. **Mutation-checked**: adding `keyHash` to the key list → the scan fails (`stored value in GET /api/keys`); logging the login password under a non-secret field name (`attempt`) → the scan fails on the log — a leak neither redaction layer catches, which is why this end-to-end scan exists. A failing scan names the secret kind and the response, with the value masked. `scripts/gateway-db-int.sh` **80/80**. k3d: admin password in the gateway log 0 (also checked for every AUTH task).
 - **Regression risk:** —
 
 ---

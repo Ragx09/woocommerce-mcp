@@ -4,9 +4,10 @@
 Phase 5 — Auth, API keys, audit (Day 4 work started 2026-10-13)
 
 ## Current task
-AUTH-11 + AUTH-13 Done. Next: AUTH-14 audit query API, AUTH-15 secret scan
+Day 4 auth phase complete (AUTH-01..15 Done). Blocked: P0-03 / REL-01 (no VPS), GW-15 (repo name). Next: Day 5 dashboard (UI-01..)
 
 ## Recently completed
+- 2026-10-13: **AUTH-14 + AUTH-15 — audit API and secret scan**: `GET /api/audit` (admin; user/upstream/outcome/source/time filters, keyset pagination); TC-AUTH-04 drives every /api route and /mcp at debug log level and finds no secret (passwords, invite token, keys, upstream token, encryption key, stored hashes) in any response or log line — mutation-checked, including a password logged under an innocent field name that the redaction layers miss. Int 80/80, unit 66/66; k3d audit API verified. Int hook timeout raised to 30 s (DB create/drop checkpoints on WSL).
 - 2026-10-13: **AUTH-11 + AUTH-13 — attribution and audit writes**: every tools/call, tools/list and refused /mcp request leaves one audit row (ok, tool_error, error, timeout, unreachable, rejected, denied) with user, key, request id, upstream, tool, duration; never arguments; denied rows have no user. TC-AUTH-05, TC-AUTH-11-1, TC-AUTH-01 PASS (mutation-checked), int 75/75, unit 66/66. Unit files now run sequentially too (argon2 load caused a timing flake). k3d: Bob's calls, a forged key and the cross-server script all appear correctly attributed.
 - 2026-10-13: **AUTH-10 — server-side authorization**: default-deny router — every `/api` route declares public/session/admin or the gateway will not start; guards run before body parsing; TC-AUTH-02 walks the registered routes (anonymous 401, member 403 on admin routes), mutation-checked. Int 70/70, unit 66/66; k3d member → 403 on admin routes.
 - 2026-10-13: **AUTH-06..09 — per-user API keys**: members generate their own keys, admins issue/revoke any (`mgw_` + 43 base62, shown once, SHA-256 + prefix stored, max 20 active); `/mcp` looks the key up on every request (revoked key / disabled user → 401 on the next call) and attaches the caller to every log line. **Temporary dev key removed** (config, chart, Secret script, k3d Secret); scripts use short-lived admin keys via `scripts/lib/gateway-key.mjs`. TC-AUTH-06-1, 07-1, 09-1, TC-UNIT-02, TC-AUTH-01 key part PASS (mutation-checked); unit 66/66, int 65/65. k3d: Bob's key in MCP Inspector → 64 tools + `list_orders`; revoke → next call 401; killpod 13/13 with a temp key. T-01/T-02 implemented.
@@ -64,7 +65,7 @@ AUTH-11 + AUTH-13 Done. Next: AUTH-14 audit query API, AUTH-15 secret scan
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-AUTH-10 role table test, AUTH-11 attribution context, AUTH-13 audit writes, AUTH-14 audit API, AUTH-15 secret scan. GW-15 once the throwaway repo name is known (one command).
+Day 5: dashboard UI-01..20 (login, servers, members/invites, keys, audit, chat) on top of the finished /api. GW-15 once the throwaway repo name is known (one command).
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.

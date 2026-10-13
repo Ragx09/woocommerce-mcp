@@ -23,7 +23,7 @@
 | POST | `/api/keys` | session | any | `{name}` → 201 `{id,name,prefix,createdAt,key}` (plaintext once; `mgw_` + 43 base62); 409 over 20 active keys |
 | POST | `/api/users/:id/keys` | session | admin | `{name}` → 201, same shape, key for that user; 404 unknown/disabled user |
 | DELETE | `/api/keys/:id` | session | owner or admin | Revoke → 204 (idempotent); someone else's key → 404; effective on the next `/mcp` request |
-| GET | `/api/audit` | session | admin | Filters `user, upstream, outcome, source, from, to, limit, cursor` |
+| GET | `/api/audit` | session | admin | Filters `user` (uuid), `upstream` (slug), `outcome`, `source`, `from`/`to` (ISO), `limit` 1..200 (50), `cursor` → `{items:[{id,ts,requestId,source,method,upstream,tool,durationMs,outcome,errorCode,keyPrefix,user:{id,email,name}\|null}], nextCursor}` newest first (keyset pagination); 400 on bad filters |
 | POST | `/api/chat` | session | any | `{messages:[{role,content}]}` → `{reply, toolCalls[]}` |
 | POST | `/mcp` | `Authorization: Bearer mgw_…` (per-user API key, AUTH-08; internal chat token with UI-15) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |

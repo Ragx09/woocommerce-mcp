@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run test/unit --no-file-parallelism",
     "start": "node dist/index.js",
-    "test:int": "vitest run test/int --no-file-parallelism",
+    "test:int": "vitest run test/int --no-file-parallelism --hook-timeout=30000",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node dist/migrate.js"
   },
