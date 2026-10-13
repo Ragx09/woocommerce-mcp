@@ -19,13 +19,13 @@
 | GET | `/api/invites` | session | admin | Open invites `[{id,email,role,createdAt,expiresAt}]` (no tokens) |
 | POST | `/api/invites/check` | — | — | `{token}` → `{email,role,expiresAt}`; 404 unknown, 410 `invite_used` / `invite_expired` |
 | POST | `/api/invites/accept` | — | — | `{token,name,password}` → 201 `{user}` + session cookie; consumes the token (single use, 72 h); 410 on reuse/expiry; 400 weak password (< 12) |
-| GET | `/api/keys` | session | any | Own keys (admin: `?all=1` for everyone's) `[{id,prefix,name,createdAt,lastUsedAt,revokedAt,owner}]` |
-| POST | `/api/keys` | session | any | `{name}` → `{id, key}` (plaintext once) |
-| POST | `/api/users/:id/keys` | session | admin | Issue a key for a user → `{id,key}` |
-| DELETE | `/api/keys/:id` | session | owner or admin | Revoke |
+| GET | `/api/keys` | session | any | Own keys (admin: `?all=1` for everyone's; member → 403) `[{id,name,prefix,createdAt,lastUsedAt,revokedAt,owner:{id,email,name}}]` — never the key or its hash |
+| POST | `/api/keys` | session | any | `{name}` → 201 `{id,name,prefix,createdAt,key}` (plaintext once; `mgw_` + 43 base62); 409 over 20 active keys |
+| POST | `/api/users/:id/keys` | session | admin | `{name}` → 201, same shape, key for that user; 404 unknown/disabled user |
+| DELETE | `/api/keys/:id` | session | owner or admin | Revoke → 204 (idempotent); someone else's key → 404; effective on the next `/mcp` request |
 | GET | `/api/audit` | session | admin | Filters `user, upstream, outcome, source, from, to, limit, cursor` |
 | POST | `/api/chat` | session | any | `{messages:[{role,content}]}` → `{reply, toolCalls[]}` |
-| POST | `/mcp` | Bearer API key or internal token (**until AUTH-08: temporary shared `MCP_DEV_KEY`**) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
+| POST | `/mcp` | `Authorization: Bearer mgw_…` (per-user API key, AUTH-08; internal chat token with UI-15) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
 
 ## Error codes

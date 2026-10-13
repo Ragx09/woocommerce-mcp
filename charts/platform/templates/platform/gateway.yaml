@@ -66,10 +66,6 @@ spec:
             {{- end }}
             - name: CREDENTIALS_KEY   # AES-256-GCM key for upstream credentials at rest (D-009)
               valueFrom: { secretKeyRef: { name: {{ $v.secrets }}, key: credentials-key } }
-            {{- if $v.devKeySecret }}
-            - name: MCP_DEV_KEY   # TEMPORARY shared /mcp key (GW-06); replaced by per-user API keys in AUTH-08
-              valueFrom: { secretKeyRef: { name: {{ $v.devKeySecret }}, key: key, optional: true } }
-            {{- end }}
             {{- if and $v.seed.woo.enabled .Values.wooMcp.enabled }}
             # GW-03: register woo-mcp on first start (admin edits are never overwritten).
             - { name: SEED_WOO_URL, value: "http://woo-mcp.{{ .Values.global.namespaces.store }}.svc.cluster.local/mcp" }

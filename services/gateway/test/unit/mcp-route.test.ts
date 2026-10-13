@@ -10,6 +10,7 @@ import { registerMcp } from '../../src/mcp/route.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const DEV_KEY = 'k'.repeat(40);
 const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
@@ -31,7 +32,7 @@ async function gateway(rows: { current: Upstream[] | Error }, devKey: string | u
   const app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
   const pool = new UpstreamPool({ key, connectTimeoutMs: 500 });
   registerMcp(app, {
-    devKey,
+    authenticate: staticKeyAuth(devKey),
     loadUpstreams: async () => { if (rows.current instanceof Error) throw rows.current; return rows.current; },
     pool,
     discovery: new ToolDiscovery(pool, { listTimeoutMs: 2_000 }), // not a timeout test: room for cold starts

@@ -73,10 +73,6 @@ EOF
 secret "$PLATFORM_NS" gateway-secrets <<EOF
 credentials-key=$(hex 64)
 EOF
-# TEMPORARY shared key for the gateway /mcp endpoint (GW-06) until per-user API keys (AUTH-08).
-secret "$PLATFORM_NS" gateway-dev-key <<EOF
-key=mgw_dev_$(rand 40)
-EOF
 
 # First dashboard admin (AUTH-02): seeded only while the gateway DB has no admin; never overwritten.
 secret "$PLATFORM_NS" gateway-admin <<EOF

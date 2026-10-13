@@ -13,6 +13,7 @@ import { registerMcp } from '../../src/mcp/route.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { startBlackhole, startFakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const DEV_KEY = 'k'.repeat(40);
 const T = { connectMs: 300, listMs: 400, callMs: 600 };
@@ -30,7 +31,7 @@ async function gatewayClient(rows: Upstream[]): Promise<Client> {
   const app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
   const pool = new UpstreamPool({ key, connectTimeoutMs: T.connectMs });
   registerMcp(app, {
-    devKey: DEV_KEY, loadUpstreams: async () => rows, pool,
+    authenticate: staticKeyAuth(DEV_KEY), loadUpstreams: async () => rows, pool,
     discovery: new ToolDiscovery(pool, { listTimeoutMs: T.listMs }), callTimeoutMs: T.callMs,
   });
   await app.listen({ port: 0, host: '127.0.0.1' });

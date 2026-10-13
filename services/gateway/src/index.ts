@@ -8,6 +8,7 @@ import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadSeeds, seedUpstream } from './upstreams/seed.js';
+import { authenticateApiKey } from './auth/api-keys.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 
@@ -60,14 +61,13 @@ const health = new HealthMonitor(upstreamPool, {
 await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin });
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
 registerMcp(app, {
-  devKey: cfg.mcpDevKey,
+  authenticate: (token) => authenticateApiKey(db, token),
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
   discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health }),
   health,
   callTimeoutMs: cfg.upstreamTimeouts.callMs,
 });
-if (!cfg.mcpDevKey) app.log.warn('MCP_DEV_KEY not set: /mcp refuses all requests');
 
 await app.listen({ port: cfg.port, host: cfg.host });
 health.start();

@@ -15,7 +15,7 @@
 2. **Why:** MCP clients like Claude Code send a static header; they can't do our login form.
 3. **Why we need it:** REQ-AUTH-03/04/05.
 4. **How:** Generate 32 random bytes → show once → store `sha256(key)` + prefix. On each request, hash the presented key and look it up by hash. Revocation sets `revoked_at`, and the next lookup fails. A fast hash is fine because the key has 256 bits of entropy (brute force is infeasible). Passwords, by contrast, need argon2 because humans choose weak ones.
-5. **Where:** `services/gateway/src/auth/apiKeys.ts` (planned).
+5. **Where:** `services/gateway/src/auth/{api-keys,key-routes}.ts`; `/mcp` check in `src/mcp/route.ts`; scripts get short-lived keys from `scripts/lib/gateway-key.mjs`.
 6. **Alternatives:** JWTs (can't be revoked instantly without a denylist), OAuth (stand-out item).
 7. **Debugging:** Revoked but still working? Look for caching. 401 for a valid key? Check whitespace in the header and the `Bearer ` prefix.
 8. **Self-test:** Why don't we need bcrypt or argon2 for API keys? What does the prefix help with?

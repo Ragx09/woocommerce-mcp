@@ -4,10 +4,10 @@
 // - tools/call (GW-08): public name → upstream + tool (via ToolIndex, so shortened names work) →
 //   forward → the upstream result unchanged. Unknown/disabled → JSON-RPC error; problems reaching
 //   the upstream → an isError result the model can read. Arguments and results are never logged.
-// - Auth: TEMPORARY static dev key (MCP_DEV_KEY) until AUTH-08 replaces it with per-user API keys.
-//   Without a configured key every request is refused (fail closed). The inbound Authorization header
+// - Auth: per-user API key (`Authorization: Bearer mgw_…`), looked up by hash on every request (AUTH-08);
+//   the caller (user, key) is attached to the request and to every log line.
+//   Unknown, malformed, revoked keys and keys of disabled users → 401. The inbound Authorization header
 //   is only checked here; it is never forwarded upstream (T-04).
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { VERSION } from '../app.js';
+import type { Principal } from '../auth/api-keys.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
 import type { HealthMonitor } from '../upstreams/health.js';
@@ -28,8 +29,8 @@ import { parsePublicName, ToolIndex } from './naming.js';
 const CALL_TIMEOUT_MS = 15_000;
 
 export interface McpDeps {
-  /** Temporary shared key (AUTH-08 removes it). Undefined → /mcp refuses everything. */
-  devKey: string | undefined;
+  /** Bearer token → the calling user and key, or null (AUTH-08: per-user API keys, looked up on every request). */
+  authenticate: (bearer: string) => Promise<Principal | null>;
   loadUpstreams: () => Promise<Upstream[]>;
   pool: UpstreamPool;
   discovery: ToolDiscovery;
@@ -39,12 +40,10 @@ export interface McpDeps {
   callTimeoutMs?: number;
 }
 
-const digest = (s: string) => createHash('sha256').update(s).digest();
-
-function keyOk(header: string | undefined, key: string | undefined): boolean {
-  if (!key) return false;
-  const got = header?.startsWith('Bearer ') ? header.slice(7) : '';
-  return timingSafeEqual(digest(got), digest(key)); // equal-length digests: constant time
+/** The token of an `Authorization: Bearer <token>` header, or '' (scheme is case-insensitive per RFC 9110). */
+function bearerToken(header: string | undefined): string {
+  const m = /^Bearer[ ]+(\S+)\s*$/i.exec(header ?? '');
+  return m ? m[1]! : '';
 }
 
 async function loadRows(deps: McpDeps, log: FastifyBaseLogger, method: string): Promise<Upstream[]> {
@@ -151,10 +150,23 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger): Server {
   return server;
 }
 
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** The authenticated caller of /mcp (AUTH-08); attribution for audit (AUTH-11/13). */
+    principal?: Principal;
+  }
+}
+
 export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
   const authenticate = async (req: FastifyRequest, reply: FastifyReply) => {
-    if (keyOk(req.headers.authorization, deps.devKey)) return;
-    req.log.warn({ ip: req.ip }, 'rejected /mcp request: missing or invalid API key');
+    const token = bearerToken(req.headers.authorization);
+    const principal = token ? await deps.authenticate(token) : null;
+    if (principal) {
+      req.principal = principal;
+      req.log = req.log.child({ userId: principal.userId, keyId: principal.keyId }); // every line of this request
+      return;
+    }
+    req.log.warn({ ip: req.ip, hadToken: token !== '' }, 'rejected /mcp request: missing or invalid API key');
     return reply.code(401).header('www-authenticate', 'Bearer')
       .send({ error: 'invalid_api_key', message: 'missing or invalid API key' });
   };

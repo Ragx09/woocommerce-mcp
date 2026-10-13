@@ -17,6 +17,7 @@ import { HealthMonitor } from '../../src/upstreams/health.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { listUpstreams, setUpstreamEnabled } from '../../src/upstreams/repo.js';
 import { startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const DEV_KEY = 'k'.repeat(40);
 const base = loadDbConfig();
@@ -53,7 +54,7 @@ async function replica() {
   const loadUpstreams = () => listUpstreams(db);
   const health = new HealthMonitor(upstreamPool, { loadUpstreams, checkTimeoutMs: 2_000 });
   registerMcp(app, {
-    devKey: DEV_KEY, loadUpstreams, pool: upstreamPool, health,
+    authenticate: staticKeyAuth(DEV_KEY), loadUpstreams, pool: upstreamPool, health,
     discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: 2_000, health }),
   });
   await app.listen({ port: 0, host: '127.0.0.1' });

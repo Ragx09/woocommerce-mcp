@@ -26,7 +26,7 @@ scripts/down.sh --all    # delete the cluster and ALL data
 |---|---|
 | Storefront | http://store.127.0.0.1.nip.io |
 | WP admin (user `admin`) | http://store.127.0.0.1.nip.io/wp-admin — password: `kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
-| Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — temporary key until AUTH-08: `kubectl -n platform get secret gateway-dev-key -o jsonpath='{.data.key}' \| base64 -d` |
+| Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — personal API key: `node scripts/lib/gateway-key.mjs create my-laptop` (prints `<id> <key>`; see docs/DEPLOYMENT.md) |
 
 More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Full instructions are finished in REL-12.
 

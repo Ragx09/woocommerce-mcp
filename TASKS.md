@@ -1155,7 +1155,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 
 ### AUTH-06 — API key generation
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-03
 - **Requirements:** REQ-AUTH-03
@@ -1164,12 +1164,12 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Key works on `/mcp`.
 - **Tests:** TC-AUTH-06-1.
 - **Command:** `npm test -w services/gateway -- keys`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `src/auth/api-keys.ts` + `key-routes.ts`: `POST /api/keys {name}` (own) and admin `POST /api/users/:id/keys` → 201 `{id,name,prefix,createdAt,key}` — the only time the key is shown; key = `mgw_` + 43 base62 chars from 32 CSPRNG bytes; max 20 active keys per user (409); `GET /api/keys` own keys, admin `?all=1` everyone's (member → 403), never a hash or key. **TC-AUTH-06-1 PASS**: a member's new key lists and calls tools through `/mcp` with the SDK client, `last_used_at` set, list shows prefix + owner only, key never forwarded upstream; admin-issued key works; member issuing for others → 403; unknown user → 404, bad id → 400; limit 20 → 409; anonymous 401; cross-origin 403. TC-UNIT-02 (format, 2000 keys unique, all 62 characters used, 12-char prefixes distinct). `test/int/api-keys.int.test.ts` (real Postgres + real `/mcp` + fake upstream) 7/7; `scripts/gateway-db-int.sh` → **65/65**; unit **66/66**; typecheck clean; chart 0 violations. **k3d** (`gateway` rev 32): old shared dev key → 401; member Bob (from the AUTH-05 invite) logs in, `POST /api/keys` → `mgw_Su4KKF6k…` (47 chars), MCP Inspector CLI 2.10.1 `tools/list` → 64 tools, `tools/call woo__list_orders` → order 139; Bob `GET /api/keys?all=1` → 403; `DELETE /api/keys/:id` → 204 and the next `/mcp` call → **401**; gateway log line `tools/call` carries `userId`+`keyId` of Bob; Bob's key in the log 0.
 - **Regression risk:** —
 
 ### AUTH-07 — Hashed key storage
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-06
 - **Requirements:** REQ-AUTH-05
@@ -1178,12 +1178,12 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** DB contains no plaintext key (query check).
 - **Tests:** TC-UNIT-02; TC-AUTH-07-1: `select` → only hash and prefix.
 - **Command:** `kubectl -n platform exec sts/postgres -- psql -c 'select prefix, length(key_hash) from api_keys'`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `api_keys` stores `key_hash` = SHA-256 hex (DB CHECK, unique) + `prefix` (`mgw_`+8, DB CHECK) — the AUTH-01 schema refuses a plaintext key (TC-AUTH-01-1). **TC-AUTH-07-1 PASS**: after issuing a key, `SELECT * FROM api_keys` contains its SHA-256 but neither the key nor its secret part (characters 13+). k3d: `select name, prefix … from api_keys` shows only prefixes. `test/int/api-keys.int.test.ts` (real Postgres + real `/mcp` + fake upstream) 7/7; `scripts/gateway-db-int.sh` → **65/65**; unit **66/66**; typecheck clean; chart 0 violations.
 - **Regression risk:** —
 
 ### AUTH-08 — Key validation on /mcp
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-07, GW-06
 - **Requirements:** REQ-AUTH-03, REQ-GW-12
@@ -1192,12 +1192,12 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** TC-AUTH-01 passes.
 - **Tests:** TC-AUTH-01.
 - **Command:** `npm run test:int -w services/gateway`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `/mcp` authenticates `Authorization: Bearer <key>` (scheme case-insensitive) with `authenticateApiKey()`: format check, then a DB lookup by SHA-256 joined with the owner — revoked keys and disabled users refused, no cache; `last_used_at` written at most once a minute; the caller (`principal` = user, key, role) is attached to the request and every log line (attribution for AUTH-11/13). **Temporary dev key removed**: `MCP_DEV_KEY` config, chart env + `gateway.devKeySecret`, `make-secrets.sh` entry, and the Secret on k3d (deleted after checking nothing referenced it). Scripts now use short-lived keys: `scripts/lib/gateway-key.mjs` logs in as the seeded admin, creates a key and revokes it afterwards (`cross-server.mjs`, `k8s-checks.sh killpod`); tests use `test/helpers/static-auth.ts`. **TC-AUTH-01 (key part) PASS**: no header, forged `mgw_…`, key + 1 char, key − 1 char, `Basic`, bare key, empty bearer → 401 `invalid_api_key` (audit rows: AUTH-13). Mutation-checked (revoked accepted, disabled owner accepted → tests fail). k3d: `cross-server.mjs --dry-run` → 64 tools, `woo__list_orders` ok, its temp key revoked; `k8s-checks.sh killpod` 13/13 with its own temp key (revoked). **k3d** (`gateway` rev 32): old shared dev key → 401; member Bob (from the AUTH-05 invite) logs in, `POST /api/keys` → `mgw_Su4KKF6k…` (47 chars), MCP Inspector CLI 2.10.1 `tools/list` → 64 tools, `tools/call woo__list_orders` → order 139; Bob `GET /api/keys?all=1` → 403; `DELETE /api/keys/:id` → 204 and the next `/mcp` call → **401**; gateway log line `tools/call` carries `userId`+`keyId` of Bob; Bob's key in the log 0.
 - **Regression risk:** —
 
 ### AUTH-09 — Revocation
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** AUTH-08
 - **Requirements:** REQ-AUTH-04, REQ-DOD-08
@@ -1206,7 +1206,7 @@ Exit criterion: separate users authenticated; access enforced; revoked keys reje
 - **Acceptance:** Revoke → the immediately following call → 401.
 - **Tests:** TC-AUTH-09-1.
 - **Command:** `npm run test:int -w services/gateway -- revoke`
-- **Evidence:** —
+- **Evidence:** 2026-10-13: `DELETE /api/keys/:id` (owner or admin) → 204, sets `revoked_at/revoked_by`, idempotent; another member's key → **404** (ids cannot be probed). Every `/mcp` request re-reads the key row, so revocation applies to the very next request. **TC-AUTH-09-1 PASS**: key works → another member's DELETE 404 (key still works) → owner DELETE 204 → the immediately following `/mcp` call **401**; repeat DELETE 204; admin revokes a member's key → 401, `revoked_by` = admin; disabling a user stops all their keys at once and re-enabling restores them. Mutation-checked (members revoking any key → test fails). **k3d** (`gateway` rev 32): old shared dev key → 401; member Bob (from the AUTH-05 invite) logs in, `POST /api/keys` → `mgw_Su4KKF6k…` (47 chars), MCP Inspector CLI 2.10.1 `tools/list` → 64 tools, `tools/call woo__list_orders` → order 139; Bob `GET /api/keys?all=1` → 403; `DELETE /api/keys/:id` → 204 and the next `/mcp` call → **401**; gateway log line `tools/call` carries `userId`+`keyId` of Bob; Bob's key in the log 0.
 - **Regression risk:** —
 
 ### AUTH-10 — Server-side authorization on /api

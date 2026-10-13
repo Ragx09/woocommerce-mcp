@@ -93,7 +93,12 @@ wait_status() {
   return 1
 }
 killpod() {
-  MCP_KEY="${MCP_KEY:-$(kubectl -n "$PLATFORM" get secret gateway-dev-key -o jsonpath='{.data.key}' | base64 -d)}"
+  # A temporary admin API key for this run, revoked on exit (AUTH-08: no shared key any more).
+  if [ -z "${MCP_KEY:-}" ]; then
+    local created; created="$(node "$(dirname "$0")/lib/gateway-key.mjs" create k8s-checks-killpod)" || { fail "could not create a temporary API key"; return; }
+    MCP_KEY="${created#* }"; TEMP_KEY_ID="${created%% *}"
+    trap 'node "$(dirname "$0")/lib/gateway-key.mjs" revoke "$TEMP_KEY_ID" >/dev/null 2>&1' EXIT
+  fi
   local t secs out
   list_check "TC-GW-16-0 baseline list" yes
 

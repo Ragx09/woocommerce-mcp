@@ -14,6 +14,7 @@ import { registerMcp } from '../../src/mcp/route.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { startFakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const PAT = `github_pat_${'A1b2'.repeat(20)}`;
@@ -68,7 +69,7 @@ describe('TC-UNIT-06 request ids and tool-call logging (GW-17)', () => {
     const c = capture(level);
     const app = buildApp(loadConfig({}), { logger: { ...loggerOptions(level), stream: c.stream } });
     const pool = new UpstreamPool({ key, connectTimeoutMs: 2_000 });
-    registerMcp(app, { devKey: DEV_KEY, loadUpstreams: async () => [row(up.url)], pool,
+    registerMcp(app, { authenticate: staticKeyAuth(DEV_KEY), loadUpstreams: async () => [row(up.url)], pool,
       discovery: new ToolDiscovery(pool, { listTimeoutMs: 3_000 }) });
     await app.listen({ port: 0, host: '127.0.0.1' });
     cleanup.unshift(async () => { await app.close(); await pool.close(); });
@@ -93,7 +94,7 @@ describe('TC-UNIT-06 request ids and tool-call logging (GW-17)', () => {
     expect(out).not.toContain(DEV_KEY);
     const call = logs.lines.map((l) => JSON.parse(l)).find((l) => l.msg === 'tools/call');
     expect(call).toMatchObject({ reqId, upstream: 'woo', tool: 'echo', outcome: 'ok' });
-    expect(Object.keys(call).sort()).toEqual(['level', 'ms', 'msg', 'outcome', 'reqId', 'svc', 'time', 'tool', 'upstream']);
+    expect(Object.keys(call).sort()).toEqual(['keyId', 'level', 'ms', 'msg', 'outcome', 'reqId', 'svc', 'time', 'tool', 'upstream', 'userId']); // who called (AUTH-08)
     expect(logs.lines.every((l) => JSON.parse(l).reqId === reqId || JSON.parse(l).reqId === undefined)).toBe(true);
     // Fastify's own request lines keep their serialized fields (the scrubber must not flatten them).
     const parsed = logs.lines.map((l) => JSON.parse(l));

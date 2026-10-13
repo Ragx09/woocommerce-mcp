@@ -9,6 +9,7 @@ import { LoginLimiter } from './limiter.js';
 import { PASSWORD_MAX, verifyPassword } from './password.js';
 import { registerOriginCheck, requireSession } from './guard.js';
 import { registerInviteRoutes } from './invite-routes.js';
+import { registerKeyRoutes } from './key-routes.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
 
 export interface AuthDeps {
@@ -70,4 +71,5 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
   app.get('/api/me', { preHandler: requireSession(deps.db) }, async (req) => req.user);
 
   registerInviteRoutes(app, { db: deps.db, publicOrigin: deps.publicOrigin, cookie: cookieOpts });
+  registerKeyRoutes(app, deps.db);
 }

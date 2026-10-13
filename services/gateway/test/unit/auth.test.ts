@@ -88,3 +88,20 @@ describe('Origin check (AUTH-03)', () => {
     }
   });
 });
+
+import { generateApiKey, KEY_RE } from '../../src/auth/api-keys.js';
+import { sha256Hex } from '../../src/auth/tokens.js';
+
+describe('API key format (AUTH-06/07, D-008)', () => {
+  it('TC-UNIT-02: mgw_ + 43 base62 chars (256 bits), unique, stored as SHA-256 + 12-char prefix', () => {
+    const keys = Array.from({ length: 2_000 }, generateApiKey);
+    for (const k of keys) expect(k).toMatch(KEY_RE);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(new Set(keys.map((k) => k.slice(0, 12))).size).toBeGreaterThan(1_990); // prefixes tell keys apart
+    // Every base62 character shows up: the encoding is not biased to a subset.
+    expect(new Set(keys.join('').slice(4).replaceAll('mgw_', ''))).toHaveProperty('size', 62);
+    expect(sha256Hex(keys[0]!)).toMatch(/^[0-9a-f]{64}$/);
+    expect(KEY_RE.test(`mgw_${'a'.repeat(42)}`)).toBe(false);
+    expect(KEY_RE.test(`mgw_${'a'.repeat(43)}\n`)).toBe(false);
+  });
+});

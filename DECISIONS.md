@@ -72,6 +72,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 - **Choice:** `mgw_` + 32 bytes of CSPRNG output, base62. The DB stores `sha256(key)` (unique index) + `prefix` (first 12 characters) + owner + `revoked_at` + `last_used_at`. The key is shown once. Validation on every request does a DB lookup (no cache), so revocation is immediate.
 - **Why:** For high-entropy random secrets a fast hash is sufficient; a slow KDF only protects low-entropy passwords. Lookup by hash avoids timing leaks.
 - **Trade-offs:** One DB read per MCP request (indexed, cheap).
+- **Implementation (AUTH-06..09, 2026-10-13):** 43 base62 characters from 32 CSPRNG bytes; `key_hash` unique + DB CHECKs; the lookup also requires the owner to be enabled; `last_used_at` written at most once a minute (no write per request); max 20 active keys per user; revoking someone else's key as a member → 404. The temporary shared dev key was removed; scripts create and revoke short-lived keys through the API.
 
 ## D-009 — Upstream credential storage
 - **Date:** 2026-10-11

@@ -19,6 +19,7 @@ import { HealthMonitor } from '../../src/upstreams/health.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { listUpstreams } from '../../src/upstreams/repo.js';
 import { startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const CLIENT_KEY = `client-key-${randomBytes(16).toString('hex')}`;
 const WOO_TOKEN = `woo-secret-${randomBytes(12).toString('hex')}`;
@@ -63,7 +64,7 @@ describe('TC-INT-06 credential injection (GW-12)', () => {
     const upstreamPool = new UpstreamPool({ key, connectTimeoutMs: 1_000, log: app.log });
     const loadUpstreams = () => listUpstreams(db);
     const health = new HealthMonitor(upstreamPool, { loadUpstreams, log: app.log });
-    registerMcp(app, { devKey: CLIENT_KEY, loadUpstreams, pool: upstreamPool, health,
+    registerMcp(app, { authenticate: staticKeyAuth(CLIENT_KEY), loadUpstreams, pool: upstreamPool, health,
       discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: 2_000, health, log: app.log }) });
     await app.listen({ port: 0, host: '127.0.0.1' });
     const c = new Client({ name: 'test', version: '1' });

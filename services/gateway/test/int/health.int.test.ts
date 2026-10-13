@@ -14,6 +14,7 @@ import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { HealthMonitor } from '../../src/upstreams/health.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { startBlackhole, startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
+import { staticKeyAuth } from '../helpers/static-auth.js';
 
 const DEV_KEY = 'k'.repeat(40);
 const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
@@ -40,7 +41,7 @@ async function setup(rows: { current: Upstream[] }, intervalMs?: number) {
   const loadUpstreams = async () => rows.current;
   const health = new HealthMonitor(pool, { loadUpstreams, intervalMs, checkTimeoutMs: 1_000 });
   registerMcp(app, {
-    devKey: DEV_KEY, loadUpstreams, pool, health, callTimeoutMs: 2_000,
+    authenticate: staticKeyAuth(DEV_KEY), loadUpstreams, pool, health, callTimeoutMs: 2_000,
     discovery: new ToolDiscovery(pool, { listTimeoutMs: 1_000, health }),
   });
   await app.listen({ port: 0, host: '127.0.0.1' });
