@@ -19,6 +19,8 @@ import { createDb, createPool, loadDbConfig, runMigrations, type Db } from '../.
 import { upstreams } from '../../src/db/schema.js';
 import { loggerOptions } from '../../src/logger.js';
 import { registerMcp } from '../../src/mcp/route.js';
+import { HealthMonitor } from '../../src/upstreams/health.js';
+import { registerUpstreamRoutes } from '../../src/upstreams/routes.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { listUpstreams } from '../../src/upstreams/repo.js';
@@ -63,8 +65,11 @@ beforeAll(async () => {
   app = buildApp(loadConfig({}), { logger: { ...loggerOptions('debug'), stream } }); // debug: the most verbose level we ship
   await registerAuth(app, { db, cookieSecure: true, publicOrigin: ORIGIN });
   upstreamPool = new UpstreamPool({ key, connectTimeoutMs: 2_000, log: app.log });
+  const health = new HealthMonitor(upstreamPool, { loadUpstreams: () => listUpstreams(db) });
+  const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: 3_000, log: app.log, health });
+  registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health });
   registerMcp(app, { authenticate: (t) => authenticateApiKey(db, t), loadUpstreams: () => listUpstreams(db), pool: upstreamPool,
-    discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: 3_000, log: app.log }), audit: dbAuditSink(db, app.log) });
+    discovery, health, audit: dbAuditSink(db, app.log) });
   await app.ready();
 });
 afterAll(async () => {
@@ -111,6 +116,9 @@ describe('TC-AUTH-04 no secret in any /api or /mcp response, nor in any log line
     await call('DELETE', `/api/keys/${k1.id}`, { cookie: memberCookie });
     await call('POST', '/mcp', { bearer: k1.key, payload: rpc(5, 'tools/list') });
     await call('GET', '/api/audit', { cookie: adminCookie });
+    const ups = (await call('GET', '/api/upstreams', { cookie: adminCookie })).json();
+    await call('GET', '/api/upstreams', { cookie: memberCookie });
+    await call('GET', `/api/upstreams/${ups[0].id}/tools`, { cookie: memberCookie });
 
     // Every registered route, anonymous and as member, with an empty body.
     for (const r of accessTable(app)) {

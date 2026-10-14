@@ -3,6 +3,7 @@ import { buildApp, VERSION } from './app.js';
 import { loadCredentialKey } from './crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
 import { registerMcp } from './mcp/route.js';
+import { registerUpstreamRoutes } from './upstreams/routes.js';
 import { ToolDiscovery } from './upstreams/discovery.js';
 import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
@@ -61,12 +62,14 @@ const health = new HealthMonitor(upstreamPool, {
 });
 await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin });
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
+const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health });
+registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health });
 registerMcp(app, {
   authenticate: (token) => authenticateApiKey(db, token),
   audit: dbAuditSink(db, app.log),
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
-  discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health }),
+  discovery,
   health,
   callTimeoutMs: cfg.upstreamTimeouts.callMs,
 });

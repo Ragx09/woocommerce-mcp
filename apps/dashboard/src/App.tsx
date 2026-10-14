@@ -4,6 +4,7 @@ import { Invite } from './pages/Invite.js';
 import { Login } from './pages/Login.js';
 import { Overview } from './pages/Overview.js';
 import { Placeholder } from './pages/Placeholder.js';
+import { Servers } from './pages/Servers.js';
 
 export function App() {
   useSessionExpiry();
@@ -13,7 +14,7 @@ export function App() {
       <Route path="/invite" element={<Invite />} />
       <Route element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<Overview />} />
-        <Route path="servers" element={<Placeholder title="Servers" task="UI-04" />} />
+        <Route path="servers" element={<Servers />} />
         <Route path="chat" element={<Placeholder title="Chat" task="UI-16" />} />
         <Route path="keys" element={<Placeholder title="My API keys" task="UI-11" />} />
         <Route path="members" element={<RequireAuth admin><Placeholder title="Members" task="UI-09" /></RequireAuth>} />

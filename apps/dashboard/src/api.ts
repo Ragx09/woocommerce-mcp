@@ -92,3 +92,28 @@ export interface InviteInfo {
   role: Role;
   expiresAt: string;
 }
+
+export type UpstreamStatus = 'unknown' | 'connected' | 'unreachable' | 'disabled';
+export interface Upstream {
+  id: string;
+  name: string;
+  slug: string;
+  enabled: boolean;
+  status: UpstreamStatus;
+  lastError: string | null;
+  lastCheckedAt: string | null;
+  lastOkAt: string | null;
+  toolCount: number | null;
+  // Admin only:
+  url?: string;
+  authType?: 'none' | 'bearer' | 'header';
+  authHeader?: string | null;
+  hasCredential?: boolean;
+}
+export interface ToolInfo {
+  publicName: string;
+  name: string;
+  title: string | null;
+  description: string;
+  params: { name: string; required: boolean }[];
+}

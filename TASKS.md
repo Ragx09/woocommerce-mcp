@@ -1342,7 +1342,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-04 — Server list with status and tools
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-02, GW-10
 - **Requirements:** REQ-GW-09, REQ-GW-10
@@ -1350,9 +1350,9 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Page.
 - **Acceptance:** Shows Connected / Unreachable / Disabled correctly.
 - **Tests:** TC-UI-04-1 (manual + API): kill pod → badge Unreachable.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh` (TC-UI-04-API), `scripts/dashboard-screens.sh servers` (TC-UI-04-1)
+- **Evidence:** 2026-10-14: gateway `src/upstreams/routes.ts`: `GET /api/upstreams` (session; registry + health + tool count; admins also get url/auth details, members do not; never a credential) and `GET /api/upstreams/:id/tools` (public names, descriptions, parameters; 404/409/502/400). Dashboard `pages/Servers.tsx`: cards with status badge (Connected / Unreachable / Disabled / Checking…), last error, tool count, last check, expandable tools, refetch every 10 s, summary line. **TC-UI-04-API** (`test/int/upstreams-api.int.test.ts`, real Postgres + fake upstreams + real HealthMonitor) 6/6: order, status per server, counts, token/ciphertext absent, member without url/auth (mutation-checked: admin fields for members → fails), tools view, disabled 409, unknown 404, kill → unreachable with safe error (no IP) while the other stays connected, restart → connected with last error kept, disable/enable on next request, anonymous 401. authz table test and AUTH-15 secret scan now include the new routes; int **86/86**, gateway unit 66/66. **TC-UI-04-1** in a real browser on k3d (`scripts/dashboard-screens.sh servers`) **16/16**: WooCommerce (5 tools), Everything (13), GitHub (46) Connected; WooCommerce tools expand with required params marked; host scales everything-mcp to 0 → badge Unreachable after 9 s without reload, others Connected, error shown without internal URL, Show tools disabled; scale to 1 → Connected after 10 s with last error kept; throwaway member sees the list without URL/auth, no horizontal scroll at 390 px, no page errors. `k8s-checks.sh all` 0 failures; chart 0 violations; auth flow still 20/20.
+- **Regression risk:** Low. Health is per replica (each replica's own monitor); with several gateway replicas two refreshes may briefly disagree.
 
 ### UI-05 — Add server
 - **Priority:** P0

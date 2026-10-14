@@ -8,8 +8,8 @@
 | POST | `/api/auth/login` | — | — | `{email,password}` → 200 `{user:{id,email,name,role}}` + cookie `sid` (HttpOnly, SameSite=Strict, Secure on https, 12 h). 401 `invalid_credentials` (same for unknown email, wrong password, disabled user); 429 `rate_limited` + `Retry-After` after 5 failures per IP+email or 20 per IP in 15 min; 400 on unknown fields |
 | POST | `/api/auth/logout` | cookie (optional) | any | Deletes the session row and clears the cookie; always 204 |
 | GET | `/api/me` | session | any | `{id,email,name,role}`; 401 `unauthenticated` without a valid session (expired, logged out, user disabled) |
-| GET | `/api/upstreams` | session | any | List with `status`, `lastError`, `toolCount`; never credentials |
-| GET | `/api/upstreams/:id/tools` | session | any | `[{publicName,name,description}]` |
+| GET | `/api/upstreams` | session | any | Registry order (oldest first) with this replica's health: `status` (`unknown` before the first check · `connected` · `unreachable` · `disabled`), `lastError` (safe text, kept after recovery), `lastCheckedAt`, `lastOkAt`, `toolCount` (null when disabled/unreachable; from the ≤ 60 s discovery cache, else one live list within 3 s). Admin also gets `url`, `authType`, `authHeader`, `hasCredential`, `createdAt`, `updatedAt`; never a credential (UI-04) |
+| GET | `/api/upstreams/:id/tools` | session | any | `[{publicName,name,title,description,params:[{name,required}]}]` (required first); 404 unknown id, 409 `upstream_disabled`, 502 `upstream_unreachable` (safe message), 400 non-uuid id |
 | POST | `/api/upstreams` | session | admin | `{name,slug,url,authType,authHeader?,credential?}` |
 | PATCH | `/api/upstreams/:id` | session | admin | Partial; `credential` omitted = unchanged, `null` = clear |
 | DELETE | `/api/upstreams/:id` | session | admin | Remove |
@@ -38,9 +38,11 @@ Every `/api` route declares its access (`public`, `session`, `admin`) in code; t
 
 ## Upstream object (response)
 ```json
-{ "id": "uuid", "name": "WooCommerce", "slug": "woo", "url": "http://woo-mcp.store.svc.cluster.local/mcp",
-  "enabled": true, "authType": "header", "authHeader": "X-Internal-Token", "hasCredential": true,
-  "status": "connected", "lastError": null, "lastCheckedAt": "…", "toolCount": 5 }
+{ "id": "uuid", "name": "WooCommerce", "slug": "woo", "enabled": true,
+  "status": "connected", "lastError": null, "lastCheckedAt": "…", "lastOkAt": "…", "toolCount": 5,
+  // admin only:
+  "url": "http://woo-mcp.store.svc.cluster.local/mcp", "authType": "bearer", "authHeader": null, "hasCredential": true,
+  "createdAt": "…", "updatedAt": "…" }
 ```
 
 ## woo-mcp tools (input schemas)

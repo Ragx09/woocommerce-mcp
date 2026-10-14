@@ -1,7 +1,7 @@
 // TC-AUTH-02 (AUTH-10): every /api route, as registered — not a hand-written list — is tested for
 // anonymous, member and admin access. New routes are covered automatically; a route without an access
 // policy cannot even be registered.
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -13,6 +13,12 @@ import { seedAdmin } from '../../src/auth/seed-admin.js';
 import { loadConfig } from '../../src/config.js';
 import { createDb, createPool, loadDbConfig, runMigrations, type Db } from '../../src/db/index.js';
 import { users } from '../../src/db/schema.js';
+import { loadCredentialKey } from '../../src/crypto/credentials.js';
+import { ToolDiscovery } from '../../src/upstreams/discovery.js';
+import { HealthMonitor } from '../../src/upstreams/health.js';
+import { UpstreamPool } from '../../src/upstreams/pool.js';
+import { listUpstreams } from '../../src/upstreams/repo.js';
+import { registerUpstreamRoutes } from '../../src/upstreams/routes.js';
 
 const base = loadDbConfig();
 const admin = createPool({ ...base, database: 'postgres' });
@@ -42,6 +48,10 @@ beforeAll(async () => {
   await db.insert(users).values({ email: 'member@example.test', name: 'M', passwordHash: await hashPassword(PW) });
   app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
   await registerAuth(app, { db, cookieSecure: false, publicOrigin: ORIGIN });
+  // Every module that adds /api routes is registered here, so the table below covers all of them.
+  const upstreamPool = new UpstreamPool({ key: loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') }) });
+  const health = new HealthMonitor(upstreamPool, { loadUpstreams: () => listUpstreams(db) });
+  registerUpstreamRoutes(app, { db, pool: upstreamPool, health, discovery: new ToolDiscovery(upstreamPool, { health }) });
   await app.ready();
   const login = async (email: string) => String((await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN },
     payload: { email, password: PW } })).headers['set-cookie']).split(';')[0]!;
