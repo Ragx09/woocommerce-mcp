@@ -1,12 +1,13 @@
 # Progress
 
 ## Current phase
-Phase 5 — Auth, API keys, audit (Day 4 work started 2026-10-13)
+Phase 6 — Dashboard and chat (Day 5 work started 2026-10-14)
 
 ## Current task
-Day 4 auth phase complete (AUTH-01..15 Done). Blocked: P0-03 / REL-01 (no VPS), GW-15 (repo name). Next: Day 5 dashboard (UI-01..)
+UI-01, UI-02, UI-03, UI-20 (+ INF-11) Done. Next: UI-04 (server list with status and tools; needs `GET /api/upstreams`, `/api/upstreams/:id/tools`), then UI-05..12, then the chat (UI-13, UI-15, UI-14, UI-16, UI-17, UI-19).
 
 ## Recently completed
+- 2026-10-14: **UI-01/02/03/20 + INF-11 — dashboard on k3d**: `apps/dashboard` (Vite 8.3.1, React 19.3, TanStack Query, React Router 8; deps ≥ 2 weeks old) with sign-in, sign-out and invite acceptance, top nav by role, placeholders for later pages; `api.ts` error mapping (TC-UI-02-1 7/7); nginx-unprivileged image with strict CSP, read-only root fs, Traefik-only NetworkPolicy and no egress, served at `app.<domain>/` (D-017). **Found and fixed:** Traefik ranks routers by rule length, so `Exact /mcp` lost to the dashboard's `/` and MCP POSTs hit nginx → `/mcp` is Prefix; ingress checks now tell gateway from dashboard by `x-request-id`. Browser flow `scripts/dashboard-screens.sh` 20/20 (admin + member, invite reuse refused, open redirect refused, no CSP errors, phone width); `k8s-checks.sh all` 28 PASS / 0 fail; chart 0 violations; gateway unit 66/66; `up.sh` re-run restarts nothing. k3d now has throwaway members `carol-<ts>@example.invalid` from the browser runs.
 - 2026-10-13: **AUTH-14 + AUTH-15 — audit API and secret scan**: `GET /api/audit` (admin; user/upstream/outcome/source/time filters, keyset pagination); TC-AUTH-04 drives every /api route and /mcp at debug log level and finds no secret (passwords, invite token, keys, upstream token, encryption key, stored hashes) in any response or log line — mutation-checked, including a password logged under an innocent field name that the redaction layers miss. Int 80/80, unit 66/66; k3d audit API verified. Int hook timeout raised to 30 s (DB create/drop checkpoints on WSL).
 - 2026-10-13: **AUTH-11 + AUTH-13 — attribution and audit writes**: every tools/call, tools/list and refused /mcp request leaves one audit row (ok, tool_error, error, timeout, unreachable, rejected, denied) with user, key, request id, upstream, tool, duration; never arguments; denied rows have no user. TC-AUTH-05, TC-AUTH-11-1, TC-AUTH-01 PASS (mutation-checked), int 75/75, unit 66/66. Unit files now run sequentially too (argon2 load caused a timing flake). k3d: Bob's calls, a forged key and the cross-server script all appear correctly attributed.
 - 2026-10-13: **AUTH-10 — server-side authorization**: default-deny router — every `/api` route declares public/session/admin or the gateway will not start; guards run before body parsing; TC-AUTH-02 walks the registered routes (anonymous 401, member 403 on admin routes), mutation-checked. Int 70/70, unit 66/66; k3d member → 403 on admin routes.

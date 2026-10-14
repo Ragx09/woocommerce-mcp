@@ -552,7 +552,7 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 
 ### INF-11 — Ingress hosts
 - **Priority:** P0
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 2
 - **Depends on:** INF-07
 - **Requirements:** REQ-K8S-06
@@ -561,8 +561,8 @@ Exit criterion: a repeatable Helm deployment works on k3d.
 - **Acceptance:** TC-K8S-04 passes.
 - **Tests:** TC-INF-11-1: curl each host/path → expected code.
 - **Command:** `scripts/k8s-checks.sh ingress`
-- **Evidence:** 2026-10-11: store Ingress `store.<domain>` (Traefik, optional TLS via cert-manager annotation) → `/`, `/shop/` 200; no public route to woo-mcp (404). `app.<domain>`: `/api` (Prefix) and `/mcp` (Exact) → gateway verified with GW-01 (JSON 404 from gateway; probes not routed). Dashboard `/` lands with UI-20.
-- **Regression risk:** —
+- **Evidence:** 2026-10-11: store Ingress `store.<domain>` (Traefik, optional TLS via cert-manager annotation) → `/`, `/shop/` 200; no public route to woo-mcp (404). 2026-10-14 (with UI-20): `app.<domain>` `/` → dashboard, `/api` + `/mcp` (both Prefix) → gateway. TC-INF-11-1 PASS via `scripts/k8s-checks.sh ingress` (gateway identified by its `x-request-id` header): GET / and /servers → dashboard 200; POST /mcp → gateway 401; GET /mcp → gateway 401 (405 with a key); /mcp/x → gateway 404; /api/me → gateway 401; /healthz → dashboard (gateway probes not public). Local domain approach: nip.io (`docs/DEPLOYMENT.md`).
+- **Regression risk:** Low.
 
 ### INF-12 — Persistent volumes
 - **Priority:** P0
@@ -1300,7 +1300,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-01 — Dashboard skeleton
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** INF-01
 - **Requirements:** REQ-DEL-04
@@ -1309,12 +1309,12 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** `npm run build -w apps/dashboard` succeeds.
 - **Tests:** TC-UI-01-1: build → dist.
 - **Command:** `npm run build -w apps/dashboard`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-14: `apps/dashboard` workspace (root `workspaces` + `apps/*`): Vite 8.3.1, React 19.3.0, TanStack Query 5.104.0, React Router 8.4.0, @vitejs/plugin-react 6.1.1 (all ≥ 2 weeks old; root `overrides` pins vite 8.3.1 so vitest shares it). Layout with top nav (Overview, Servers, Chat, My API keys; admin adds Members, Audit log), placeholders for later UI tasks, light/dark tokens, phone layout. TC-UI-01-1 PASS: `npm run build -w apps/dashboard` → `tsc --noEmit` clean, `dist/index.html` + `assets/index-*.js` (303 kB, 96 kB gzip) + css. Dev server proxies `/api` to k3d with the gateway's own Origin.
+- **Regression risk:** Low.
 
 ### UI-02 — API client
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-01, AUTH-03
 - **Requirements:** —
@@ -1323,12 +1323,12 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** Used by all pages.
 - **Tests:** TC-UI-02-1: unit test of the error mapping.
 - **Command:** `npm test -w apps/dashboard`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-14: `src/api.ts` — `api<T>()` (same-origin credentials, JSON, 204 → undefined), `ApiError{status,code,message,retryAfterSec}`; friendly messages for actionable codes, server text kept for 4xx validation, never shown for 5xx or non-JSON proxy pages; `rate_limited` uses Retry-After; 401 `unauthenticated` → one handler that clears the cache and redirects to `/login?next=…` (`invalid_credentials` does not); network failure → `network_error`, aborts pass through. TC-UI-02-1 PASS: `npm test -w apps/dashboard` → 7/7.
+- **Regression risk:** Low.
 
 ### UI-03 — Login / logout / accept invite
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-02, AUTH-05
 - **Requirements:** REQ-AUTH-01, REQ-AUTH-02
@@ -1337,8 +1337,8 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** Manual flow works for admin and member.
 - **Tests:** TC-UI-03-1 (manual): invite → accept → login.
 - **Command:** manual (runbook)
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-14: Login (`/login`, `?next=` limited to in-app paths — open-redirect guard), sign-out, invite acceptance (`/invite#<token>`: token read once and removed from the address bar/history; check → name + password ≥ 12 + repeat → signed in), `RequireAuth` (admin-only routes redirect members; the server enforces again). TC-UI-03-1 automated in a real browser: `scripts/dashboard-screens.sh` (Playwright 1.64 image, k3d) → **20/20 PASS**: anonymous /audit → login → back to /audit; wrong password → generic message, field cleared; admin nav; invite created from the page (201); sign-out → /api/me 401; invite link → token gone from URL, weak/mismatched password blocked, account created, member nav without admin pages, /members → /, member `GET /api/invites` 403; reused link → "already been used"; deep link /keys after login; `?next=//evil.example` stays on the dashboard; no horizontal scroll at 390 px; no console errors (CSP). Screenshots in `tests/e2e/out/screens/ui-03-*.png`. Each run leaves one throwaway member `carol-<ts>@example.invalid` on k3d.
+- **Regression risk:** Low.
 
 ### UI-04 — Server list with status and tools
 - **Priority:** P0
@@ -1566,7 +1566,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-20 — Dashboard image + Helm
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-01, INF-11
 - **Requirements:** REQ-K8S-04
@@ -1575,8 +1575,8 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** `http://app.127.0.0.1.nip.io` loads the dashboard.
 - **Tests:** TC-K8S-04.
 - **Command:** `curl -s http://app.127.0.0.1.nip.io | grep -q '<div id="root"'`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-14: `apps/dashboard/Dockerfile` (node build → `nginxinc/nginx-unprivileged:1.30.4-alpine3.24`, nginx started directly, read-only root fs + `/tmp` emptyDir), `nginx.conf` (SPA fallback, immutable `/assets/`, `no-cache` index, CSP `default-src 'self'` + `frame-ancestors 'none'`, nosniff, DENY, no-referrer); chart `templates/platform/dashboard.yaml` (probes, 10m/16Mi, limit 64Mi, uid 101, no SA token, NetworkPolicy: Traefik only in, no egress); Ingress `app` `/` → dashboard. **Found and fixed:** Traefik orders routers by rule length, so `Path(/mcp)` lost to `PathPrefix(/)` and POST /mcp hit nginx (405) → `/mcp` is now Prefix. `build-images.sh`/`deploy.sh` include the dashboard. TC-K8S-04 PASS (`curl -s http://app.127.0.0.1.nip.io | grep -q '<div id="root"'`); `scripts/k8s-checks.sh all` → 28 PASS, 0 failures (incl. TC-UI-20-1a/b/c: dashboard from a random pod / the gateway CLOSED, dashboard egress CLOSED; `nc` verified working); chart 0 violations both envs; `up.sh` re-run → same dashboard tag, no restart.
+- **Regression risk:** Low.
 
 ---
 

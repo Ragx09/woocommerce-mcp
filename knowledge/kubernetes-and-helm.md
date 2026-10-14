@@ -29,3 +29,13 @@
 6. **Alternatives:** Kustomize (forbidden by the brief), raw manifests.
 7. **Debugging:** `helm template … | less` to see the rendered YAML; `helm lint`; `helm get values platform`; `helm history platform`.
 8. **Self-test:** What does `helm rollback` *not* undo? (Hint: data in PVCs and database migrations.)
+
+## Ingress and Traefik
+1. **What:** An Ingress maps host + path to a Service; an ingress controller (Traefik in k3s) implements it. `pathType` is `Exact` (only that path) or `Prefix` (that path and everything under it).
+2. **Why:** One public entry point (ports 80/443) for many internal Services, with stable URLs.
+3. **Why we need it:** REQ-K8S-06: `store.<domain>` → WordPress; `app.<domain>` → dashboard (`/`) and gateway (`/api`, `/mcp`). Everything else stays ClusterIP-only.
+4. **How:** Traefik turns each Ingress path into a router rule such as ``Host(`app…`) && PathPrefix(`/api`)`` and, by default, gives it a **priority equal to the length of the rule text**. The Kubernetes spec says an `Exact` match beats a `Prefix` match, but Traefik does not implement that: ``Path(`/mcp`)`` is shorter than ``PathPrefix(`/`)``, so `/` won and POST /mcp went to nginx (UI-20). Fix: make `/mcp` a `Prefix` (longer rule), or set an explicit router priority.
+5. **Where:** `charts/platform/templates/platform/gateway.yaml` (Ingress `app`), `dashboard.yaml`; checks in `scripts/k8s-checks.sh ingress`.
+6. **Alternatives:** One Ingress per backend with `traefik.ingress.kubernetes.io/router.priority` annotations; Traefik `IngressRoute` CRDs (not portable to other controllers).
+7. **Debugging:** Find out *who* answered, not just the status code: our gateway sets `x-request-id` on every response and nginx does not. `kubectl -n kube-system logs deploy/traefik`; `curl -sD - -o /dev/null http://app.127.0.0.1.nip.io/mcp`.
+8. **Self-test:** Why did `GET /mcp` return 200 HTML instead of 401 JSON? Which of `/api` (Prefix) and `/` (Prefix) wins for `/api/me`, and why?

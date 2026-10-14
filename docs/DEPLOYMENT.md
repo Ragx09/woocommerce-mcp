@@ -22,7 +22,7 @@ The repo lives on the Linux filesystem (`~/projects/woocommerce-mcp`), because b
 | store | woo-mcp | Deployment | — | internal (gateway only) |
 | platform | postgres | StatefulSet | PVC 1Gi | internal (gateway only) |
 | platform | gateway | Deployment | — | Ingress `app.<domain>/api`, `/mcp` |
-| platform | dashboard | Deployment | — | Ingress `app.<domain>/` |
+| platform | dashboard | Deployment | — (`/tmp` emptyDir) | Ingress `app.<domain>/` (nginx-unprivileged, Traefik-only NetworkPolicy, no egress) |
 | platform | everything-mcp | Deployment | — | internal (gateway only) |
 
 ## 3. Local (k3d)
@@ -47,7 +47,7 @@ Storefront (TATVA, D-016): `scripts/build-images.sh` also builds `store-assets` 
 
 Upstreams (GW-13/14): the gateway seeds `woo`, `everything` (in-cluster `everything-mcp`, `everythingMcp.enabled`) and `github` (`gateway.seed.github`, PAT from `upstream-seed` key `github-pat`; empty → skipped with a log warning) on first start; rows an admin edited are never overwritten. A PAT added later: put it in `.env`, `scripts/make-secrets.sh --rotate platform/upstream-seed`, restart the gateway.
 
-Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
+Checks: `scripts/check-chart.sh` (lint, kubeconform, policy), `scripts/k8s-checks.sh all` (Ingress + NetworkPolicy), `scripts/dashboard-screens.sh` (dashboard sign-in / invite flow in a browser, screenshots), `scripts/woo-int.sh` (woo-mcp against the real store), `scripts/e2e-checkout.sh` (browser checkout with COD).
 
 Local domains: `http://store.127.0.0.1.nip.io`, `http://app.127.0.0.1.nip.io`. nip.io resolves `*.127.0.0.1.nip.io` to 127.0.0.1, so no hosts-file edits are needed. Fallback: add both hosts to `/etc/hosts` and `C:\Windows\System32\drivers\etc\hosts`.
 

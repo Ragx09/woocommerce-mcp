@@ -49,3 +49,13 @@
 6. **Alternatives:** Per-route `preHandler` guards (easy to forget), a global middleware with a URL allowlist (drifts from the real routes), a policy engine (OPA/Casbin: overkill for two roles).
 7. **Debugging:** Startup error "needs config.access" → add the policy to the new route. Unexpected 400 instead of 401 → the guard is running after validation (check it is an `onRequest`, not a `preHandler`).
 8. **Self-test:** Why test against the registered routes rather than a list in the test? Why should authentication run before body validation?
+
+## Single-page app security basics
+1. **What:** The dashboard is static HTML/JS that runs in the browser and calls the gateway's JSON API. Everything in it is public, so it must hold no secrets and enforce nothing by itself.
+2. **Why:** Anyone can read, change or skip the JavaScript; only the server's checks count.
+3. **Why we need it:** REQ-AUTH-01/02 (login, invites), D-017, T-12, T-19.
+4. **How:** Same origin as the API (cookie stays `SameSite=Strict`, no CORS). `HttpOnly` session cookie, never readable by JS. CSP `default-src 'self'` with no inline scripts, so an injected `<script>` will not run, and `frame-ancestors 'none'` against clickjacking. The redirect after login takes only paths starting with a single `/` (`//evil.example` is a protocol-relative URL to another site, an *open redirect*). Invite tokens travel in the URL fragment (`#…`), which browsers never send to servers, and the page removes it from history after reading it. A 401 `unauthenticated` from any request clears cached data and goes to `/login?next=…`.
+5. **Where:** `apps/dashboard/src/{api.ts,auth.tsx,pages/Invite.tsx}`, `apps/dashboard/nginx.conf`, `security-headers.conf`.
+6. **Alternatives:** Tokens in localStorage (readable by any XSS), server-rendered pages (no SPA, but a heavier backend), a BFF (backend-for-frontend) holding tokens.
+7. **Debugging:** CSP violations appear in the browser console ("Refused to load…"); `scripts/dashboard-screens.sh` fails on any unexpected console error. Hidden admin link but data still visible → the *server* check is missing (AUTH-10 table test).
+8. **Self-test:** Why is hiding the Members link not access control? Why is `?next=//evil.example` dangerous while `?next=/keys` is fine? Why does an `nginx add_header` inside a `location` drop the server-level headers?

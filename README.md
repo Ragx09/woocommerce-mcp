@@ -20,12 +20,13 @@ k3d cluster stop mcp     # pause (keeps all data); `k3d cluster start mcp` or `s
 scripts/down.sh          # remove the release, keep cluster, Secrets and data
 scripts/down.sh --all    # delete the cluster and ALL data
 ```
-`up.sh` is safe to re-run: existing Secrets are kept, and unchanged code gives the same image tag, so nothing restarts. After code changes: `SERVICES=gateway scripts/build-images.sh && scripts/deploy.sh local`.
+`up.sh` is safe to re-run: existing Secrets are kept, and unchanged code gives the same image tag, so nothing restarts. After code changes: `SERVICES=gateway scripts/build-images.sh && scripts/deploy.sh local` (or `SERVICES=dashboard`, …). Dashboard development with hot reload against k3d: `npm run dev -w apps/dashboard` (proxies `/api` to the cluster).
 
 | What | URL |
 |---|---|
 | Storefront | http://store.127.0.0.1.nip.io |
 | WP admin (user `admin`) | http://store.127.0.0.1.nip.io/wp-admin — password: `kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| Dashboard | http://app.127.0.0.1.nip.io — admin `admin@example.invalid`, password: `kubectl -n platform get secret gateway-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
 | Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — personal API key: `node scripts/lib/gateway-key.mjs create my-laptop` (prints `<id> <key>`; see docs/DEPLOYMENT.md) |
 
 More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Full instructions are finished in REL-12.

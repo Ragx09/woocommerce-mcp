@@ -42,9 +42,9 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-K8S-01 | Req. K8s | Local K8s | k3d | P0-02, INF-02 | TC-INF-02-1 | Not Started | — |
 | REQ-K8S-02 | Req. K8s | VPS with same charts | k3s | REL-01, REL-03 | TC-VPS-01 | Blocked | No VPS yet (P0-03) |
 | REQ-K8S-03 | Req. K8s | Helm + values-local/prod | charts | INF-03, INF-04 | TC-K8S-01 | Not Started | — |
-| REQ-K8S-04 | Req. K8s | Everything in cluster | charts | INF-05, UI-20 | TC-K8S-04 | Not Started | — |
+| REQ-K8S-04 | Req. K8s | Everything in cluster | charts | INF-05, UI-20 | TC-K8S-04 | Done | 2026-10-14: store, DBs, woo-mcp, gateway, everything-mcp and the dashboard all run in k3d from one chart; `curl app.127.0.0.1.nip.io` → dashboard index |
 | REQ-K8S-05 | Req. K8s | Persistent storage for DB + WP | charts | INF-12, WC-05 | TC-PER-01 | Not Started | — |
-| REQ-K8S-06 | Req. K8s | Ingress stable URLs; local domain documented | charts + docs | INF-11 | TC-K8S-04 | Not Started | — |
+| REQ-K8S-06 | Req. K8s | Ingress stable URLs; local domain documented | charts + docs | INF-11 | TC-K8S-04 | Done | 2026-10-14: `store.<domain>` and `app.<domain>` (`/` dashboard, `/api` + `/mcp` gateway); TC-INF-11-1 via `k8s-checks.sh ingress`; nip.io documented |
 | REQ-K8S-07 | Req. K8s | Readiness + liveness everywhere | charts | INF-09, REL-10 | TC-K8S-02 | Not Started | — |
 | REQ-K8S-08 | Req. K8s | Requests + limits everywhere | charts | INF-08, REL-10 | TC-K8S-02 | Not Started | — |
 | REQ-K8S-09 | Req. K8s | No hardcoded secrets; K8s Secrets | charts + scripts | INF-06, GW-17 | TC-SEC-04, TC-INF-06-2, TC-UNIT-06 | In Progress | GW-17 Done: TC-UNIT-06 PASS (field + value redaction, no tool args at info; mutation-checked); TC-AUTH-04 PASS (AUTH-15 end-to-end scan); k3d gateway log holds 0 occurrences of the PAT and woo token; TC-SEC-04 repo scan pending |

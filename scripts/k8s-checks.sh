@@ -47,6 +47,13 @@ netpol() {
   out=$(kubectl -n "$PLATFORM" exec deploy/everything-mcp -- node -e \
     "const s=require('net').connect(443,'$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')');s.setTimeout(4000);s.on('connect',()=>{console.log('OPEN');s.destroy()});s.on('timeout',()=>{console.log('CLOSED');s.destroy()});s.on('error',()=>console.log('CLOSED'))" 2>/dev/null)
   [ "$out" = CLOSED ] && pass "TC-GW-13-2d everything-mcp egress (API server by IP) → CLOSED" || fail "TC-GW-13-2d everything-mcp egress → ${out:-no result} (want CLOSED)"
+  # UI-20: the dashboard (static nginx) accepts only Traefik and opens no connections itself.
+  local dash="dashboard.$PLATFORM.svc.cluster.local"
+  expect CLOSED "TC-UI-20-1a dashboard from a random pod in $PLATFORM" "$PLATFORM" app=intruder "$dash" 80
+  expect CLOSED "TC-UI-20-1b dashboard from app=gateway in $PLATFORM" "$PLATFORM" app=gateway "$dash" 80
+  out=$(kubectl -n "$PLATFORM" exec deploy/dashboard -- sh -c \
+    "nc -z -w 4 $(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}') 443 && echo OPEN || echo CLOSED" 2>/dev/null)
+  [ "$out" = CLOSED ] && pass "TC-UI-20-1c dashboard egress (API server by IP) → CLOSED" || fail "TC-UI-20-1c dashboard egress → ${out:-no result} (want CLOSED)"
 }
 
 ingress() {
@@ -55,6 +62,25 @@ ingress() {
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://store.$DOMAIN/shop/"); [ "$code" = 200 ] && pass "store.$DOMAIN /shop/ → 200" || fail "store.$DOMAIN /shop/ → $code"
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://store.$DOMAIN/wp-json/wc/v3/products"); [ "$code" = 401 ] && pass "unauthenticated WC REST → 401" || fail "unauthenticated WC REST → $code"
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://woo-mcp.$DOMAIN/mcp"); [ "$code" = 404 ] && pass "no public route to woo-mcp → 404" || fail "woo-mcp public route → $code"
+  # INF-11 / UI-20: app.<domain> splits between dashboard (/) and gateway (/api, /mcp). The gateway
+  # sets x-request-id on every answer; nginx never does, so the header tells who answered.
+  local app="http://app.$DOMAIN" got
+  route() { # <label> <want: gateway|dashboard> <want code> <curl args…>
+    local label="$1" want="$2" wcode="$3"; shift 3
+    local h; h=$(curl -s -o /dev/null -D - "$@" | tr -d '\r')
+    local c; c=$(echo "$h" | awk 'NR==1{print $2}')
+    local who=dashboard; echo "$h" | grep -qi '^x-request-id:' && who=gateway
+    [ "$who $c" = "$want $wcode" ] && pass "TC-INF-11-1 $label → $who $c" || fail "TC-INF-11-1 $label → $who $c (want $want $wcode)"
+  }
+  route "GET  /"            dashboard 200 "$app/"
+  route "GET  /servers"     dashboard 200 "$app/servers"
+  route "POST /mcp"         gateway 401 -X POST -H 'content-type: application/json' --data '{}' "$app/mcp"
+  route "GET  /mcp"         gateway 401 "$app/mcp"          # auth first, then 405 for a key holder
+  route "GET  /mcp/x"       gateway 404 "$app/mcp/x"        # Prefix route: still the gateway, not the SPA
+  route "GET  /api/me"      gateway 401 "$app/api/me"
+  route "GET  /healthz"     dashboard 200 "$app/healthz"   # SPA fallback: the gateway probe is not public
+  got=$(curl -s "$app/" | grep -c '<div id="root"'); [ "$got" = 1 ] && pass "TC-K8S-04 dashboard index served" || fail "TC-K8S-04 no <div id=\"root\"> at $app/"
+  got=$(curl -sI "$app/" | grep -ci '^content-security-policy:.*frame-ancestors .none.'); [ "$got" = 1 ] && pass "dashboard CSP header present" || fail "dashboard CSP header missing"
 }
 
 # --- GW-16: kill the everything-mcp pod; the gateway must keep serving woo + github ---------------

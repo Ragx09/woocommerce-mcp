@@ -55,6 +55,8 @@ flowchart LR
 | `app.<domain>/api/*` → gateway REST | `mariadb` (wordpress + wp-init only) |
 | `app.<domain>/mcp` → gateway MCP endpoint | `postgres` (gateway only) |
 
+The dashboard and the gateway share the host `app.<domain>`, so the browser talks to one origin: the session cookie stays `SameSite=Strict` and no CORS is needed. The dashboard is static files behind nginx (no secrets, no outbound connections, CSP `default-src 'self'`); all logic and authorization live in the gateway. Both `/api` and `/mcp` are `Prefix` paths: Traefik orders routers by the length of the rule text, so an `Exact` `/mcp` would lose to the dashboard's `/` (UI-20).
+
 Local domain: `*.127.0.0.1.nip.io` (resolves to 127.0.0.1, so no hosts-file edits are needed). VPS: `*.<ip>.sslip.io` or a real domain (D-010).
 
 ## 4. Key flows

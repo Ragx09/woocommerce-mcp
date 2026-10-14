@@ -75,9 +75,20 @@ everythingMcp:
     requests: { cpu: 20m, memory: 64Mi }
     limits: { memory: 192Mi }
 
+# UI-20: dashboard SPA at app.<domain>/ (same host as the gateway: same-origin cookie, no CORS).
+dashboard:
+  enabled: true
+  image:
+    repository: dashboard
+    tag: dev
+  replicas: 1
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { memory: 64Mi }
+
 gateway:
   enabled: true
-  host: app                                  # → app.<domain>: /api and /mcp (dashboard / lands with UI-20)
+  host: app                                  # → app.<domain>: /api and /mcp (the dashboard serves /)
   image:
     repository: gateway
     tag: dev

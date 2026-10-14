@@ -20,7 +20,8 @@ Status: `Not Started` · `Learning` · `Understood`. Mark a concept **Understood
 | Kubernetes core objects (Pod, Deployment, StatefulSet, Service) | Learning | [kubernetes-and-helm.md#core-objects](kubernetes-and-helm.md#core-objects) | INF-* |
 | k3s / k3d | Learning | [kubernetes-and-helm.md#k3s-and-k3d](kubernetes-and-helm.md#k3s-and-k3d) | P0-02, INF-02 |
 | Helm charts and values | Learning | [kubernetes-and-helm.md#helm](kubernetes-and-helm.md#helm) | INF-03, INF-04 |
-| Ingress and Traefik | Not Started | kubernetes-and-helm.md | INF-11 |
+| Ingress and Traefik | Learning | [kubernetes-and-helm.md#ingress-and-traefik](kubernetes-and-helm.md#ingress-and-traefik) | INF-11, UI-20 |
+| Single-page app security (same origin, CSP, open redirect) | Learning | [backend-and-security.md#single-page-app-security-basics](backend-and-security.md#single-page-app-security-basics) | UI-01..03, UI-20 |
 | PersistentVolumes and PVCs | Not Started | kubernetes-and-helm.md | INF-12, WC-05 |
 | Probes, requests and limits | Not Started | kubernetes-and-helm.md | INF-08, INF-09 |
 | Secrets | Not Started | kubernetes-and-helm.md | INF-06 |

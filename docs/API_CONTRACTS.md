@@ -26,7 +26,8 @@
 | GET | `/api/audit` | session | admin | Filters `user` (uuid), `upstream` (slug), `outcome`, `source`, `from`/`to` (ISO), `limit` 1..200 (50), `cursor` → `{items:[{id,ts,requestId,source,method,upstream,tool,durationMs,outcome,errorCode,keyPrefix,user:{id,email,name}\|null}], nextCursor}` newest first (keyset pagination); 400 on bad filters |
 | POST | `/api/chat` | session | any | `{messages:[{role,content}]}` → `{reply, toolCalls[]}` |
 | POST | `/mcp` | `Authorization: Bearer mgw_…` (per-user API key, AUTH-08; internal chat token with UI-15) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
-| GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress) |
+| GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress; on `app.<domain>` these paths reach the dashboard) |
+| GET | everything else on `app.<domain>` | — | — | Dashboard SPA (nginx): `index.html` for any client route (`/login`, `/invite`, `/servers` …), `/assets/*` immutable; CSP `default-src 'self'; frame-ancestors 'none'` |
 
 Every `/api` route declares its access (`public`, `session`, `admin`) in code; the guard runs before the body is parsed, so an anonymous request gets 401 and a member on an admin route 403 regardless of the body (AUTH-10).
 

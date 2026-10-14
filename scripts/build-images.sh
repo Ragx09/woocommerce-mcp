@@ -4,10 +4,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 touch .images.env   # keep tags of services not rebuilt this time (SERVICES=gateway …)
-for svc in ${SERVICES:-woo-mcp gateway store-assets everything-mcp}; do
+for svc in ${SERVICES:-woo-mcp gateway store-assets everything-mcp dashboard}; do
   # No provenance/SBOM attestations: they embed build timestamps, which change the image id on every
   # build and would restart pods on a no-op `up.sh` (found in INF-15).
-  docker build -q --provenance=false --sbom=false -t "$svc:build" -f "services/$svc/Dockerfile" . >/dev/null
+  docker build -q --provenance=false --sbom=false -t "$svc:build" -f "$(ls -d services/$svc apps/$svc 2>/dev/null | head -1)/Dockerfile" . >/dev/null
   tag="sha-$(docker image inspect --format '{{.Id}}' "$svc:build" | cut -d: -f2 | cut -c1-12)"
   docker tag "$svc:build" "$svc:$tag"
   k3d image import "$svc:$tag" -c mcp >/dev/null 2>&1

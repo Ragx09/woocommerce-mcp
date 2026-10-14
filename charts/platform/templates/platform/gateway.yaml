@@ -99,7 +99,10 @@ spec:
             timeoutSeconds: 3
           resources: {{- include "platform.resources" (dict "name" "gateway" "resources" $v.resources) | nindent 12 }}
 ---
-# Only /api and /mcp are public; the probes (/healthz, /readyz) are not routed.
+# app.<domain>: /api and /mcp → gateway, everything else → dashboard. The gateway probes (/healthz,
+# /readyz) are not routed. /mcp is Prefix, not Exact: Traefik orders routers by the length of the rule
+# text, so Path(`/mcp`) would lose to the dashboard's PathPrefix(`/`) and MCP clients would get nginx
+# (found in UI-20). The gateway answers 404 for anything under /mcp/ other than /mcp itself.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -125,6 +128,11 @@ spec:
             pathType: Prefix
             backend: { service: { name: gateway, port: { name: http } } }
           - path: /mcp
-            pathType: Exact
+            pathType: Prefix
             backend: { service: { name: gateway, port: { name: http } } }
+          {{- if .Values.dashboard.enabled }}
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: dashboard, port: { name: http } } }
+          {{- end }}
 {{- end }}
