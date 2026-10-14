@@ -92,3 +92,11 @@ Implemented in GW-09 (`withDeadline` in `services/gateway/src/upstreams/pool.ts`
 - Disable: `enabled=false` → excluded from the list immediately (DB read per request); the pool connection is closed; calls → `upstream_disabled`.
 - Remove: the row is deleted (audit rows keep `upstream_slug` text); the pool entry is closed.
 - Clients learn about changes on their next `tools/list`. Stateless mode means no `list_changed` notification. Documented as a trade-off.
+
+## 12. Upstream URL guard (SSRF, T-06)
+Admins choose the URLs the gateway connects to, so the gateway refuses to become a proxy into the cluster or the cloud metadata service (`src/upstreams/ssrf.ts`):
+- **Syntax:** `http`/`https` only, no `user:pass@`, ≤ 2048 characters. The WHATWG URL parser normalizes odd IPv4 forms (`2130706433`, `0x7f.1` → `127.0.0.1`) before any check.
+- **Addresses:** every DNS answer must be public. Refused: loopback, RFC 1918 (incl. k3s pod `10.42/16` and Service `10.43/16` ranges), CGNAT, `0/8`, multicast/reserved, documentation ranges, IPv6 `::1`, ULA `fc00::/7`, NAT64, IPv4-mapped forms; **always** refused: link-local `169.254/16`, `fe80::/10`, `fd00:ec2::254` (metadata).
+- **Allowlist by host name:** `UPSTREAM_ALLOWED_HOSTS` (Helm `gateway.upstreamAllowedHosts`) plus the hosts of the seeded upstreams (woo-mcp, everything-mcp, GitHub). Names, not networks: `postgres.platform.svc.cluster.local` stays blocked although it is internal. An allowlisted name may still not resolve to link-local/metadata.
+- **Twice:** when a URL is saved (`POST`/`PATCH /api/upstreams` → 400 `ssrf_blocked` with a reason), and on every connection: the pool's undici agent uses a guarded `lookup` (checks the address actually connected to — DNS rebinding) and literal-IP URLs are checked before the request (Node skips `lookup` for IPs). A row written around the API is refused at connect time and shows as Unreachable with `ssrf_blocked`.
+- Redirects are refused (§7), so a 3xx cannot bounce the request to a blocked address either.

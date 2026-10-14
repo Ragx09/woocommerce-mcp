@@ -3,7 +3,9 @@
 #   auth     TC-UI-03-1 sign-in / invite flow (creates a throwaway member carol-<ts>@example.invalid)
 #   servers  TC-UI-04-1 server status; scales everything-mcp to 0 and back while the page is open
 #            (creates a throwaway member dora-<ts>@example.invalid)
-# Usage: scripts/dashboard-screens.sh [auth|servers|all] (default all). The admin credentials come from
+#   admin    TC-UI-05..08-1 add / edit / disable / delete a server (a second registration of
+#            everything-mcp, removed at the end) + member view (creates erin-<ts>@example.invalid)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -32,6 +34,7 @@ scaler() {
 
 rc=0
 case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
+case "${1:-all}" in admin|all) run dashboard-server-admin.mjs || rc=1 ;; esac
 case "${1:-all}" in servers|all)
   rm -f "$OUT/.want-kill" "$OUT/.want-restore"
   scaler & spid=$!

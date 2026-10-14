@@ -99,6 +99,9 @@ gateway:
     list: 3000
     call: 15000
   healthIntervalMs: 10000                    # upstream health loop (GW-10)
+  # SSRF guard (T-06): admin-added servers may not resolve to internal addresses unless their host
+  # name is listed here. The seeded servers' hosts (woo-mcp, everything-mcp) are allowed automatically.
+  upstreamAllowedHosts: []
   secrets: gateway-secrets                   # key: credentials-key (64 hex chars)
   adminSecret: gateway-admin                 # keys: admin-email, admin-password — first admin (AUTH-02)
   seed:

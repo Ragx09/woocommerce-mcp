@@ -59,3 +59,13 @@
 6. **Alternatives:** Tokens in localStorage (readable by any XSS), server-rendered pages (no SPA, but a heavier backend), a BFF (backend-for-frontend) holding tokens.
 7. **Debugging:** CSP violations appear in the browser console ("Refused to load…"); `scripts/dashboard-screens.sh` fails on any unexpected console error. Hidden admin link but data still visible → the *server* check is missing (AUTH-10 table test).
 8. **Self-test:** Why is hiding the Members link not access control? Why is `?next=//evil.example` dangerous while `?next=/keys` is fine? Why does an `nginx add_header` inside a `location` drop the server-level headers?
+
+## SSRF
+1. **What:** Server-side request forgery: making a server send a request to a place the attacker cannot reach, e.g. cloud metadata at `169.254.169.254` (temporary cloud credentials), a database inside the cluster, or `localhost` admin ports.
+2. **Why:** The gateway sits inside the cluster with network access the user does not have; whoever chooses its URLs borrows that access.
+3. **Why we need it:** Admins register upstream URLs (REQ-GW-01). A stolen admin session, or a careless admin, must not turn the gateway into a proxy (T-06, TC-SEC-01).
+4. **How:** Parse with the WHATWG URL parser (normalizes `2130706433` → `127.0.0.1`), allow http(s) only, resolve the name and refuse if *any* answer is internal; allow internal hosts only by exact name from an allowlist. Check again at connect time inside the HTTP agent's `lookup`, because the DNS answer can change between "check" and "use" (DNS rebinding); literal IPs skip `lookup`, so check those before the request. Refuse redirects.
+5. **Where:** `services/gateway/src/upstreams/ssrf.ts`, `pool.ts` (agent `connect.lookup`), `routes.ts`; Helm `gateway.upstreamAllowedHosts`.
+6. **Alternatives:** An egress proxy (e.g. smokescreen) or NetworkPolicy egress rules — stronger, but the gateway must also reach arbitrary public MCP servers, so it would still need per-host rules; we keep NetworkPolicy ingress on the internal services as a second wall.
+7. **Debugging:** 400 `ssrf_blocked` names the host and why ("resolves to an internal address"); an existing server suddenly Unreachable with `ssrf_blocked` → its name now resolves internally or it is missing from the allowlist (`kubectl -n platform logs deploy/gateway | grep "ssrf allowlist"`).
+8. **Self-test:** Why is checking the URL once, at save time, not enough? Why is the allowlist made of host names rather than CIDRs? Why does `http://[::ffff:127.0.0.1]/` need special handling?

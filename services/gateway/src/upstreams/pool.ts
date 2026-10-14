@@ -10,12 +10,16 @@
 //   drops Authorization on a cross-origin redirect but keeps custom headers like X-Api-Key). The SDK
 //   (1.32) already stops cross-origin redirects; `redirect: 'error'` is a second layer that does not
 //   depend on the SDK default. Registered URLs are exact endpoints, so no redirect is expected.
+// - SSRF guard at connect time (T-06, `ssrf` option): every DNS answer the agent connects to and every
+//   literal-IP URL is checked against the policy (ssrf.ts), so DNS rebinding or a row written around
+//   the API cannot reach internal addresses.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
 import { Agent, fetch as undiciFetch } from 'undici';
 import type { Upstream } from '../db/schema.js';
 import { decryptCredential, type CredentialKey } from '../crypto/credentials.js';
+import { checkLiteralHost, guardedLookup, type SsrfPolicy } from './ssrf.js';
 
 export const CLIENT_INFO = { name: 'mcp-gateway', version: '0.1.0' };
 
@@ -23,6 +27,8 @@ export interface PoolOptions {
   key: CredentialKey;
   /** TCP connect + MCP initialize budget (docs/MCP_DESIGN.md §6: 2 s). */
   connectTimeoutMs?: number;
+  /** Refuse internal addresses unless allowlisted (production). Unset: no check (tests with local fakes). */
+  ssrf?: SsrfPolicy;
   log?: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void };
 }
 
@@ -101,7 +107,8 @@ export class UpstreamPool {
     this.connectTimeoutMs = opts.connectTimeoutMs ?? 2_000;
     // bodyTimeout 0: the optional server→client SSE stream may stay open; request budgets are
     // enforced per call by the SDK `timeout` option (GW-09).
-    this.dispatcher = new Agent({ connect: { timeout: this.connectTimeoutMs }, bodyTimeout: 0, keepAliveTimeout: 30_000 });
+    const lookup = opts.ssrf ? guardedLookup(opts.ssrf) : undefined;
+    this.dispatcher = new Agent({ connect: { timeout: this.connectTimeoutMs, ...(lookup ? { lookup } : {}) }, bodyTimeout: 0, keepAliveTimeout: 30_000 });
   }
 
   /** Align the pool with the current upstream rows. Disabled or removed upstreams are closed. */
@@ -178,10 +185,13 @@ export class UpstreamPool {
   private async open(row: Upstream): Promise<Client> {
     const headers = upstreamHeaders(this.opts.key, row);
     const dispatcher = this.dispatcher;
+    const ssrf = this.opts.ssrf;
     const transport = new StreamableHTTPClientTransport(new URL(row.url), {
       requestInit: { headers },
-      fetch: ((url: string | URL, init?: RequestInit) =>
-        undiciFetch(url, { ...(init as object), dispatcher, redirect: 'error' })) as unknown as typeof fetch,
+      fetch: (async (url: string | URL, init?: RequestInit) => {
+        if (ssrf) checkLiteralHost(url, ssrf); // IP hosts never reach the agent's lookup
+        return undiciFetch(url, { ...(init as object), dispatcher, redirect: 'error' });
+      }) as unknown as typeof fetch,
     });
     const client = new Client(CLIENT_INFO, { capabilities: {} });
     try {

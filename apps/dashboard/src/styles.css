@@ -117,3 +117,23 @@ button.ghost { background: transparent; color: var(--text); border-color: var(--
 .tools li { border-top: 1px solid var(--border); padding-top: 0.6rem; }
 .tools p { margin: 0.2rem 0 0; }
 .tool-name { font-weight: 600; }
+
+/* UI-05..07 server admin */
+.stack-right { display: grid; gap: 0.4rem; justify-items: end; }
+.narrow { max-width: 640px; }
+a.button {
+  display: inline-block; text-decoration: none; font-weight: 600;
+  background: var(--accent); color: var(--accent-text); border: 1px solid var(--accent); border-radius: 7px; padding: 0.55rem 1rem;
+}
+a.button.ghost { background: transparent; color: var(--text); border-color: var(--border); padding: 0.35rem 0.75rem; font-weight: 500; }
+button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.ghost.danger { background: transparent; color: var(--danger); border-color: var(--border); }
+.confirm { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.form { display: grid; gap: 1rem; }
+fieldset { border: 1px solid var(--border); border-radius: 7px; padding: 0.75rem 1rem 1rem; margin: 0; display: grid; gap: 0.85rem; }
+legend { font-weight: 600; padding: 0 0.3rem; }
+.choices { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.choice { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 400; }
+.choice input { width: auto; }
+input[readonly] { opacity: 0.7; }
+@media (max-width: 600px) { .stack-right { justify-items: start; } }

@@ -71,7 +71,8 @@ describe('TC-AUTH-02 server-side authorization over every /api route (AUTH-10)',
     expect(table.length).toBeGreaterThanOrEqual(11);
     expect(table.filter((r) => r.access === 'public').map((r) => `${r.method} ${r.url}`).sort()).toEqual([...PUBLIC].sort());
     expect(table.filter((r) => r.access === 'admin').map((r) => `${r.method} ${r.url}`).sort())
-      .toEqual(['GET /api/audit', 'GET /api/invites', 'POST /api/invites', 'POST /api/users/:id/keys']);
+      .toEqual(['DELETE /api/upstreams/:id', 'GET /api/audit', 'GET /api/invites', 'PATCH /api/upstreams/:id', 'POST /api/invites',
+        'POST /api/upstreams', 'POST /api/users/:id/keys']);
   });
 
   it('anonymous → 401 on every non-public route, before the body is even validated', async () => {

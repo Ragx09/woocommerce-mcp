@@ -21,6 +21,7 @@ import { loggerOptions } from '../../src/logger.js';
 import { registerMcp } from '../../src/mcp/route.js';
 import { HealthMonitor } from '../../src/upstreams/health.js';
 import { registerUpstreamRoutes } from '../../src/upstreams/routes.js';
+import { ssrfPolicy } from '../../src/upstreams/ssrf.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
 import { listUpstreams } from '../../src/upstreams/repo.js';
@@ -67,7 +68,7 @@ beforeAll(async () => {
   upstreamPool = new UpstreamPool({ key, connectTimeoutMs: 2_000, log: app.log });
   const health = new HealthMonitor(upstreamPool, { loadUpstreams: () => listUpstreams(db) });
   const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: 3_000, log: app.log, health });
-  registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health });
+  registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key, ssrf: ssrfPolicy(['127.0.0.1']) });
   registerMcp(app, { authenticate: (t) => authenticateApiKey(db, t), loadUpstreams: () => listUpstreams(db), pool: upstreamPool,
     discovery, health, audit: dbAuditSink(db, app.log) });
   await app.ready();
@@ -119,6 +120,17 @@ describe('TC-AUTH-04 no secret in any /api or /mcp response, nor in any log line
     const ups = (await call('GET', '/api/upstreams', { cookie: adminCookie })).json();
     await call('GET', '/api/upstreams', { cookie: memberCookie });
     await call('GET', `/api/upstreams/${ups[0].id}/tools`, { cookie: memberCookie });
+    // Admin adds a server with a credential, rotates it, switches to a custom header, then removes it.
+    const NEW_TOKEN = `added-server-token-${randomBytes(6).toString('hex')}`;
+    const ROTATED = `rotated-server-token-${randomBytes(6).toString('hex')}`;
+    const added = (await call('POST', '/api/upstreams', { cookie: adminCookie,
+      payload: { name: 'Added', slug: 'added', url: fake.url, authType: 'bearer', credential: NEW_TOKEN } })).json();
+    await call('PATCH', `/api/upstreams/${added.id}`, { cookie: adminCookie, payload: { credential: ROTATED } });
+    await call('PATCH', `/api/upstreams/${added.id}`, { cookie: adminCookie, payload: { authType: 'header', authHeader: 'X-Api-Key' } });
+    await call('POST', '/mcp', { bearer: k2.key, payload: rpc(6, 'tools/list') });
+    await call('GET', '/api/upstreams', { cookie: adminCookie });
+    await call('DELETE', `/api/upstreams/${added.id}`, { cookie: adminCookie });
+    secrets.push(NEW_TOKEN, ROTATED);
 
     // Every registered route, anonymous and as member, with an empty body.
     for (const r of accessTable(app)) {
@@ -140,7 +152,7 @@ describe('TC-AUTH-04 no secret in any /api or /mcp response, nor in any log line
     expect(logs.length).toBeGreaterThan(30);
     const out = bodies.join('\n');
     const log = logs.join('');
-    const kinds = ['admin password', 'member password', 'upstream token', 'credentials key', 'invite token', 'key 1', 'key 2', 'key 1 secret part', 'key 2 secret part'];
+    const kinds = ['admin password', 'member password', 'upstream token', 'credentials key', 'invite token', 'key 1', 'key 2', 'key 1 secret part', 'key 2 secret part', 'added upstream token', 'rotated upstream token'];
     for (const [i, s] of secrets.entries()) {
       const hit = bodies.find((b) => b.includes(s));
       if (hit) console.error(`LEAK ${kinds[i] ?? `stored value #${i}`} in: ${hit.split('\n')[0]} :: ${hit.slice(0, 300).replace(s, '<SECRET>')}`);

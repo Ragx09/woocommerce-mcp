@@ -1356,7 +1356,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-05 — Add server
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-04
 - **Requirements:** REQ-GW-01
@@ -1364,13 +1364,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Form + `POST /api/upstreams` (validation incl. SSRF guard).
 - **Acceptance:** New server appears and connects.
 - **Tests:** TC-UI-05-1; TC-SEC-01.
-- **Command:** manual + `npm test -w services/gateway -- upstreams`
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `npm test -w services/gateway -- ssrf`, `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh admin`
+- **Evidence:** 2026-10-14: `POST /api/upstreams` (admin; JSON schema + `resolveAuth` rules: header needs a non-reserved name, bearer/header need a credential, none forbids one; credential printable ASCII, encrypted with AES-GCM bound to the slug, never returned; duplicate slug 409; DB CHECKs as a second layer) + SSRF guard `src/upstreams/ssrf.ts` on save and at connect time (pool agent `lookup` + literal-IP check; allowlist = `UPSTREAM_ALLOWED_HOSTS` + seeded hosts, Helm `gateway.upstreamAllowedHosts`). Dashboard `pages/ServerForm.tsx` (`/servers/new`, slug suggested from the name, auth radio, password-type credential field). **TC-UNIT-04** 5/5 (address classes incl. mapped IPv6/NAT64, URL syntax, allowlist by name, connect-time lookup). **TC-UI-05-API** (`test/int/upstreams-admin.int.test.ts`): create → encrypted in DB, not in the response, connects with that credential, 2 tools; 8 invalid bodies → 400; **TC-SEC-01** (metadata IP + name, cluster postgres, localhost by name, 10/8, [::1], 127.0.0.2 as integer, file://, userinfo, unresolvable → 400; public + allowlisted name → 201); a row inserted around the API (localhost) → Unreachable `ssrf_blocked` at connect time; member 403. Both guard layers mutation-checked (connect-time off → 1 failure; save-time off → 3 failures). Int **96/96**, unit **71/71**; AUTH-15 scan now includes create/rotate. **Live k3d API** (TC-SEC-01): 169.254.169.254, metadata.google.internal, postgres (both names), gateway, mariadb, wordpress, kubernetes.default.svc, localhost, 127.0.0.1, [::1], 10.43.0.1 → 400 `ssrf_blocked`; seeded servers still Connected. **TC-UI-05-1** browser (`scripts/dashboard-screens.sh admin`): metadata URL refused in the form with the reason; adding a second registration of everything-mcp with a bearer token → card Connected, token never on the page, `<slug>__echo` on `/mcp` (13 new tools).
+- **Regression risk:** Low.
 
 ### UI-06 — Edit server
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-05
 - **Requirements:** REQ-GW-01
@@ -1378,13 +1378,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Form + `PATCH`.
 - **Acceptance:** Change takes effect; the credential is never displayed.
 - **Tests:** TC-UI-06-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh admin`
+- **Evidence:** 2026-10-14: `PATCH /api/upstreams/:id` (name, URL via SSRF guard, auth type/header, credential keep/replace/remove, `slug` rejected 400, empty body 400). Edit form `/servers/:id/edit`: slug read-only, credential field empty with "leave empty to keep it". **TC-UI-06-API**: rename keeps the credential; rotation → new value encrypted, never returned, the upstream receives the new token and no longer the old one after reconnect; switch to header keeps the credential, `credential:null` with bearer 400, to none clears it; SSRF on URL change 400 (URL unchanged); unknown 404; member 403. **TC-UI-06-1** browser: rename saved, credential kept, still Connected.
+- **Regression risk:** Low.
 
 ### UI-07 — Disable / remove server
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-05, GW-11
 - **Requirements:** REQ-GW-01, REQ-DOD-09
@@ -1392,13 +1392,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Buttons + `PATCH`/`DELETE`.
 - **Acceptance:** Tools disappear from the gateway list.
 - **Tests:** TC-UI-07-1.
-- **Command:** manual + Inspector list
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/dashboard-screens.sh admin` (TC-UI-07-1 uses `/mcp` tools/list)
+- **Evidence:** 2026-10-14: Disable/Enable button (`PATCH {enabled}`) and Delete with an in-page two-step confirm (no browser dialog) → `DELETE /api/upstreams/:id` (204; 404 after). **TC-UI-07-API**: disable → `disabled`, tools 409; enable → connected 2 tools; delete → gone, second delete 404, member 403. **TC-UI-07-1** browser with an API key on `/mcp` like an external client: disable → badge Disabled and the server's tools gone from `tools/list`; enable → back; delete → card gone and `tools/list` back to the 64-tool baseline. The test removes its server and revokes its temporary key (checked: 0 active keys afterwards).
+- **Regression risk:** Low.
 
 ### UI-08 — Member read-only server view
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-04
 - **Requirements:** REQ-AUTH-01, REQ-GW-12
@@ -1406,9 +1406,9 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Role-aware page.
 - **Acceptance:** No admin buttons for members (and the API rejects them anyway).
 - **Tests:** TC-UI-08-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/dashboard-screens.sh admin`
+- **Evidence:** 2026-10-14: members see the server list and status without URL/auth details (API omits them, UI-04) and without Add/Edit/Disable/Delete; admin-only routes `/servers/new`, `/servers/:id/edit` redirect members to `/`; the API refuses member writes (authz table test: POST/PATCH/DELETE /api/upstreams are admin routes). **TC-UI-08-1** browser (`dashboard-screens.sh admin`): throwaway member sees 0 admin actions, `PATCH`/`DELETE` from the member's session → 403/403, `/servers/new` → `/`.
+- **Regression risk:** Low.
 
 ### UI-09 — Members and invites page
 - **Priority:** P0
@@ -1884,7 +1884,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-08 — SSRF validation tests
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** UI-05
 - **Requirements:** —
@@ -1893,8 +1893,8 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** Blocked addresses rejected; allowlisted internal upstreams accepted.
 - **Tests:** TC-UNIT-04, TC-SEC-01.
 - **Command:** `npm test -w services/gateway -- ssrf`
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-14 (with UI-05): TC-UNIT-04 `npm test -w services/gateway -- ssrf` → 5/5; TC-SEC-01 in `upstreams-admin.int.test.ts` and against the live k3d API (12 internal/metadata targets → 400 `ssrf_blocked`, allowlisted seeded hosts accepted and Connected). Details in UI-05.
+- **Regression risk:** Low.
 
 ### REL-09 — Workload securityContext audit
 - **Priority:** P1

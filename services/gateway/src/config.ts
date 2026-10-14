@@ -15,6 +15,8 @@ export interface Config {
   cookieSecure: boolean;
   /** Public origin of the dashboard/API (scheme://host[:port]); unset → browser mutations on /api refused. */
   publicOrigin: string | undefined;
+  /** Host names that may resolve to internal addresses (SSRF allowlist, T-06); the seeded upstreams' hosts are added in index.ts. */
+  upstreamAllowedHosts: string[];
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -60,5 +62,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
     publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),
+    upstreamAllowedHosts: (env.UPSTREAM_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
   };
 }

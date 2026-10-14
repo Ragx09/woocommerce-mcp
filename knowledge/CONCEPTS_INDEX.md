@@ -15,7 +15,7 @@ Status: `Not Started` · `Learning` · `Understood`. Mark a concept **Understood
 | Default-deny authorization (route access table) | Learning | [backend-and-security.md#default-deny-authorization](backend-and-security.md#default-deny-authorization) | AUTH-10 |
 | Password hashing (argon2id) and login rate limits | Learning | [backend-and-security.md#password-login-and-brute-force-limits](backend-and-security.md#password-login-and-brute-force-limits) | AUTH-02 |
 | Encryption at rest (AES-GCM) | Not Started | backend-and-security.md | GW-12 |
-| SSRF | Not Started | backend-and-security.md | REL-08 |
+| SSRF | Learning | [backend-and-security.md#ssrf](backend-and-security.md#ssrf) | UI-05, REL-08 |
 | Token passthrough / confused deputy | Not Started | backend-and-security.md | GW-12, REL-14 |
 | Kubernetes core objects (Pod, Deployment, StatefulSet, Service) | Learning | [kubernetes-and-helm.md#core-objects](kubernetes-and-helm.md#core-objects) | INF-* |
 | k3s / k3d | Learning | [kubernetes-and-helm.md#k3s-and-k3d](kubernetes-and-helm.md#k3s-and-k3d) | P0-02, INF-02 |

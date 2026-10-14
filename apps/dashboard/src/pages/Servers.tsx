@@ -1,7 +1,9 @@
 // UI-04: registered MCP servers with live status (refreshed every 10 s, like the gateway's health loop)
-// and their tools on demand. Members see the same list without connection details (the API omits them).
-import { useQuery } from '@tanstack/react-query';
+// and their tools on demand. Members see the same list without connection details (the API omits them)
+// and without the admin actions (UI-07/08: add, edit, disable/enable, delete — enforced by the API).
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { api, type ToolInfo, type Upstream, type UpstreamStatus } from '../api.js';
 import { useMe } from '../auth.js';
 
@@ -34,7 +36,10 @@ export function Servers() {
           <h1>Servers</h1>
           <p className="muted">MCP servers behind the gateway. Status refreshes every 10 seconds.</p>
         </div>
-        {list.data && <p className="muted small" aria-live="polite">{summary(list.data)}</p>}
+        <div className="stack-right">
+          {isAdmin && <Link className="button" to="/servers/new">Add server</Link>}
+          {list.data && <p className="muted small" aria-live="polite">{summary(list.data)}</p>}
+        </div>
       </div>
       {list.isPending && <p className="muted">Loading…</p>}
       {list.isError && <p className="error" role="alert">{list.error.message}</p>}
@@ -78,9 +83,12 @@ function ServerCard({ u, now, isAdmin }: { u: Upstream; now: number; isAdmin: bo
           <dd>{u.authType === 'none' ? 'none' : `${u.authType}${u.authHeader ? ` (${u.authHeader})` : ''}, ${u.hasCredential ? 'credential stored (encrypted, never shown)' : 'no credential'}`}</dd>
         </dl>
       )}
-      <button type="button" className="ghost" aria-expanded={open} onClick={() => setOpen(!open)} disabled={!canList}>
-        {open ? 'Hide tools' : 'Show tools'}
-      </button>
+      <div className="row wrap">
+        <button type="button" className="ghost" aria-expanded={open} onClick={() => setOpen(!open)} disabled={!canList}>
+          {open ? 'Hide tools' : 'Show tools'}
+        </button>
+        {isAdmin && <AdminActions u={u} />}
+      </div>
       {open && canList && <ToolList id={u.id} />}
     </article>
   );
@@ -106,5 +114,38 @@ function ToolList({ id }: { id: string }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** UI-06/07: edit, enable/disable, delete (two-step confirm in the page, no browser dialog). */
+function AdminActions({ u }: { u: Upstream }) {
+  const qc = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const done = () => void qc.invalidateQueries({ queryKey: ['upstreams'] });
+  const toggle = useMutation({
+    mutationFn: () => api<Upstream>(`/api/upstreams/${u.id}`, { method: 'PATCH', body: { enabled: !u.enabled } }),
+    onSuccess: done,
+  });
+  const remove = useMutation({ mutationFn: () => api<void>(`/api/upstreams/${u.id}`, { method: 'DELETE' }), onSuccess: done });
+  const error = toggle.error ?? remove.error;
+  return (
+    <>
+      <Link className="button ghost" to={`/servers/${u.id}/edit`}>Edit</Link>
+      <button type="button" className="ghost" onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+        {u.enabled ? 'Disable' : 'Enable'}
+      </button>
+      {!confirming
+        ? <button type="button" className="ghost danger" onClick={() => setConfirming(true)}>Delete</button>
+        : (
+          <span className="confirm" role="group" aria-label={`Delete ${u.name}?`}>
+            <span className="small">Delete {u.name}? Its tools disappear for everyone.</span>
+            <button type="button" className="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
+              {remove.isPending ? 'Deleting…' : 'Delete'}
+            </button>
+            <button type="button" className="ghost" onClick={() => setConfirming(false)}>Cancel</button>
+          </span>
+        )}
+      {error && <span className="error small" role="alert">{error.message}</span>}
+    </>
   );
 }
