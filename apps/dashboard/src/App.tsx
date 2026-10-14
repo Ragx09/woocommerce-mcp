@@ -1,7 +1,10 @@
 import { NavLink, Outlet, Route, Routes } from 'react-router';
 import { RequireAuth, useLogout, useMe, useSessionExpiry } from './auth.js';
+import { Audit } from './pages/Audit.js';
 import { Invite } from './pages/Invite.js';
+import { Keys } from './pages/Keys.js';
 import { Login } from './pages/Login.js';
+import { Members } from './pages/Members.js';
 import { Overview } from './pages/Overview.js';
 import { Placeholder } from './pages/Placeholder.js';
 import { ServerForm } from './pages/ServerForm.js';
@@ -19,9 +22,9 @@ export function App() {
         <Route path="servers/new" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
         <Route path="servers/:id/edit" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
         <Route path="chat" element={<Placeholder title="Chat" task="UI-16" />} />
-        <Route path="keys" element={<Placeholder title="My API keys" task="UI-11" />} />
-        <Route path="members" element={<RequireAuth admin><Placeholder title="Members" task="UI-09" /></RequireAuth>} />
-        <Route path="audit" element={<RequireAuth admin><Placeholder title="Audit log" task="UI-12" /></RequireAuth>} />
+        <Route path="keys" element={<Keys />} />
+        <Route path="members" element={<RequireAuth admin><Members /></RequireAuth>} />
+        <Route path="audit" element={<RequireAuth admin><Audit /></RequireAuth>} />
         <Route path="*" element={<Placeholder title="Not found" />} />
       </Route>
     </Routes>
@@ -31,7 +34,7 @@ export function App() {
 function Shell() {
   const me = useMe().data!;
   const logout = useLogout();
-  const links: [string, string][] = [['/', 'Overview'], ['/servers', 'Servers'], ['/chat', 'Chat'], ['/keys', 'My API keys']];
+  const links: [string, string][] = [['/', 'Overview'], ['/servers', 'Servers'], ['/chat', 'Chat'], ['/keys', 'API keys']];
   if (me.role === 'admin') links.push(['/members', 'Members'], ['/audit', 'Audit log']);
   return (
     <div className="shell">

@@ -5,7 +5,9 @@
 #            (creates a throwaway member dora-<ts>@example.invalid)
 #   admin    TC-UI-05..08-1 add / edit / disable / delete a server (a second registration of
 #            everything-mcp, removed at the end) + member view (creates erin-<ts>@example.invalid)
-# Usage: scripts/dashboard-screens.sh [auth|servers|admin|all] (default all). The admin credentials come from
+#   team     TC-UI-09..12-1 invite, keys, revoke, issue, disable, audit (creates fay-<ts>@example.invalid,
+#            revokes its keys)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -34,6 +36,7 @@ scaler() {
 
 rc=0
 case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
+case "${1:-all}" in team|all) run dashboard-team.mjs || rc=1 ;; esac
 case "${1:-all}" in admin|all) run dashboard-server-admin.mjs || rc=1 ;; esac
 case "${1:-all}" in servers|all)
   rm -f "$OUT/.want-kill" "$OUT/.want-restore"
@@ -43,4 +46,10 @@ case "${1:-all}" in servers|all)
   kubectl -n platform scale deploy/everything-mcp --replicas=1 >/dev/null   # whatever happened, put it back
   rm -f "$OUT/.want-kill" "$OUT/.want-restore" ;;
 esac
+# The suites' throwaway members (carol/dora/erin/fay-<ts>@example.invalid) cannot be deleted (audit
+# history points at them); disable them and drop their sessions so they hold no access afterwards.
+kubectl -n platform exec postgres-0 -- psql -U gateway -qtAc "
+  DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE email ~ '^(carol|dora|erin|fay)-[0-9]+@example\\.invalid$');
+  UPDATE users SET disabled_at = now() WHERE disabled_at IS NULL AND email ~ '^(carol|dora|erin|fay)-[0-9]+@example\\.invalid$';" >/dev/null \
+  && echo "test members disabled" || echo "WARN  could not disable test members"
 exit $rc

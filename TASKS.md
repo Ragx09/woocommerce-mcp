@@ -1412,7 +1412,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-09 — Members and invites page
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-03, AUTH-04
 - **Requirements:** REQ-AUTH-02
@@ -1420,13 +1420,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Page.
 - **Acceptance:** Invite link works.
 - **Tests:** TC-UI-09-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh team`
+- **Evidence:** 2026-10-14: gateway `src/auth/user-routes.ts`: `GET /api/users` (key stats, no hash), `PATCH /api/users/:id` (disable/enable, role; deletes sessions on disable; refuses self and the last active admin under `FOR UPDATE`, re-checks the caller inside the transaction), `DELETE /api/invites/:id`. Dashboard `pages/Members.tsx`: invite form → link shown once with Copy (Clipboard API, select fallback on plain http), open invites with Withdraw, People table with Make admin/member and Disable/Enable (none on your own row). **TC-UI-09-API** (`test/int/users-api.int.test.ts`) 6/6: list, disable → session + key 401 and login refused, enable restores keys, self/last-admin 409, concurrent mutual demotion → exactly one succeeds (5 full-suite runs), validation 400/404, withdrawn invite → 404. authz table now 10 admin routes. Int **102/102**. **TC-UI-09-1** browser: invite created and copied, withdrawn invite refused, the link creates the account, new member listed, disable → their session and key 401 at once, enable → key works.
+- **Regression risk:** Low.
 
 ### UI-10 — Admin key management
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-09, AUTH-09
 - **Requirements:** REQ-AUTH-04
@@ -1434,13 +1434,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Page.
 - **Acceptance:** Revoke from the UI → the external client is rejected.
 - **Tests:** TC-UI-10-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh team`
+- **Evidence:** 2026-10-14: `pages/Keys.tsx` admin part: "Issue a key for a member" (active members only; key shown once) and "All keys (everyone)" with owner, prefix, created, last used, status, Revoke, show-revoked toggle. **TC-UI-10-1** browser: admin revokes the member's key from All keys → that client's next `/mcp` call 401; key issued for the member works on `/mcp`.
+- **Regression risk:** Low.
 
 ### UI-11 — My API keys
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-02, AUTH-06
 - **Requirements:** REQ-AUTH-03
@@ -1448,13 +1448,13 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Page.
 - **Acceptance:** Generated key works in Inspector.
 - **Tests:** TC-UI-11-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh team`
+- **Evidence:** 2026-10-14: `pages/Keys.tsx` (nav "API keys"): connection hint (endpoint + Bearer header), create (name → full key shown once with Copy and a "cannot be recovered" note), My keys table (prefix only after reload), revoke. **TC-UI-11-1** browser: member creates a key → `mgw_` + 43 chars shown once → `tools/list` on `/mcp` with it → 64 tools, `everything__echo` call ok → after reload only `mgw_…` prefix in the page. The MCP request is the same JSON-RPC POST Inspector sends; an Inspector run with a dashboard-made key is part of E2E.
+- **Regression risk:** Low.
 
 ### UI-12 — Audit log page
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-02, AUTH-14
 - **Requirements:** REQ-AUTH-07
@@ -1462,9 +1462,9 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Page.
 - **Acceptance:** New calls appear within 10 s.
 - **Tests:** TC-UI-12-1.
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh`, `scripts/dashboard-screens.sh team`
+- **Evidence:** 2026-10-14: `pages/Audit.tsx` (admin): table time/user (+ key prefix)/source/server/tool or method/duration/outcome (+ error code), filters user/server/outcome/source mapped to `GET /api/audit`, refresh every 10 s, "Load older" via the keyset cursor. **TC-UI-12-1** browser: filtered by the new member, their `echo` call is listed; a new `get-sum` call made afterwards appears after 10 s without reload.
+- **Regression risk:** Low.
 
 ### UI-13 — LLM provider config
 - **Priority:** P0

@@ -137,3 +137,30 @@ legend { font-weight: 600; padding: 0 0.3rem; }
 .choice input { width: auto; }
 input[readonly] { opacity: 0.7; }
 @media (max-width: 600px) { .stack-right { justify-items: start; } }
+
+/* UI-09..11 tables, one-time secrets */
+.table-wrap { overflow-x: auto; width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; font-size: 0.82rem; white-space: nowrap; }
+tr.dim td { opacity: 0.6; }
+td.actions { white-space: nowrap; }
+td.actions button + button { margin-left: 0.4rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+.align-end { align-items: flex-end; }
+.grow { flex: 1 1 220px; }
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.88rem; }
+.once { border: 1px solid var(--ok); border-radius: 7px; padding: 0.75rem; display: grid; gap: 0.4rem; background: color-mix(in srgb, var(--ok) 6%, var(--surface)); }
+.once .row { gap: 0.5rem; }
+.once input { flex: 1; min-width: 0; }
+.once p { margin: 0; }
+.card h2 { margin-bottom: 0.25rem; }
+
+/* UI-12 audit */
+.filters label { min-width: 150px; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+table.audit td { white-space: nowrap; }
+.outcome { font-weight: 600; font-size: 0.82rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--border); }
+.outcome.ok { color: var(--ok); border-color: var(--ok); }
+.outcome.tool_error, .outcome.timeout { color: var(--warn); border-color: var(--warn); }
+.outcome.error, .outcome.unreachable, .outcome.rejected, .outcome.denied { color: var(--danger); border-color: var(--danger); }

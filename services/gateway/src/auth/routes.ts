@@ -11,6 +11,7 @@ import { enforceAccessPolicy } from './access.js';
 import { registerOriginCheck } from './guard.js';
 import { registerInviteRoutes } from './invite-routes.js';
 import { registerKeyRoutes } from './key-routes.js';
+import { registerUserRoutes } from './user-routes.js';
 import { registerAuditRoutes } from '../audit/query.js';
 import { createSession, deleteSession, SESSION_COOKIE, SESSION_TTL_MS } from './sessions.js';
 
@@ -75,5 +76,6 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
 
   registerInviteRoutes(app, { db: deps.db, publicOrigin: deps.publicOrigin, cookie: cookieOpts });
   registerKeyRoutes(app, deps.db);
+  registerUserRoutes(app, deps.db);
   registerAuditRoutes(app, deps.db);
 }

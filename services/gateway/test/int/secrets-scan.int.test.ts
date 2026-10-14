@@ -107,6 +107,7 @@ describe('TC-AUTH-04 no secret in any /api or /mcp response, nor in any log line
     await call('GET', '/api/keys', { cookie: memberCookie });
     await call('GET', '/api/keys?all=1', { cookie: adminCookie });
     await call('GET', '/api/me', { cookie: memberCookie });
+    await call('GET', '/api/users', { cookie: adminCookie }); // user rows hold password hashes in the DB
 
     const rpc = (id: number, method: string, params?: object) => ({ jsonrpc: '2.0', id, method, ...(params ? { params } : {}) });
     await call('POST', '/mcp', { bearer: k1.key, payload: rpc(1, 'tools/list') });

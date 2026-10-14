@@ -117,3 +117,61 @@ export interface ToolInfo {
   description: string;
   params: { name: string; required: boolean }[];
 }
+
+export interface Member {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  disabledAt: string | null;
+  createdAt: string;
+  activeKeys: number;
+  lastKeyUseAt: string | null;
+}
+export interface OpenInvite {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+  expiresAt: string;
+}
+export interface CreatedInvite extends OpenInvite {
+  inviteUrl: string;
+}
+export interface ApiKeyInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  owner: { id: string; email: string; name: string };
+}
+export interface CreatedKey {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  /** Plaintext, in this one response only. */
+  key: string;
+}
+
+export type AuditOutcome = 'ok' | 'tool_error' | 'error' | 'timeout' | 'unreachable' | 'rejected' | 'denied';
+export interface AuditItem {
+  id: string;
+  ts: string;
+  requestId: string | null;
+  source: 'mcp' | 'chat';
+  method: string;
+  upstream: string | null;
+  tool: string | null;
+  durationMs: number;
+  outcome: AuditOutcome;
+  errorCode: string | null;
+  keyPrefix: string | null;
+  user: { id: string; email: string; name: string } | null;
+}
+export interface AuditPage {
+  items: AuditItem[];
+  nextCursor: string | null;
+}
