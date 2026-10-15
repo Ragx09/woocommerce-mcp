@@ -19,3 +19,6 @@ tests/e2e/out/
 
 # Personal session checkpoint notes (local only)
 checkpoint.md
+
+# Company brief (kept out of the public repo; problem-statement.md is the source)
+*.docx
