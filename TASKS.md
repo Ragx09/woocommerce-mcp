@@ -1477,7 +1477,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** No key in the bundle or values files.
 - **Tests:** TC-SEC-05.
 - **Command:** `grep -r "$LLM_API_KEY" apps/dashboard/dist charts || echo clean`
-- **Evidence:** 2026-10-15: `config.ts` `llm` {baseUrl, model, apiKey, timeoutMs, maxTokens} from env `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` / `LLM_TIMEOUT_MS` / `LLM_MAX_OUTPUT` (default Groq; base URL must be http(s) without credentials, query or fragment; no key → chat disabled, logged at startup without the key). Chart: values `gateway.llm.*`, key only via `secretKeyRef` `llm-secrets/api-key` (optional); `make-secrets.sh` creates `llm-secrets` from `.env` `LLM_API_KEY`. **TC-UI-13-1** unit PASS (mutation-checked: dropping the URL checks fails it), unit 72/72; `check-chart.sh` 0 violations (env renamed from `LLM_MAX_TOKENS`: the policy treats `*TOKEN*` names as secrets). k3d rev 47: log `chat llm configured` (baseUrl, model only); Deployment shows `LLM_API_KEY valueFrom`; in-pod `GET $LLM_BASE_URL/models` → HTTP 200, model listed (egress + Secret OK); key found 0 times in gateway logs. **TC-SEC-05** `grep -rlF "$LLM_API_KEY" apps/dashboard/dist charts` + env/Secret names in the bundle → clean. `llm-smoke.mjs groq` → tool_call `woo__list_orders`, PASS. **Open:** OpenRouter not re-tested — no `OPENROUTER_API_KEY` in `.env` (switching is a values change: `gateway.llm.baseUrl`/`model`).
+- **Evidence:** 2026-10-15: `config.ts` `llm` {baseUrl, model, apiKey, timeoutMs, maxTokens} from env `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` / `LLM_TIMEOUT_MS` / `LLM_MAX_OUTPUT` (default Groq; base URL must be http(s) without credentials, query or fragment; no key → chat disabled, logged at startup without the key). Chart: values `gateway.llm.*`, key only via `secretKeyRef` `llm-secrets/api-key` (optional); `make-secrets.sh` creates `llm-secrets` from `.env` `LLM_API_KEY`. **TC-UI-13-1** unit PASS (mutation-checked: dropping the URL checks fails it), unit 72/72; `check-chart.sh` 0 violations (env renamed from `LLM_MAX_TOKENS`: the policy treats `*TOKEN*` names as secrets). k3d rev 47: log `chat llm configured` (baseUrl, model only); Deployment shows `LLM_API_KEY valueFrom`; in-pod `GET $LLM_BASE_URL/models` → HTTP 200, model listed (egress + Secret OK); key found 0 times in gateway logs. **TC-SEC-05** `grep -rlF "$LLM_API_KEY" apps/dashboard/dist charts` + env/Secret names in the bundle → clean. `llm-smoke.mjs groq` → tool_call `woo__list_orders`, PASS. OpenRouter: not needed (user decision 2026-10-15: Groq only); switching remains a values change (`gateway.llm.baseUrl`/`model`).
 - **Regression risk:** —
 
 ### UI-14 — Chat agent loop (backend)
@@ -1496,7 +1496,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-15 — Internal token to gateway /mcp
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** AUTH-08
 - **Requirements:** REQ-GW-11, REQ-CHAT-03
@@ -1505,7 +1505,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** Audit rows from chat show the user + `source=chat`; an expired token → 401.
 - **Tests:** TC-UI-15-1/2.
 - **Command:** `npm test -w services/gateway -- internal-token`
-- **Evidence:** —
+- **Evidence:** 2026-10-15: `src/auth/internal-token.ts` — `itk_<b64url{sub,src:'chat',exp}>.<HMAC-SHA256>`, 5 min max, key = 32 random bytes per process (never stored or sent; the agent calls its own process over loopback, D-018); `mcpAuthenticator`: API keys from anywhere, `itk_` only when the raw TCP peer is loopback (not `X-Forwarded-For`); user re-checked in the DB on every request (disabled → 401); principal `{keyId:null, source:'chat'}`; log scrub for `itk_…`. **TC-UI-15-U1/U2** unit 8/8 (expiry, other key, payload swap under a valid signature, malformed input, src/sub/exp checks behind a valid HMAC, scrub, loopback forms); unit 80/80. **TC-UI-15-1** (int, real Postgres + real `/mcp`): alice's and bob's tokens → tools/list + tools/call OK, audit rows `user_id` = each user, `api_key_id` NULL, `source=chat`; same user via API key → `source=mcp`. **TC-UI-15-2**: expired, other-process, forged (bob's id under alice's signature), garbage → 401 + `denied` rows without user; valid token from `10.42.0.9`/`::ffff:10.42.0.9` with `X-Forwarded-For: 127.0.0.1` → 401; disabling the user → next request 401. Int 107/107. Mutation-checked: loopback check removed → 1 fail; expiry removed → 3 fail; disabled-user filter removed → 1 fail. k3d rev 48 via Ingress: API key → 200, 64 tools; `itk_` token → 401 (plain and with `X-Forwarded-For: 127.0.0.1`); 0 token strings in gateway logs. Minting is wired in UI-14 (`POST /api/chat`).
 - **Regression risk:** —
 
 ### UI-16 — Chat UI with tool-call display

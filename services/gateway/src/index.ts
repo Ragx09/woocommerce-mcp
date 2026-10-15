@@ -10,7 +10,7 @@ import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadSeeds, seedUpstream } from './upstreams/seed.js';
-import { authenticateApiKey } from './auth/api-keys.js';
+import { InternalTokenSigner, mcpAuthenticator } from './auth/internal-token.js';
 import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
@@ -72,8 +72,10 @@ await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
 const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
+// UI-15: the chat agent's tokens; the key lives only in this process's memory.
+const internalTokens = new InternalTokenSigner();
 registerMcp(app, {
-  authenticate: (token) => authenticateApiKey(db, token),
+  authenticate: mcpAuthenticator(db, internalTokens),
   audit: dbAuditSink(db, app.log),
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,

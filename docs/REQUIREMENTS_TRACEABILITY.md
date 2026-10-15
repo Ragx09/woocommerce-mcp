@@ -37,7 +37,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-AUTH-07 | Req. Team | Audit visible in dashboard | dashboard | AUTH-14, UI-12 | TC-UI-12-1 | Done | AUTH-14 `GET /api/audit`; 2026-10-14 UI-12: Audit log page (filters user/server/outcome/source, 10 s refresh, load older): a new call appears 10 s later without reload (TC-UI-12-1) |
 | REQ-CHAT-01 | Req. Chat | Chat uses LLM + tools via gateway | gateway chat | UI-14 | TC-INT-07, TC-UI-14-1 | Not Started | — |
 | REQ-CHAT-02 | Req. Chat | Shows tools called | dashboard chat | UI-16 | TC-UI-16-1 | Not Started | — |
-| REQ-CHAT-03 | Req. Chat | Acts as logged-in user; audited | gateway chat | UI-15, UI-17 | TC-UI-15-1, TC-UI-17-1 | Not Started | — |
+| REQ-CHAT-03 | Req. Chat | Acts as logged-in user; audited | gateway chat | UI-15, UI-17 | TC-UI-15-1, TC-UI-17-1 | In Progress | 2026-10-15: UI-15 internal token → `/mcp` audit rows carry the user and `source=chat` (TC-UI-15-1/2, int); agent loop and two-user chat test pending (UI-14, UI-17) |
 | REQ-CHAT-04 | Req. Chat | LLM keys as secrets | chart + gateway | UI-13, INF-06 | TC-SEC-05 | Done | 2026-10-15: key only in Secret `platform/llm-secrets` (`secretKeyRef`), base URL/model as Helm values; key absent from dashboard bundle, chart and gateway logs; in-pod Groq call 200 |
 | REQ-K8S-01 | Req. K8s | Local K8s | k3d | P0-02, INF-02 | TC-INF-02-1 | Not Started | — |
 | REQ-K8S-02 | Req. K8s | VPS with same charts | k3s | REL-01, REL-03 | TC-VPS-01 | Blocked | No VPS yet (P0-03) |

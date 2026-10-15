@@ -79,7 +79,7 @@ sequenceDiagram
 
 ### 4.2 Chat agent
 1. Browser `POST /api/chat` with the session cookie → the gateway resolves the user.
-2. The gateway mints an internal token (HMAC, 5 min, `sub=user`, `src=chat`).
+2. The gateway mints an internal token (HMAC with a per-process key, 5 min, `sub=user`, `src=chat`; `/mcp` accepts it only over loopback — D-018).
 3. The agent opens an MCP client to `http://localhost:<port>/mcp` with that token, calls `tools/list`, and sends the tools to the LLM.
 4. LLM tool_calls → `tools/call` on the gateway's `/mcp` → same auth, routing and audit path (`source=chat`).
 5. The loop runs until there are no more tool calls (max 8 iterations). The response includes the transcript of tool calls for the UI.

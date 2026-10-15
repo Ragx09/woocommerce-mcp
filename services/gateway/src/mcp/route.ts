@@ -6,7 +6,8 @@
 //   the upstream → an isError result the model can read. Arguments and results are never logged.
 // - Auth: per-user API key (`Authorization: Bearer mgw_…`), looked up by hash on every request (AUTH-08);
 //   the caller (user, key) is attached to the request and to every log line.
-//   Unknown, malformed, revoked keys and keys of disabled users → 401. The inbound Authorization header
+//   Unknown, malformed, revoked keys and keys of disabled users → 401. The dashboard chat agent uses a
+//   short-lived internal token instead (UI-15, auth/internal-token.ts), accepted only over loopback. The inbound Authorization header
 //   is only checked here; it is never forwarded upstream (T-04).
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -16,6 +17,7 @@ import {
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { VERSION } from '../app.js';
 import type { Principal } from '../auth/api-keys.js';
+import { isLoopback } from '../auth/internal-token.js';
 import type { AuditEvent, AuditMethod, AuditSink, CallContext } from '../audit/audit.js';
 import type { AuditOutcome } from '../db/schema.js';
 import type { Upstream } from '../db/schema.js';
@@ -31,8 +33,11 @@ import { parsePublicName, ToolIndex } from './naming.js';
 const CALL_TIMEOUT_MS = 15_000;
 
 export interface McpDeps {
-  /** Bearer token → the calling user and key, or null (AUTH-08: per-user API keys, looked up on every request). */
-  authenticate: (bearer: string) => Promise<Principal | null>;
+  /**
+   * Bearer token → the calling user and key, or null (AUTH-08: per-user API keys, looked up on every request;
+   * UI-15: internal chat tokens, accepted only when `loopback` — the TCP peer is this pod).
+   */
+  authenticate: (bearer: string, conn: { loopback: boolean }) => Promise<Principal | null>;
   loadUpstreams: () => Promise<Upstream[]>;
   pool: UpstreamPool;
   discovery: ToolDiscovery;
@@ -216,7 +221,8 @@ function rpcMethod(body: unknown): AuditMethod {
 export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
   const authenticate = async (req: FastifyRequest, reply: FastifyReply) => {
     const token = bearerToken(req.headers.authorization);
-    const principal = token ? await deps.authenticate(token) : null;
+    // The raw socket address, not req.ip: X-Forwarded-For must not be able to claim loopback.
+    const principal = token ? await deps.authenticate(token, { loopback: isLoopback(req.raw.socket.remoteAddress) }) : null;
     if (principal) {
       req.principal = principal;
       req.log = req.log.child({ userId: principal.userId, keyId: principal.keyId }); // every line of this request

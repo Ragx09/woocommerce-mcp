@@ -75,7 +75,7 @@ Implemented in GW-09 (`withDeadline` in `services/gateway/src/upstreams/pool.ts`
 
 ## 8. External client authentication
 - `Authorization: Bearer mgw_<…>` → sha256 → `api_keys` lookup → `revoked_at IS NULL` and the user is not disabled → context `{userId, keyId, source:'mcp'}`.
-- Internal chat token: `Authorization: Bearer itk_<payload>.<hmac>` → verify the HMAC + expiry → context `{userId, source:'chat'}`.
+- Internal chat token (UI-15, D-018): `Authorization: Bearer itk_<base64url {sub, src:'chat', exp}>.<HMAC-SHA256>` → accepted only when the raw TCP peer is loopback (the agent in the same process; `X-Forwarded-For` is ignored) → verify the HMAC (per-process random key) + expiry (≤ 5 min) → user looked up, must not be disabled → context `{userId, keyId: null, source:'chat'}`.
 - Failure → 401 `{"error":"invalid_api_key"}`. The attempt is audited with outcome `denied`.
 
 ## 9. Audit events

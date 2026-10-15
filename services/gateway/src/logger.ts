@@ -42,6 +42,7 @@ const SECRET_PATTERNS: RegExp[] = [
   /\b(ck|cs)_[a-f0-9]{32,}/g, // WooCommerce REST consumer key/secret
   /\bsk-[A-Za-z0-9_-]{16,}/g, // LLM provider keys (OpenAI-style)
   /\bgsk_[A-Za-z0-9]{16,}/g, // Groq keys
+  /\bitk_[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g, // internal chat tokens (UI-15)
 ];
 
 export function scrubString(s: string): string {
