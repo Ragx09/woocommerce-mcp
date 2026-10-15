@@ -79,6 +79,20 @@ describe('config', () => {
     expect(loadConfig({}).port).toBe(8080);
   });
 
+  it('TC-UI-13-1: LLM defaults to Groq, is configurable, and rejects unsafe base URLs', () => {
+    expect(loadConfig({}).llm).toEqual({
+      baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', apiKey: undefined, timeoutMs: 30_000, maxTokens: 1_024,
+    });
+    const or = loadConfig({ LLM_BASE_URL: 'https://openrouter.ai/api/v1/', LLM_MODEL: 'openai/gpt-oss-120b:free', LLM_API_KEY: ' k ' }).llm;
+    expect(or).toMatchObject({ baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-oss-120b:free', apiKey: 'k' });
+    expect(loadConfig({ LLM_API_KEY: '  ' }).llm.apiKey).toBeUndefined();
+    for (const bad of ['ftp://x/v1', 'not a url', 'https://user:pw@x/v1', 'https://x/v1?key=1', 'https://x/v1#f']) {
+      expect(() => loadConfig({ LLM_BASE_URL: bad })).toThrow(/LLM_BASE_URL/);
+    }
+    expect(() => loadConfig({ LLM_TIMEOUT_MS: '0' })).toThrow(/LLM_TIMEOUT_MS/);
+    expect(() => loadConfig({ LLM_MAX_OUTPUT: '99999' })).toThrow(/LLM_MAX_OUTPUT/);
+  });
+
   it('TC-GW-09-1: upstream timeouts default to 2/3/15 s, are configurable and range-checked', () => {
     expect(loadConfig({}).upstreamTimeouts).toEqual({ connectMs: 2_000, listMs: 3_000, callMs: 15_000 });
     expect(loadConfig({ UPSTREAM_CALL_TIMEOUT_MS: '30000' }).upstreamTimeouts.callMs).toBe(30_000);

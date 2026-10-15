@@ -1468,7 +1468,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-13 — LLM provider config
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** INF-06, P0-04
 - **Requirements:** REQ-CHAT-04
@@ -1477,7 +1477,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** No key in the bundle or values files.
 - **Tests:** TC-SEC-05.
 - **Command:** `grep -r "$LLM_API_KEY" apps/dashboard/dist charts || echo clean`
-- **Evidence:** —
+- **Evidence:** 2026-10-15: `config.ts` `llm` {baseUrl, model, apiKey, timeoutMs, maxTokens} from env `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` / `LLM_TIMEOUT_MS` / `LLM_MAX_OUTPUT` (default Groq; base URL must be http(s) without credentials, query or fragment; no key → chat disabled, logged at startup without the key). Chart: values `gateway.llm.*`, key only via `secretKeyRef` `llm-secrets/api-key` (optional); `make-secrets.sh` creates `llm-secrets` from `.env` `LLM_API_KEY`. **TC-UI-13-1** unit PASS (mutation-checked: dropping the URL checks fails it), unit 72/72; `check-chart.sh` 0 violations (env renamed from `LLM_MAX_TOKENS`: the policy treats `*TOKEN*` names as secrets). k3d rev 47: log `chat llm configured` (baseUrl, model only); Deployment shows `LLM_API_KEY valueFrom`; in-pod `GET $LLM_BASE_URL/models` → HTTP 200, model listed (egress + Secret OK); key found 0 times in gateway logs. **TC-SEC-05** `grep -rlF "$LLM_API_KEY" apps/dashboard/dist charts` + env/Secret names in the bundle → clean. `llm-smoke.mjs groq` → tool_call `woo__list_orders`, PASS. **Open:** OpenRouter not re-tested — no `OPENROUTER_API_KEY` in `.env` (switching is a values change: `gateway.llm.baseUrl`/`model`).
 - **Regression risk:** —
 
 ### UI-14 — Chat agent loop (backend)

@@ -46,6 +46,9 @@ for (const seed of seedPlan.seeds) {
 for (const s of seedPlan.skipped) app.log.warn(s, 'seed upstream skipped');
 if (adminSeed) app.log.info({ result: await seedAdmin(createDb(dbPool), adminSeed) }, 'seed admin');
 else app.log.warn('ADMIN_EMAIL not set: no admin is seeded');
+// Chat agent LLM (UI-13): log where it points, never the key; without a key the chat is off.
+if (cfg.llm.apiKey) app.log.info({ baseUrl: cfg.llm.baseUrl, model: cfg.llm.model }, 'chat llm configured');
+else app.log.warn('LLM_API_KEY not set: the chat agent is disabled');
 
 // SSRF guard (T-06): internal addresses only through allowlisted hosts — the operator's list plus the
 // hosts of the upstreams the chart seeds (woo-mcp, everything-mcp).

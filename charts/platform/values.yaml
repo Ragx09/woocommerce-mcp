@@ -116,6 +116,15 @@ gateway:
       enabled: true
       name: GitHub
       url: https://api.githubcopilot.com/mcp/
+  # UI-13 / D-012: chat agent LLM, any OpenAI-compatible chat-completions API. Switching provider is a
+  # values change: OpenRouter → baseUrl https://openrouter.ai/api/v1, model openai/gpt-oss-120b:free.
+  # The key lives only in the Secret (key api-key, from .env LLM_API_KEY); missing → chat disabled.
+  llm:
+    baseUrl: https://api.groq.com/openai/v1
+    model: openai/gpt-oss-120b
+    existingSecret: llm-secrets
+    timeoutMs: 30000
+    maxTokens: 1024
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { memory: 384Mi }

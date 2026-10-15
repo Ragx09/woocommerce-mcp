@@ -17,6 +17,19 @@ export interface Config {
   publicOrigin: string | undefined;
   /** Host names that may resolve to internal addresses (SSRF allowlist, T-06); the seeded upstreams' hosts are added in index.ts. */
   upstreamAllowedHosts: string[];
+  /** Chat agent LLM (UI-13, D-012): any OpenAI-compatible chat-completions endpoint. */
+  llm: LlmConfig;
+}
+
+export interface LlmConfig {
+  /** Base URL without the trailing `/chat/completions`, e.g. https://api.groq.com/openai/v1. */
+  baseUrl: string;
+  model: string;
+  /** From the Secret `llm-secrets` (REQ-CHAT-04). Unset → the chat answers "not configured"; nothing else changes. */
+  apiKey: string | undefined;
+  /** Per LLM request. */
+  timeoutMs: number;
+  maxTokens: number;
 }
 
 function int(name: string, value: string | undefined, fallback: number, min: number, max: number): number {
@@ -43,6 +56,16 @@ function origin(name: string, value: string | undefined): string | undefined {
   return v;
 }
 
+function baseUrl(name: string, value: string | undefined, fallback: string): string {
+  const v = value?.trim() || fallback;
+  let u: URL;
+  try { u = new URL(v); } catch { throw new Error(`${name} must be a URL like https://api.groq.com/openai/v1`); }
+  if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) {
+    throw new Error(`${name} must be a URL like https://api.groq.com/openai/v1 (no credentials, query or fragment)`);
+  }
+  return v.replace(/\/+$/, '');
+}
+
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -63,5 +86,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
     publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),
     upstreamAllowedHosts: (env.UPSTREAM_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
+    llm: {
+      baseUrl: baseUrl('LLM_BASE_URL', env.LLM_BASE_URL, 'https://api.groq.com/openai/v1'),
+      model: env.LLM_MODEL?.trim() || 'openai/gpt-oss-120b',
+      apiKey: env.LLM_API_KEY?.trim() || undefined,
+      timeoutMs: int('LLM_TIMEOUT_MS', env.LLM_TIMEOUT_MS, 30_000, 1_000, 120_000),
+      maxTokens: int('LLM_MAX_OUTPUT', env.LLM_MAX_OUTPUT, 1_024, 64, 16_384),
+    },
   };
 }

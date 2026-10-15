@@ -88,6 +88,16 @@ github-pat=${GITHUB_MCP_PAT:-}
 EOF
 unset WOO_MCP_TOKEN
 
+# Chat agent LLM key (UI-13, REQ-CHAT-04). Only created when .env has one; the gateway runs without it
+# (chat disabled). To change it later: edit .env, then --rotate platform/llm-secrets.
+if [ -n "${LLM_API_KEY:-}" ]; then
+  secret "$PLATFORM_NS" llm-secrets <<EOF
+api-key=$LLM_API_KEY
+EOF
+else
+  echo "secret $PLATFORM_NS/llm-secrets: skipped (LLM_API_KEY not set in .env; chat disabled)"
+fi
+
 echo "done. Read a value without printing it elsewhere, e.g.:"
 echo "  kubectl -n $STORE_NS get secret wordpress-admin -o jsonpath='{.data.admin-password}' | base64 -d"
 echo "  kubectl -n $PLATFORM_NS get secret gateway-admin -o jsonpath='{.data.admin-password}' | base64 -d"

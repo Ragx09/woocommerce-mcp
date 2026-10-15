@@ -98,7 +98,7 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 
 ## D-012 — Chat agent LLM provider
 - **Date:** 2026-10-11
-- **Status:** Proposed
+- **Status:** Accepted (UI-13, 2026-10-15: Groq wired through values + Secret `llm-secrets`; OpenRouter switch is values-only, not re-tested without a key)
 - **Choice:** An OpenAI-compatible chat-completions client (plain `fetch`, no SDK) with `baseUrl`, `model` and `apiKey` from values and a Secret. Default Groq (`https://api.groq.com/openai/v1`); OpenRouter (`https://openrouter.ai/api/v1`) is the alternative.
 - **Why:** Free tiers with tool calling; switching providers is a values change.
 - **Trade-offs:** Free-tier rate limits during rehearsals; small models may choose tools badly. Mitigated with a clear system prompt and a tool-count cap.
