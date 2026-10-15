@@ -1482,7 +1482,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-14 — Chat agent loop (backend)
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-13, UI-15
 - **Requirements:** REQ-CHAT-01
@@ -1491,7 +1491,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Acceptance:** TC-INT-07 passes with a stub LLM; real LLM smoke passes.
 - **Tests:** TC-INT-07; TC-UI-14-1 real smoke.
 - **Command:** `npm run test:int -w services/gateway -- chat`
-- **Evidence:** —
+- **Evidence:** 2026-10-15: `chat/llm.ts` (OpenAI-compatible client, plain fetch; key only in the Authorization header, `redirect: 'error'`; 429 → `llm_rate_limited` + Retry-After, 413 → "too large", 5xx → `llm_unavailable`, timeout → `llm_timeout`; errors keep only a short provider code, never body text), `chat/agent.ts` (loop: tools/list → LLM → tools/call via own `/mcp` → repeat; 8 rounds, 16 calls, 150 s deadline; results cut to 4 KB for the model, 500-char preview for the UI; invented names and bad JSON args become error results), `chat/routes.ts` (`POST /api/chat`, session; body: 1..40 user/assistant turns ≤ 8000 chars, last = user; 503 `chat_disabled` without key; one request per user at a time `chat_busy`; 30/10 min per user `rate_limited`). **Found on k3d:** 64 tools ≈ 16.7k tokens vs Groq free tier 8k tokens/min → HTTP 413 on every request. Fix (D-019): tools offered by keyword relevance within a 6000-char budget + local `find_tools` meta-tool (best 8 callable next round, further names listed, exact name → callable); calls still go through `/mcp`. **TC-UI-14-U1..U3** unit 15/15, unit 95/95; **TC-INT-07** + TC-UI-14-API int 7/7 (stub LLM, real Postgres/sessions/`/mcp`): reply + transcript, alice/bob audit rows `source=chat`, disabled server's tools not offered, history kept, 401/400s (no client `system` role), LLM error mapping, busy + window; `/api/chat` added to the AUTH-10 table test; int 114/114. Mutation-checked: busy guard, last-turn check, invented-name filter. **TC-UI-14-1** real Groq on k3d rev 52 (`node scripts/chat-smoke.mjs`): "What orders came in today?" → `woo__list_orders {date:today}` → "no orders today"; "List 3 products" → `woo__list_products {per_page:3}` → 3 products with ₹ prices; "Which GitHub account…" → `find_tools` → `github__get_me` → "Ragx09"; each call one audit row under the admin with `source=chat`. A third question within the same minute got 429 `llm_rate_limited` with Retry-After (free-tier budget, handled). Notes: woo `date:today` uses the store timezone; `list_products` also returns draft `Integration Product …` rows left by `woo-int.sh`.
 - **Regression risk:** Too many tools for small models → cap or filter.
 
 ### UI-15 — Internal token to gateway /mcp

@@ -83,6 +83,7 @@ sequenceDiagram
 3. The agent opens an MCP client to `http://localhost:<port>/mcp` with that token, calls `tools/list`, and sends the tools to the LLM.
 4. LLM tool_calls → `tools/call` on the gateway's `/mcp` → same auth, routing and audit path (`source=chat`).
 5. The loop runs until there are no more tool calls (max 8 iterations). The response includes the transcript of tool calls for the UI.
+6. Only the most relevant tools (size budget) are offered up front; the model reaches the rest through the local `find_tools` meta-tool (D-019), because 64 tool definitions do not fit a free-tier LLM's token limit.
 
 ### 4.3 Tool discovery and failure isolation
 `tools/list` fans out to all enabled upstreams with `Promise.allSettled` and a 3 s timeout each. Results are cached per upstream (last-good list plus timestamp). An upstream that fails is omitted and marked Unreachable by the health loop (every 10 s). Calls to it return a clear MCP error (`upstream_unreachable` / `upstream_timeout`).

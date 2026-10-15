@@ -9,6 +9,8 @@ import { buildApp } from '../../src/app.js';
 import { accessTable, enforceAccessPolicy } from '../../src/auth/access.js';
 import { hashPassword } from '../../src/auth/password.js';
 import { registerAuth } from '../../src/auth/routes.js';
+import { InternalTokenSigner } from '../../src/auth/internal-token.js';
+import { registerChatRoutes } from '../../src/chat/routes.js';
 import { seedAdmin } from '../../src/auth/seed-admin.js';
 import { loadConfig } from '../../src/config.js';
 import { createDb, createPool, loadDbConfig, runMigrations, type Db } from '../../src/db/index.js';
@@ -52,6 +54,7 @@ beforeAll(async () => {
   const upstreamPool = new UpstreamPool({ key: loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') }) });
   const health = new HealthMonitor(upstreamPool, { loadUpstreams: () => listUpstreams(db) });
   registerUpstreamRoutes(app, { db, pool: upstreamPool, health, discovery: new ToolDiscovery(upstreamPool, { health }) });
+  registerChatRoutes(app, { llm: null, signer: new InternalTokenSigner(), mcpUrl: () => 'http://127.0.0.1:9/mcp' });
   await app.ready();
   const login = async (email: string) => String((await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN },
     payload: { email, password: PW } })).headers['set-cookie']).split(';')[0]!;

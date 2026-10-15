@@ -82,11 +82,12 @@ Implemented in GW-09 (`withDeadline` in `services/gateway/src/upstreams/pool.ts`
 `audit_log`: `id, ts, request_id, user_id (null for denied — enforced by a CHECK), api_key_id, source (mcp|chat), method (tools/call|tools/list|initialize|other), upstream_id, upstream_slug, tool, duration_ms, outcome, error_code` (AUTH-01/12, `drizzle/0002_auth.sql`). Outcomes: `ok`; `tool_error` (the upstream tool returned `isError`); `error` (`upstream_error`); `timeout`; `unreachable`; `rejected` (unknown tool, disabled upstream — the call never left the gateway); `denied` (no valid key). `error_code` is a short machine code (`^[a-z_]{1,40}$`), never upstream text. Arguments and results are not stored (privacy). tools/list is audited as one row per request (`tool = NULL`). A refused request (`denied`) stores no client-supplied names. Implementation: the per-request MCP server receives the caller's context explicitly (`buildServer(deps, log, ctx)`); one `finally` per call logs and audits exactly once; an audit write failure is logged, never returned to the client (AUTH-11/13).
 
 ## 10. Chat agent loop
-1. `POST /api/chat {messages}` (session cookie).
-2. Mint an internal token for the user (5 min).
-3. MCP client → `http://127.0.0.1:<port>/mcp` → `listTools()` → convert to OpenAI `tools` (name, description, inputSchema as parameters).
-4. Loop (max 8): chat-completions → for each `tool_call`: `callTool` → append the `tool` message (result text truncated to 8 KB) → repeat.
-5. Return `{reply, toolCalls:[{name, server, args, ok, ms, resultPreview}]}`.
+1. `POST /api/chat {messages}` (session cookie). Only `user`/`assistant` turns from the client (the system prompt is server-side); one request per user at a time; 30 per user per 10 min.
+2. Mint an internal token for the user (5 min, UI-15).
+3. MCP client → `http://127.0.0.1:<port>/mcp` → `listTools()` → convert to OpenAI `tools` (name, description ≤ 400 chars, inputSchema as parameters).
+4. Tool selection (D-019): offer the tools that best match the last user turns within a 6000-character budget, plus the local meta-tool `find_tools` (keyword or exact-name search over the same list; the best 8 become callable in the next round, further names are returned).
+5. Loop (max 8 rounds, 16 calls, 150 s): chat-completions → for each `tool_call`: `callTool` on `/mcp` → append the `tool` message (result text truncated to 4 KB) → repeat.
+6. Return `{reply, toolCalls:[{name, server, args, ok, ms, resultPreview}], stopped: answer|max_steps|deadline}`. LLM errors → `llm_rate_limited` 429 (+Retry-After), `llm_timeout` 504, `llm_unavailable`/`llm_error` 502; tools unreachable → `chat_failed` 502.
 
 ## 11. Disable / remove semantics
 - Disable: `enabled=false` → excluded from the list immediately (DB read per request); the pool connection is closed; calls → `upstream_disabled`.

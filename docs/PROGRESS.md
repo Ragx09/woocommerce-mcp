@@ -4,9 +4,10 @@
 Phase 6 — Dashboard and chat (Day 5 work started 2026-10-14)
 
 ## Current task
-UI-13 (LLM config) and UI-15 (internal chat token) done. Next: UI-14 (agent loop, `POST /api/chat`), then UI-16 (chat UI), UI-17 (attribution test), UI-19 (create-product flow), UI-18 (error states).
+UI-13, UI-15 and UI-14 done: the chat backend works end to end on k3d with Groq. Next: UI-16 (chat page in the dashboard), then UI-17 (two-user attribution), UI-19 (create-product flow), UI-18 (error states).
 
 ## Recently completed
+- 2026-10-15: **UI-14 — chat agent loop**: `POST /api/chat` (session; one request per user at a time, 30/10 min) runs LLM → tools/call through the gateway's own `/mcp` with the UI-15 token (8 rounds, 16 calls, 150 s), returns reply + tool transcript; LLM errors mapped (429 + Retry-After, 413, 504, 502). **Found:** 64 tools ≈ 16.7k tokens > Groq free tier 8k TPM → every request 413; fixed with relevance-budget tool selection + local `find_tools` meta-tool (D-019, stand-out 4). Unit 95/95, int 114/114 (TC-INT-07, TC-UI-14-API), mutation-checked; real Groq on k3d rev 52 (`scripts/chat-smoke.mjs`): today's orders, 3 products, GitHub account via find_tools → `github__get_me`; audit rows under the user with `source=chat`. Free tier fits about two questions per minute (then 429 with Retry-After).
 - 2026-10-15: **UI-15 — internal chat token**: `itk_` HMAC token (per-process key, ≤ 5 min, `src=chat`) accepted by `/mcp` only over loopback, user re-checked each request; audit rows from it carry the user and `source=chat` (D-018, T-22). Unit 80/80 (TC-UI-15-U1/U2), int 107/107 (TC-UI-15-1/2), three guards mutation-checked; k3d rev 48: `itk_` through the Ingress → 401 even with `X-Forwarded-For: 127.0.0.1`, API keys unaffected (64 tools).
 - 2026-10-15: **UI-13 — LLM provider config**: gateway `llm` config (base URL, model, timeout, max output; Groq default; unsafe base URLs refused), Helm `gateway.llm.*`, key only from Secret `platform/llm-secrets` (optional → chat disabled), `make-secrets.sh` creates it from `.env`. TC-UI-13-1 (mutation-checked), unit 72/72, chart 0 violations; k3d rev 47: in-pod Groq `/models` 200, key in Deployment only as `valueFrom`, 0 times in logs; TC-SEC-05 clean; `llm-smoke.mjs groq` PASS. OpenRouter not re-tested (no key in `.env`). Also: the company brief `.docx` removed from the repo and `*.docx` ignored (it remains in git history).
 - 2026-10-14: **UI-09..12 — members, keys, audit pages**: `GET/PATCH /api/users` (disable/enable signs out and suspends keys at once; self and last-admin protected under a row lock, caller re-checked — T-21), `DELETE /api/invites/:id`; Members page (invite link shown once with copy, withdraw, roles, disable), API keys page (create shown once, my keys, admin: issue for a member, all keys with revoke), Audit log page (filters, 10 s refresh, load older). Int 102/102 (TC-UI-09-API incl. concurrent mutual demotion ×5), unit 71/71; browser `dashboard-screens.sh team` 19/19 (invite → account → key → `/mcp` → audit row in 10 s → admin revoke → 401 → issue → disable → 401 → enable), all four suites green, k8s-checks 0 failures. The screens script now disables its throwaway members afterwards (and did so for the 22 earlier ones); 0 active keys left.
@@ -62,6 +63,7 @@ UI-13 (LLM config) and UI-15 (internal chat token) done. Next: UI-14 (agent loop
 - Environment checks (read-only): Docker 29.6.2 running, 12 CPU / ~15 GB RAM; kubectl 1.36.1; Node 24.19; helm, k3d, kind and minikube missing; no kubeconfig; no LLM keys in env.
 
 ## Blockers
+- **LLM free-tier budget**: Groq allows 8k tokens/min ≈ two chat questions per minute. Enough for the demo if paced; otherwise a paid tier or another provider (values change).
 - **GW-15** needs the throwaway GitHub repo (owner/repo) the PAT may write issues to.
 - SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.

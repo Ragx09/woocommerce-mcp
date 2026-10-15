@@ -11,6 +11,8 @@ import { UpstreamPool } from './upstreams/pool.js';
 import { listUpstreams } from './upstreams/repo.js';
 import { loadSeeds, seedUpstream } from './upstreams/seed.js';
 import { InternalTokenSigner, mcpAuthenticator } from './auth/internal-token.js';
+import { openAiCompatible } from './chat/llm.js';
+import { registerChatRoutes } from './chat/routes.js';
 import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
@@ -82,6 +84,12 @@ registerMcp(app, {
   discovery,
   health,
   callTimeoutMs: cfg.upstreamTimeouts.callMs,
+});
+// UI-14: dashboard chat agent → this process's own /mcp over loopback with the user's internal token.
+registerChatRoutes(app, {
+  llm: cfg.llm.apiKey ? openAiCompatible(cfg.llm) : null,
+  signer: internalTokens,
+  mcpUrl: () => `http://127.0.0.1:${cfg.port}/mcp`,
 });
 
 await app.listen({ port: cfg.port, host: cfg.host });

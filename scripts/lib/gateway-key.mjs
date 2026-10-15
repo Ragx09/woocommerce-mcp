@@ -30,7 +30,7 @@ async function api(method, path, { cookie, body } = {}) {
   return res;
 }
 
-async function adminSession() {
+export async function adminSession() {
   const res = await api('POST', '/api/auth/login', { body: { email: secret('admin-email'), password: secret('admin-password') } });
   return res.headers.get('set-cookie').split(';')[0];
 }

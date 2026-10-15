@@ -25,7 +25,7 @@
 | POST | `/api/users/:id/keys` | session | admin | `{name}` → 201, same shape, key for that user; 404 unknown/disabled user |
 | DELETE | `/api/keys/:id` | session | owner or admin | Revoke → 204 (idempotent); someone else's key → 404; effective on the next `/mcp` request |
 | GET | `/api/audit` | session | admin | Filters `user` (uuid), `upstream` (slug), `outcome`, `source`, `from`/`to` (ISO), `limit` 1..200 (50), `cursor` → `{items:[{id,ts,requestId,source,method,upstream,tool,durationMs,outcome,errorCode,keyPrefix,user:{id,email,name}\|null}], nextCursor}` newest first (keyset pagination); 400 on bad filters |
-| POST | `/api/chat` | session | any | `{messages:[{role,content}]}` → `{reply, toolCalls[]}` |
+| POST | `/api/chat` | session | any | `{messages:[{role:'user'\|'assistant', content≤8000}] (1..40, last = user)}` → `{reply, toolCalls:[{name, server, args, ok, ms, resultPreview}], stopped}`. 503 `chat_disabled` (no LLM key), 429 `chat_busy` / `rate_limited` (30 per 10 min per user) / `llm_rate_limited` (+`Retry-After`), 504 `llm_timeout`, 502 `llm_unavailable` / `llm_error` / `chat_failed` |
 | POST | `/mcp` | `Authorization: Bearer mgw_…` (per-user API key, AUTH-08; internal chat token with UI-15) | any | MCP Streamable HTTP endpoint, stateless JSON responses. 401 `{"error":"invalid_api_key"}` + `WWW-Authenticate: Bearer`; GET/DELETE → 405 `Allow: POST` |
 | GET | `/healthz`, `/readyz` | — | — | Probes (not exposed via Ingress; on `app.<domain>` these paths reach the dashboard) |
 | GET | everything else on `app.<domain>` | — | — | Dashboard SPA (nginx): `index.html` for any client route (`/login`, `/invite`, `/servers` …), `/assets/*` immutable; CSP `default-src 'self'; frame-ancestors 'none'` |
@@ -33,7 +33,7 @@
 Every `/api` route declares its access (`public`, `session`, `admin`) in code; the guard runs before the body is parsed, so an anonymous request gets 401 and a member on an admin route 403 regardless of the body (AUTH-10).
 
 ## Error codes
-`unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` / `invite_expired` (410), `rate_limited` (429), `internal` (500).
+`unauthenticated` (401), `invalid_credentials` (401, login), `forbidden` (403), `not_found` (404), `validation_failed` (400, with `issues`), `conflict` (409, e.g. duplicate slug), `ssrf_blocked` (400), `invite_used` / `invite_expired` (410), `rate_limited` (429), `internal` (500). Chat: `chat_disabled` (503), `chat_busy` (429), `llm_rate_limited` (429), `llm_timeout` (504), `llm_unavailable` / `llm_error` / `chat_failed` (502).
 
 `/mcp` (JSON-RPC, GW-08): `tools/call` with an unknown or malformed name → error `-32602` with `data.code = "unknown_tool"`; disabled upstream → `-32602`, `data.code = "upstream_disabled"`; registry (DB) failure → `-32603 "upstream registry unavailable"`. Upstream problems are returned as a tool result with `isError: true` and text `upstream_unreachable: …` / `upstream_timeout: …` / `upstream_error: …`; an upstream's own `isError` result is passed through unchanged.
 
