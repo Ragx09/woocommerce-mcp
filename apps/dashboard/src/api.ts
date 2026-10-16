@@ -31,6 +31,12 @@ const FRIENDLY: Record<string, string> = {
   invite_used: 'This invite has already been used.',
   invite_expired: 'This invite has expired. Ask an admin for a new one.',
   internal: 'Something went wrong on the server. Please try again.',
+  chat_disabled: 'The chat is not set up on this server (no LLM key configured). Ask an admin.',
+  chat_busy: 'Your previous message is still being answered. Wait for it to finish.',
+  llm_timeout: 'The AI provider took too long to answer. Try again.',
+  llm_unavailable: 'The AI provider cannot be reached right now. Try again in a moment.',
+  llm_error: 'The AI provider returned an error. Try again or rephrase the question.',
+  chat_failed: 'The chat agent could not reach the tools. Try again.',
 };
 
 let onUnauthenticated: () => void = () => {};
@@ -50,6 +56,11 @@ export function toApiError(status: number, body: unknown, retryAfter: string | n
     retryAfterSec = Number.isFinite(s) && s > 0 ? s : undefined;
     const mins = retryAfterSec ? Math.ceil(retryAfterSec / 60) : undefined;
     message = `Too many attempts. Try again ${mins ? `in ${mins} minute${mins === 1 ? '' : 's'}` : 'later'}.`;
+  } else if (code === 'llm_rate_limited') {
+    // The provider's per-minute token budget (Groq free tier: about two questions a minute).
+    const s = Number(retryAfter);
+    retryAfterSec = Number.isFinite(s) && s > 0 ? Math.ceil(s) : undefined;
+    message = `The AI provider's rate limit was reached. Try again ${retryAfterSec ? `in ${retryAfterSec} s` : 'in a minute'}.`;
   }
   return new ApiError(status, code, message, retryAfterSec);
 }
@@ -174,4 +185,27 @@ export interface AuditItem {
 export interface AuditPage {
   items: AuditItem[];
   nextCursor: string | null;
+}
+
+// UI-16 chat (POST /api/chat).
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+export interface ToolCall {
+  /** Public gateway name, e.g. `woo__list_orders`. */
+  name: string;
+  /** Upstream slug; null for the agent's own `find_tools`. */
+  server: string | null;
+  args: unknown;
+  ok: boolean;
+  ms: number;
+  /** First 500 characters of the result or error. */
+  resultPreview: string;
+}
+export type ChatStop = 'answer' | 'max_steps' | 'deadline';
+export interface ChatReply {
+  reply: string;
+  toolCalls: ToolCall[];
+  stopped: ChatStop;
 }

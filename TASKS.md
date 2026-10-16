@@ -1510,17 +1510,17 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-16 — Chat UI with tool-call display
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-14
 - **Requirements:** REQ-CHAT-02
 - **Description:** Chat page showing messages and collapsible tool-call cards (tool, server, args, result excerpt, ms, ok or error).
 - **Output:** Page.
 - **Acceptance:** Tool calls visible for each answer.
-- **Tests:** TC-UI-16-1 (manual).
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Tests:** TC-UI-16-1 (browser, `tests/e2e/dashboard-chat.mjs`), TC-UI-16-U1 (dashboard unit), TC-UI-16-U2 (gateway unit, tool_use_failed retry).
+- **Command:** `scripts/dashboard-screens.sh chat`; `npm test -w apps/dashboard`; `npm test -w services/gateway`
+- **Evidence:** 2026-10-16: Chat page (`apps/dashboard/src/pages/Chat.tsx`, store `src/chat.ts`): messages, collapsible tool-call cards (status, tool, server, ms; expanded: full name, arguments, result/error excerpt), stop reason, "1 failed" count, progress line with seconds, suggestions, New chat, Enter to send. The conversation lives in memory outside the page (survives page changes, not reloads; nothing in browser storage; cleared on sign-out/expiry; an answer arriving after New chat/sign-out is dropped). Replies drawn as text nodes with a Markdown subset (bold, code, headings, bullets) — never HTML. Errors mapped for `chat_disabled`, `chat_busy`, `llm_rate_limited` (+ Retry-After seconds), `llm_timeout`, `llm_unavailable`, `llm_error`, `chat_failed`; a failed question goes back into the input. Dashboard unit `vitest run test` → `Tests 19 passed (19)` (TC-UI-16-U1; stale-answer and one-at-a-time guards mutation-checked). `scripts/dashboard-screens.sh chat` on k3d rev 57 → `PASS TC-UI-16-1 (19/19)`: stubbed 429/503 errors, stubbed `<img onerror>` reply stays text, real Groq question → `woo__list_orders` card (`ok list_orders woo 255 ms`), answer survives /keys → /chat, audit 1 row under the admin with source=chat, phone width overflow 0px, no CSP/page errors. **Found and fixed (gateway):** Groq refused 3 of 5 first rounds with `HTTP 400 tool_use_failed` — gpt-oss-120b sent `per_page: 100` to `woo__list_orders` (schema maximum 50) and Groq validates tool arguments against the schema. `chat/llm.ts` now retries once and tells the model the provider's validation message (scrubbed of the API key and credential-shaped strings, ≤ 400 chars, never logged or returned); the log line now carries the safe detail (`HTTP 400, tool_use_failed`). D-020. Gateway unit `Tests 96 passed (96)` (TC-UI-16-U2, retry and scrub mutation-checked); in-pod probe: both refused tries recovered on the hinted retry; after deploy 4/4 live questions answered (browser + 3× `chat-smoke.mjs`), 0 `llm failed` lines. Screens: `tests/e2e/out/screens/ui16-chat-*.png`.
+- **Regression risk:** The retry doubles the tokens of a refused round (free tier 8k TPM). `dashboard-screens.sh chat` is not in `all` (uses the real LLM).
 
 ### UI-17 — Chat attribution test
 - **Priority:** P0

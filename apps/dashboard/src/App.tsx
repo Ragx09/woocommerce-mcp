@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Route, Routes } from 'react-router';
 import { RequireAuth, useLogout, useMe, useSessionExpiry } from './auth.js';
 import { Audit } from './pages/Audit.js';
+import { Chat } from './pages/Chat.js';
 import { Invite } from './pages/Invite.js';
 import { Keys } from './pages/Keys.js';
 import { Login } from './pages/Login.js';
@@ -21,7 +22,7 @@ export function App() {
         <Route path="servers" element={<Servers />} />
         <Route path="servers/new" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
         <Route path="servers/:id/edit" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
-        <Route path="chat" element={<Placeholder title="Chat" task="UI-16" />} />
+        <Route path="chat" element={<Chat />} />
         <Route path="keys" element={<Keys />} />
         <Route path="members" element={<RequireAuth admin><Members /></RequireAuth>} />
         <Route path="audit" element={<RequireAuth admin><Audit /></RequireAuth>} />

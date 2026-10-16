@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError, api, setUnauthenticatedHandler, type Me } from './api.js';
+import { chatStore } from './chat.js';
 
 export const meKey = ['me'] as const;
 
@@ -31,6 +32,7 @@ export function useSessionExpiry(): void {
       const here = window.location.pathname + window.location.search;
       qc.clear();
       qc.setQueryData(meKey, null);
+      chatStore.reset(null);
       if (!here.startsWith('/login') && !here.startsWith('/invite')) navigate(`/login?next=${encodeURIComponent(here)}`, { replace: true });
     });
   }, [qc, navigate]);
@@ -42,6 +44,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api<void>('/api/auth/logout', { method: 'POST' }),
     onSettled: () => {
+      chatStore.reset(null);
       qc.clear();
       qc.setQueryData(meKey, null);
       navigate('/login', { replace: true });

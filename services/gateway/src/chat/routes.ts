@@ -95,7 +95,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
       return { reply: result.reply, toolCalls: result.toolCalls, stopped: result.stopped };
     } catch (e) {
       if (e instanceof LlmError) {
-        req.log.warn({ code: e.code, ms: Date.now() - started }, 'chat: llm failed');
+        req.log.warn({ code: e.code, detail: e.message, ms: Date.now() - started }, 'chat: llm failed'); // message = status + provider code only
         if (e.retryAfterS !== undefined) reply.header('retry-after', String(e.retryAfterS));
         return reply.code(LLM_STATUS[e.code]).send({ error: e.code, message: e.message });
       }

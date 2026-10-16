@@ -7,7 +7,9 @@
 #            everything-mcp, removed at the end) + member view (creates erin-<ts>@example.invalid)
 #   team     TC-UI-09..12-1 invite, keys, revoke, issue, disable, audit (creates fay-<ts>@example.invalid,
 #            revokes its keys)
-# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|all] (default all). The admin credentials come from
+#   chat     TC-UI-16-1 chat page as the admin with the real LLM (one question; not part of `all`, to
+#            save the LLM free-tier budget)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -37,6 +39,7 @@ scaler() {
 rc=0
 case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
 case "${1:-all}" in team|all) run dashboard-team.mjs || rc=1 ;; esac
+case "${1:-all}" in chat) run dashboard-chat.mjs || rc=1 ;; esac
 case "${1:-all}" in admin|all) run dashboard-server-admin.mjs || rc=1 ;; esac
 case "${1:-all}" in servers|all)
   rm -f "$OUT/.want-kill" "$OUT/.want-restore"

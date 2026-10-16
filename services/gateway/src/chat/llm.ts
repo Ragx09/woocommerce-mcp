@@ -3,6 +3,7 @@
 // Authorization header; errors carry the HTTP status and a short provider error code, never response
 // text (which could echo request data) and never the key.
 import type { LlmConfig } from '../config.js';
+import { scrubString } from '../logger.js';
 
 export interface ToolCall { id: string; type: 'function'; function: { name: string; arguments: string } }
 export type ChatMessage =
@@ -17,8 +18,20 @@ export type ChatCompletion = (req: { messages: ChatMessage[]; tools: LlmTool[] }
 export type LlmErrorCode = 'llm_rate_limited' | 'llm_timeout' | 'llm_unavailable' | 'llm_error';
 
 export class LlmError extends Error {
-  constructor(readonly code: LlmErrorCode, message: string, readonly retryAfterS?: number) { super(message); }
+  constructor(
+    readonly code: LlmErrorCode, message: string, readonly retryAfterS?: number, readonly providerCode?: string,
+    /** For the model only (never logged or returned): why the provider refused its tool call. */
+    readonly modelHint?: string,
+  ) { super(message); }
 }
+
+/**
+ * Groq checks tool-call arguments against the tool's JSON schema and refuses the whole completion with
+ * 400 `tool_use_failed` when they do not match (TC-UI-16-1: gpt-oss-120b asked woo__list_orders for
+ * per_page 100 > maximum 50 in 3 of 5 tries). One retry, telling the model what was wrong, fixed it.
+ */
+const TOOL_USE_FAILED = 'tool_use_failed';
+const HINT_LIMIT = 400;
 
 const SAFE_CODE = /^[a-z0-9_]{1,40}$/;
 
@@ -29,6 +42,20 @@ function retryAfter(h: string | null): number | undefined {
 }
 
 export function openAiCompatible(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): ChatCompletion {
+  const once = completeOnce(cfg, fetchImpl);
+  return async (req) => {
+    try {
+      return await once(req);
+    } catch (e) {
+      if (!(e instanceof LlmError) || e.providerCode !== TOOL_USE_FAILED) throw e;
+      const why = e.modelHint ? `: ${e.modelHint}` : '';
+      return once({ ...req, messages: [...req.messages, { role: 'system', content:
+        `Your previous tool call was rejected by the tool's input schema${why}. Call the tool again with arguments that follow its schema exactly (types, minimum/maximum, enum, pattern), or answer without it.` }] });
+    }
+  };
+}
+
+function completeOnce(cfg: LlmConfig, fetchImpl: typeof fetch): ChatCompletion {
   return async ({ messages, tools }) => {
     if (!cfg.apiKey) throw new LlmError('llm_unavailable', 'the chat agent is not configured (no LLM API key)');
     let res: Response;
@@ -53,10 +80,17 @@ export function openAiCompatible(cfg: LlmConfig, fetchImpl: typeof fetch = fetch
     if (!res.ok) {
       // Only a short machine code from the provider's error body is kept (e.g. Groq "tool_use_failed").
       let code = '';
+      let hint: string | undefined;
       try {
-        const body = (await res.json()) as { error?: { code?: unknown; type?: unknown } };
+        const body = (await res.json()) as { error?: { code?: unknown; type?: unknown; message?: unknown } };
         const c = body.error?.code ?? body.error?.type;
         if (typeof c === 'string' && SAFE_CODE.test(c)) code = c;
+        // Groq's message names the tool, the parameter and the schema rule the model broke.
+        if (code === TOOL_USE_FAILED && typeof body.error?.message === 'string') {
+          // It goes back into the prompt, and the model could repeat it to the user: no key, no credentials.
+          const msg = cfg.apiKey ? body.error.message.split(cfg.apiKey).join('[redacted]') : body.error.message;
+          hint = scrubString(msg.replace(/[\u0000-\u001f]+/g, ' ')).slice(0, HINT_LIMIT);
+        }
       } catch { /* not JSON */ }
       if (res.status === 429) {
         const s = retryAfter(res.headers.get('retry-after'));
@@ -66,7 +100,7 @@ export function openAiCompatible(cfg: LlmConfig, fetchImpl: typeof fetch = fetch
       if (res.status === 413) {
         throw new LlmError('llm_error', `the conversation is too large for the LLM provider's limits (HTTP 413${code ? `, ${code}` : ''}); start a new chat or ask a narrower question`);
       }
-      throw new LlmError('llm_error', `the LLM request was refused (HTTP ${res.status}${code ? `, ${code}` : ''})`);
+      throw new LlmError('llm_error', `the LLM request was refused (HTTP ${res.status}${code ? `, ${code}` : ''})`, undefined, code || undefined, hint);
     }
     let body: { choices?: { message?: { content?: unknown; tool_calls?: unknown }; finish_reason?: unknown }[] };
     try { body = await res.json() as typeof body; } catch { throw new LlmError('llm_error', 'the LLM returned an unreadable response'); }

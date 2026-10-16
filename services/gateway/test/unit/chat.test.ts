@@ -56,6 +56,35 @@ describe('TC-UI-14-U1 LLM client', () => {
     }
   });
 
+  it('TC-UI-16-U2: Groq tool_use_failed is retried once with the reason for the model; other 4xx and a second failure are not', async () => {
+    const ok = json(200, { choices: [{ message: { content: 'fine' }, finish_reason: 'stop' }] });
+    const okBody = ok.clone();
+    const why = 'parameters for tool woo__list_orders did not match schema: errors: [`/per_page`: maximum: got 100, want 50]';
+    const bad = () => json(400, { error: { code: 'tool_use_failed', message: why, failed_generation: '…' } });
+    const flaky = [bad(), ok];
+    const a = stubFetch(() => flaky.shift()!);
+    const user = { role: 'user' as const, content: 'orders today?' };
+    expect((await openAiCompatible(cfg, a.f)({ messages: [user], tools: [] })).content).toBe('fine');
+    expect(a.seen).toHaveLength(2);
+    const retried = JSON.parse(String(a.seen[1]!.init.body)).messages;
+    expect(retried[0]).toEqual(user);
+    expect(retried[1].role).toBe('system');
+    expect(retried[1].content).toContain('maximum: got 100, want 50');
+    // a provider message echoing credentials is scrubbed before it reaches the prompt
+    const echo = [json(400, { error: { code: 'tool_use_failed', message: `bad args; key ${KEY}; token ghp_${'a'.repeat(36)}` } }), okBody];
+    const d = stubFetch(() => echo.shift()!);
+    await openAiCompatible(cfg, d.f)({ messages: [user], tools: [] });
+    const hint = JSON.parse(String(d.seen[1]!.init.body)).messages[1].content as string;
+    expect(hint).toContain('bad args');
+    expect(hint).not.toContain(KEY);
+    expect(hint).not.toContain('ghp_aaaa');
+    const b = stubFetch(bad);
+    const e = await fail(openAiCompatible(cfg, b.f)({ messages: [], tools: [] }));
+    expect([e.code, e.message, b.seen.length]).toEqual(['llm_error', 'the LLM request was refused (HTTP 400, tool_use_failed)', 2]);
+    const c = stubFetch(() => json(400, { error: { code: 'invalid_request_error' } }));
+    await fail(openAiCompatible(cfg, c.f)({ messages: [], tools: [] }));
+    expect(c.seen).toHaveLength(1);
+  });
   it('without a key it fails as unavailable without calling the provider', async () => {
     const { f, seen } = stubFetch(() => json(200, {}));
     const e = await fail(openAiCompatible({ ...cfg, apiKey: undefined }, f)({ messages: [], tools: [] }));
