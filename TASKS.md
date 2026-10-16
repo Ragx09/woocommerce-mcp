@@ -1524,7 +1524,7 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-17 — Chat attribution test
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-15, AUTH-13
 - **Requirements:** REQ-CHAT-03, REQ-DOD-11
@@ -1532,9 +1532,9 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 - **Output:** Integration test.
 - **Acceptance:** Rows match the users.
 - **Tests:** TC-UI-17-1.
-- **Command:** `npm run test:int -w services/gateway -- chat-attribution`
-- **Evidence:** —
-- **Regression risk:** —
+- **Command:** `scripts/gateway-db-int.sh` (throwaway Postgres; runs all int files, incl. `test/int/chat-attribution.int.test.ts`)
+- **Evidence:** 2026-10-16: `test/int/chat-attribution.int.test.ts` (TC-UI-17-1, real Postgres + sessions + /mcp over loopback with the internal token, fake upstreams, stub LLM with a barrier so all agents are in flight together): (1) alice (admin), bob, carol chat at the same time, 3 rounds → 9 `tools/call` rows, each under the user who asked, `source=chat`, no key, upstreams matching each question, each reply carries its own marker; (2) alice + carol chat while bob calls `/mcp` with his API key at the same time → `alice chat nokey woo/list_orders`, `bob mcp key everything/echo`, `bob mcp key woo/list_orders`, `carol chat nokey everything/echo`, key id = bob's; (3) failed tool call in the chat → `tool_error` row under carol; (4) `GET /api/audit?user=<bob>&source=chat` as admin → only bob's two chat calls; member → 403. `scripts/gateway-db-int.sh` → `Tests 118 passed (118)`. Mutation: chat route minting every token for the first user served → 5 tests fail (4 new + TC-INT-07 two-user), restored. Live real-LLM attribution was shown in UI-14/16 (admin); two real users via the dashboard is E2E-10.
+- **Regression risk:** none (test only).
 
 ### UI-18 — Error states
 - **Priority:** P2
