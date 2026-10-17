@@ -1552,16 +1552,16 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-19 — Chat "create product" flow
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-16, WC-09
 - **Requirements:** REQ-DOD-03, REQ-DOD-04
-- **Description:** "Create a product called Demo Mug priced 12.50" → product on the storefront; "what orders came in today?" → lists orders.
+- **Description:** "Create a product called Demo Mug priced 499" → product on the storefront; "what orders came in today?" → lists orders. (Whole rupees: the store shows INR without decimals, so 12.50 would be shown and charged as ₹13; SPEC A-09.)
 - **Output:** Evidence.
 - **Acceptance:** Both prompts succeed with real Groq.
 - **Tests:** TC-E2E-03, TC-E2E-04.
-- **Command:** manual + `scripts/e2e.sh chat`
-- **Evidence:** —
+- **Command:** `scripts/e2e.sh chat` (API + storefront order) and `scripts/dashboard-screens.sh chat-create` (browser)
+- **Evidence:** 2026-10-17, k3d rev 57, real Groq (`openai/gpt-oss-120b`). New `scripts/chat-flow.mjs` behind `scripts/e2e.sh chat` (first mode of the E2E-14 script): the chat creates "Demo Mug <stamp>", the script checks the product page and the public Store API, orders it as a guest with COD through `scripts/e2e-checkout.sh` (now takes `PRODUCT_SLUG`), asks today's orders and compares with MariaDB, then checks the audit log. Run 2 → `PASS UI-19 chat flow (12/12): Demo Mug 10171852 id 148, order #149`: `woo__create_product {"name":"Demo Mug 10171852","regular_price":"499"} → ok`, page 200 with `₹499`, Store API `INR 499`, order #149 contains the product, `woo__list_orders {"date":"today"} → ok`, tool count 2 = database 2 (2026-10-18 Asia/Kolkata), reply names "Order 149 – ₹ 499", audit `create_product` + `list_orders` under the admin with source=chat. **Found:** run 1 asked "priced 12.50" → product 146 stored 12.50 but the storefront shows `₹13` and the order (#147) was charged 13, because the brand import sets 0 price decimals (`woocommerce_price_num_decimals`); the chat and MCP path were right (8/8 chat checks passed, 2 storefront price checks failed). Kept the brand setting, moved the demo prompt to whole rupees (SPEC A-09, runbook). Browser: `scripts/dashboard-screens.sh chat-create` → `PASS UI-19 browser (6/6): Demo Mug 10171853`: ok `create_product` card with the name and `"regular_price": "499"`, reply names the product, its storefront page 200 "Demo Mug 10171853" `₹499`, no CSP/page errors. Screens `tests/e2e/out/screens/ui19-chat-create.png`, `ui19-storefront-product.png`. Test data kept in the store: products 146 (₹13), 148, 150, orders #147, #149.
 - **Regression risk:** Model choice.
 
 ### UI-20 — Dashboard image + Helm

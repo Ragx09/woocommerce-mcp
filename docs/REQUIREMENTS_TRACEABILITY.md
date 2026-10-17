@@ -50,8 +50,8 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-K8S-09 | Req. K8s | No hardcoded secrets; K8s Secrets | charts + scripts | INF-06, GW-17 | TC-SEC-04, TC-INF-06-2, TC-UNIT-06 | In Progress | GW-17 Done: TC-UNIT-06 PASS (field + value redaction, no tool args at info; mutation-checked); TC-AUTH-04 PASS (AUTH-15 end-to-end scan); k3d gateway log holds 0 occurrences of the PAT and woo token; TC-SEC-04 repo scan pending |
 | REQ-DOD-01 | DoD Store | Storefront checkout COD | store | WC-04, E2E-12 | TC-E2E-01 | Not Started | — |
 | REQ-DOD-02 | DoD Store | Order in WC admin | store | WC-04, E2E-12 | TC-E2E-02 | Not Started | — |
-| REQ-DOD-03 | DoD Chat A | Chat creates product → storefront | chat + woo-mcp | UI-19, E2E-11 | TC-E2E-03 | Not Started | — |
-| REQ-DOD-04 | DoD Chat A | Chat returns today's orders | chat + woo-mcp | UI-19, E2E-13 | TC-E2E-04 | Not Started | — |
+| REQ-DOD-03 | DoD Chat A | Chat creates product → storefront | chat + woo-mcp | UI-19, E2E-11 | TC-E2E-03 | In Progress | UI-19: `scripts/e2e.sh chat` 12/12 + browser 6/6 with real Groq (product 148/150 on the storefront at ₹499); live run as user A is E2E-11 |
+| REQ-DOD-04 | DoD Chat A | Chat returns today's orders | chat + woo-mcp | UI-19, E2E-13 | TC-E2E-04 | In Progress | UI-19: chat listed today's orders incl. #149 (ordered on the storefront), count = MariaDB; live run as user A is E2E-13 |
 | REQ-DOD-05 | DoD External B | External client with URL + key only | gateway | E2E-04 | TC-EXT-02, TC-E2E-05 | Not Started | — |
 | REQ-DOD-06 | DoD External B | Sees all enabled tools; orders question | gateway | E2E-04, E2E-05 | TC-E2E-06 | Not Started | — |
 | REQ-DOD-07 | DoD External B | Prompt using two upstreams | gateway | GW-15, E2E-06 | TC-E2E-07 | In Progress | GW-15: `scripts/cross-server.mjs` dry run OK (woo orders read through the gateway); issue creation waits for the throwaway repo name |

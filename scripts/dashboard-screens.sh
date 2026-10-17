@@ -9,7 +9,9 @@
 #            revokes its keys)
 #   chat     TC-UI-16-1 chat page as the admin with the real LLM (one question; not part of `all`, to
 #            save the LLM free-tier budget)
-# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|all] (default all). The admin credentials come from
+#   chat-create  UI-19 the DoD "create a product" prompt on the Chat page with the real LLM, then its storefront
+#            page (creates one product "Demo Mug <stamp>"; not part of `all`)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|chat-create|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -19,7 +21,7 @@ ADMIN_PASSWORD="$(kubectl -n platform get secret gateway-admin -o jsonpath='{.da
 export ADMIN_EMAIL ADMIN_PASSWORD
 run() { # run <script.mjs>
   docker run --rm --ipc=host \
-    --add-host "app.127.0.0.1.nip.io:host-gateway" \
+    --add-host "app.127.0.0.1.nip.io:host-gateway" --add-host "store.127.0.0.1.nip.io:host-gateway" \
     -v "$PWD/tests/e2e:/e2e:ro" -v "$OUT:/out" -v "$HOME/.cache/pw-runner:/runner" -w /runner \
     -e APP_URL="${APP_URL:-http://app.127.0.0.1.nip.io}" -e ADMIN_EMAIL -e ADMIN_PASSWORD \
     mcr.microsoft.com/playwright:v1.64.0-noble \
@@ -40,6 +42,7 @@ rc=0
 case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
 case "${1:-all}" in team|all) run dashboard-team.mjs || rc=1 ;; esac
 case "${1:-all}" in chat) run dashboard-chat.mjs || rc=1 ;; esac
+case "${1:-all}" in chat-create) run dashboard-chat-create.mjs || rc=1 ;; esac
 case "${1:-all}" in admin|all) run dashboard-server-admin.mjs || rc=1 ;; esac
 case "${1:-all}" in servers|all)
   rm -f "$OUT/.want-kill" "$OUT/.want-restore"
