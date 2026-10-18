@@ -1870,7 +1870,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-07 — Authorization boundary review
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** AUTH-10
 - **Requirements:** REQ-AUTH-01
@@ -1878,8 +1878,8 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Output:** Review notes in THREAT_MODEL.
 - **Acceptance:** TC-AUTH-02 passes; review recorded.
 - **Tests:** TC-AUTH-02.
-- **Command:** `npm test -w services/gateway -- authz`
-- **Evidence:** —
+- **Command:** `scripts/gateway-db-int.sh` (TC-AUTH-02 in `authz.int.test.ts`) and `node scripts/authz-live.mjs`
+- **Evidence:** 2026-10-18: every `/api` route and `/mcp` reviewed against the role matrix → THREAT_MODEL §7 (matrix, enforcement points, accepted design gap: members may call every enabled tool incl. write tools with the shared credential — per-role tool control is a stand-out item). No enforcement gap found. Tests: gateway unit `Tests 96 passed (96)`, int `Test Files 21 passed (21)`, `Tests 118 passed (118)` (incl. TC-AUTH-02 route table). New `scripts/authz-live.mjs` on k3d → `PASS live authz walk`: 11 admin routes anonymous 401 / member 403, member revoking the admin's key → 404, `/api/me`, `/api/keys`, `/api/upstreams`, `/api/chat` anonymous → 401, forged session cookie → 401 (18/18). Re-run on the VPS with APP_ORIGIN.
 - **Regression risk:** —
 
 ### REL-08 — SSRF validation tests

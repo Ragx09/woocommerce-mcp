@@ -77,3 +77,22 @@ Rules for updating this file:
 - A threat moves from `Planned` to `Mitigated (<task>, verified <SEC-xx>)` only after its attack fails and a regression test exists.
 - A finding that matches no threat here becomes a **new T-row** (the attack found a gap in the model itself).
 - A finding we choose not to fix becomes `Accepted` with the reason, and goes into the residual-risk part of `docs/SECURITY_REPORT.md` (SEC-09).
+
+## 7. Authorization boundary review (REL-07, 2026-10-18)
+Every route was compared with the role matrix below; enforcement is in the gateway, never only in the UI.
+
+| Surface | Anonymous | Member | Admin | Enforced by |
+|---|---|---|---|---|
+| `POST /api/auth/login`, `/logout`, `/api/invites/check`, `/accept` | yes (rate limit; invite token) | yes | yes | `access: 'public'` + Origin check on mutations |
+| `GET /api/me`, `GET /api/upstreams`, `GET /api/upstreams/:id/tools`, `POST /api/chat` | 401 | yes (no URLs/auth details in the upstream list) | yes (+ URL, auth type, `hasCredential`) | `access: 'session'`; admin-only fields chosen by role in the serializer |
+| `GET /api/keys` | 401 | own keys | own, `?all=1` everyone's | session + role check in the handler (member `?all=1` → 403) |
+| `POST /api/keys` | 401 | own key | own key | session; owner = caller |
+| `DELETE /api/keys/:id` | 401 | own keys only (others → 404, no existence leak) | any | `revokeApiKey` ownership check |
+| users, invites, `POST /api/users/:id/keys`, audit, upstream create/edit/delete | 401 | 403 | yes | `access: 'admin'`; user changes also re-check the caller's admin role under a row lock (T-21) |
+| `POST /mcp` | 401 + audit `denied` | every tool of every enabled server, as themselves | same | API key (hash lookup per request; revoked key / disabled user → 401) or the chat's `itk_` token (loopback only) |
+
+How it is enforced: a default-deny router — every `/api` route must declare `public`/`session`/`admin` or the gateway refuses to start; the guard runs before body parsing; objects owned by users (keys) are checked against the caller in the data layer.
+
+Evidence: TC-AUTH-02 walks every registered route (anonymous 401, member 403 on admin routes; int 118/118); live k3d walk `node scripts/authz-live.mjs` → 18/18 PASS (11 admin routes: anonymous 401 and member 403; member revoking the admin's key → 404; 4 session routes anonymous → 401; forged session cookie → 401); E2E-07 revoke → next `/mcp` call 401.
+
+**Gaps found: none in enforcement.** Accepted by design (the problem statement makes per-role tool control a stand-out item, not a requirement): every member can call every tool of every enabled server, including write tools (`woo__create_product`, `woo__update_order_status`, `github__issue_write`) that use the shared upstream credential. Mitigations: minimal-scope upstream credentials, per-user audit of every call, instant key revocation / user disable, and disabling a server.
