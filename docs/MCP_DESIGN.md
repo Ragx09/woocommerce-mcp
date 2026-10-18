@@ -56,7 +56,7 @@ Implemented in `services/gateway/src/mcp/route.ts` (GW-08).
 | list per upstream | 3 s | (omitted from the list, logged) |
 | call | 15 s | `upstream_timeout` |
 | upstream returned an error | — | passed through as `isError: true` |
-| response body > 4 MiB (`UPSTREAM_MAX_RESPONSE_BYTES`) | — | refused: `upstream_error: upstream response larger than … bytes` (T-08) |
+| response body > 4 MiB (`UPSTREAM_MAX_RESPONSE_BYTES`) | — | refused: `isError` result `upstream_error: upstream <slug> failed: upstream response larger than <n> bytes` (T-08) |
 | auth failure | — | HTTP 401 (no JSON-RPC body processing) |
 Error messages are human-readable and never include credentials, URLs with secrets, or stack traces.
 

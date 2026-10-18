@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { encryptCredential, loadCredentialKey } from '../../src/crypto/credentials.js';
 import type { Upstream } from '../../src/db/schema.js';
-import { capResponse, ResponseTooLargeError, UpstreamPool, UpstreamUnavailableError } from '../../src/upstreams/pool.js';
+import { capResponse, ResponseTooLargeError, safeReason, UpstreamPool, UpstreamUnavailableError } from '../../src/upstreams/pool.js';
 import { startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
 
 const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
@@ -127,6 +127,7 @@ describe('upstream response size cap (T-08)', () => {
     expect((ok.content as Array<{ text: string }>)[0]?.text).toHaveLength(10_000);
     const err = await call(200_000).then(() => null, (e: unknown) => e);
     expect(errText(err)).toContain('upstream response larger than 65536 bytes');
+    expect(safeReason(err)).toBe('upstream response larger than 65536 bytes'); // what the client sees (route.ts)
     const again = await call(1_000);
     expect((again.content as Array<{ text: string }>)[0]?.text).toHaveLength(1_000);
   });
