@@ -54,6 +54,7 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $m.existingSecret }}, key: mariadb-root-password } }
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true   # writable: data volume, /run/mysqld, /tmp (REL-09)
             capabilities: { drop: [ALL] }
           volumeMounts:
             - { name: data, mountPath: /var/lib/mysql }

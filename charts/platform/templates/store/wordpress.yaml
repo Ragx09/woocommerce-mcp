@@ -17,6 +17,23 @@ spec:
   resources:
     requests: { storage: {{ $w.storage }} }
 ---
+# REL-09: Apache listens on 8080 so the container can run as www-data (no root, no capabilities).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wordpress-apache
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+data:
+  ports.conf: |
+    Listen 8080
+  000-default.conf: |
+    <VirtualHost *:8080>
+      DocumentRoot /var/www/html
+      ErrorLog ${APACHE_LOG_DIR}/error.log
+      CustomLog ${APACHE_LOG_DIR}/access.log combined
+    </VirtualHost>
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -46,6 +63,9 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 33        # www-data, owner of the files on the data volume
+        runAsGroup: 33
         fsGroup: 33
         seccompProfile: { type: RuntimeDefault }
       containers:
@@ -53,7 +73,7 @@ spec:
           image: {{ $w.image }}
           imagePullPolicy: IfNotPresent
           ports:
-            - { name: http, containerPort: 80 }
+            - { name: http, containerPort: 8080 }
           env:
             - { name: WORDPRESS_DB_HOST, value: mariadb }
             - { name: WORDPRESS_DB_NAME, value: wordpress }
@@ -69,15 +89,19 @@ spec:
                 define('WP_SITEURL', getenv('WP_HOME'));
                 if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') { $_SERVER['HTTPS'] = 'on'; }
                 define('DISALLOW_FILE_EDIT', true);
-          # Apache's entrypoint starts as root and drops to www-data, so the root filesystem stays
-          # writable and only the capabilities it needs are kept.
+          # Runs as www-data on 8080 (REL-09): no capabilities, read-only image; writable paths are the
+          # data volume and emptyDirs for Apache's pid/lock files and PHP's temp files.
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
-              add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID, NET_BIND_SERVICE, KILL]
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
           volumeMounts:
             - { name: data, mountPath: /var/www/html }
+            - { name: apache, mountPath: /etc/apache2/ports.conf, subPath: ports.conf, readOnly: true }
+            - { name: apache, mountPath: /etc/apache2/sites-enabled/000-default.conf, subPath: 000-default.conf, readOnly: true }
+            - { name: run, mountPath: /var/run/apache2 }
+            - { name: lock, mountPath: /var/lock/apache2 }
+            - { name: tmp, mountPath: /tmp }
           startupProbe:
             httpGet: { path: /wp-includes/images/blank.gif, port: http }
             periodSeconds: 5
@@ -96,6 +120,11 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim: { claimName: wordpress-data }
+        - name: apache
+          configMap: { name: wordpress-apache }
+        - { name: run, emptyDir: { sizeLimit: 16Mi } }
+        - { name: lock, emptyDir: { sizeLimit: 16Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

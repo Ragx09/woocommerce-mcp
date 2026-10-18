@@ -44,7 +44,7 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
         - podSelector: { matchLabels: { app: woo-mcp } }
-      ports: [{ port: 80 }]
+      ports: [{ port: 8080 }]   # the pod port (Service 80 → 8080)
 ---
 # woo-mcp ← the gateway only (REQ-GW-01: nothing else talks to upstream MCP servers).
 apiVersion: networking.k8s.io/v1
@@ -65,7 +65,7 @@ spec:
   egress:
     - to:
         - podSelector: { matchLabels: { app: wordpress } }
-      ports: [{ port: 80 }]
+      ports: [{ port: 8080 }]   # policies see the pod port after the Service translation
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
           podSelector: { matchLabels: { k8s-app: kube-dns } }

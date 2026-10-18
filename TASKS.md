@@ -1898,21 +1898,21 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-09 — Workload securityContext audit
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** INF-15
 - **Requirements:** —
 - **Description:** runAsNonRoot where possible, no privilege escalation, drop ALL caps, automountServiceAccountToken false.
-- **Output:** Chart updates + exceptions documented (wordpress/apache).
+- **Output:** Chart updates; no exceptions left (WordPress now runs as www-data on 8080).
 - **Acceptance:** Check script passes.
 - **Tests:** TC-REL-09-1.
-- **Command:** `scripts/check-chart.sh security`
-- **Evidence:** —
-- **Regression risk:** WordPress image runs as root by default (document or use port 8080 + www-data).
+- **Command:** `scripts/check-chart.sh` (policy part: `scripts/lib/chart-policy.py`)
+- **Evidence:** 2026-10-18. WordPress was the one root workload (Apache bound :80 as root with 7 added capabilities). Now: Apache `Listen 8080` from ConfigMap `wordpress-apache` (ports.conf + 000-default.conf), `runAsUser/Group 33`, `runAsNonRoot`, `capabilities.drop [ALL]` with nothing added, `readOnlyRootFilesystem` + emptyDirs `/var/run/apache2`, `/var/lock/apache2`, `/tmp`; Service 80 → 8080; NetworkPolicies use pod port 8080 (WordPress ingress, woo-mcp egress). MariaDB and the wp-cli init container also got `readOnlyRootFilesystem` (wp-cli: `/tmp` emptyDir). `chart-policy.py` now fails any container that is not non-root numeric user + seccomp RuntimeDefault + no added caps + read-only root: `policy: 31 objects, 0 violations` (local and prod); mutation check with the old wordpress.yaml → 3 FAILs (`capabilities.add [...]`, `must run as a non-root numeric user`, `readOnlyRootFilesystem must be true`). k3d rev 59/60: `id` in the pod → `uid=33(www-data)`, PID 1 `CapEff: 0000000000000000`, `touch /usr/local/x` → Read-only file system, uploads writable; storefront `/`, `/shop/`, `/wp-login.php`, Store API 200, product image 200 `image/webp`; `scripts/e2e-checkout.sh` → order #156 + listed in wp-admin; `e2e-acceptance.mjs orders` 3/3; `k8s-checks.sh netpol` 15 PASS / 0 failures; wp-init rev 60 Completed (50 products unchanged); MariaDB restarted Ready with read-only root. Fresh-volume install (VPS case) in Docker as uid 33, `--read-only --cap-drop ALL`: entrypoint copied WordPress into the empty volume, `blank.gif` 200.
+- **Regression risk:** Low; a fresh VPS install is the first real clean run with this (Docker fresh-volume test passed).
 
 ### REL-10 — Probes and limits audit
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** INF-13
 - **Requirements:** REQ-K8S-07, REQ-K8S-08
@@ -1921,7 +1921,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** 0 missing.
 - **Tests:** TC-K8S-02.
 - **Command:** `scripts/check-chart.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 final chart: `scripts/check-chart.sh` → `PASS helm lint (local|prod)`, kubeconform 31 resources valid, `policy: 31 objects, 0 violations` (every container has requests+limits; every long-running container readiness+liveness, Jobs exempt from probes) for local and prod; `PASS only expected keys differ`. Live k3d: all pods Ready.
 - **Regression risk:** —
 
 ### REL-11 — Helm upgrade and rollback
