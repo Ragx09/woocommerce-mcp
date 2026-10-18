@@ -75,8 +75,26 @@ Steps:
 6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
 7. Optional TLS: cert-manager + Let's Encrypt (REL-04).
 
-## 6. Upgrade and rollback (planned)
-`helm upgrade platform … --set gateway.image.tag=<new>` → `helm history platform` → `helm rollback platform <rev>`. DB migrations are forward-only and additive, so a rollback of the app image stays compatible.
+## 6. Upgrade and rollback
+Every `scripts/deploy.sh` run is one Helm revision. Images are tagged by content (`sha-<image id>`), so an unchanged service keeps its tag and its pods are not restarted.
+
+```bash
+# upgrade one service to a new image
+SERVICES=gateway scripts/build-images.sh        # VPS: build + push to GHCR instead
+scripts/deploy.sh local                         # or: --set gateway.image.tag=sha-<new>
+helm history platform -n default --max 3        # REVISION … deployed / superseded
+# something wrong → back to the previous revision (same values, same image tags)
+helm rollback platform <rev> -n default --wait
+kubectl -n platform rollout status deploy/gateway
+```
+
+**What a rollback does and does not undo**
+- It restores the rendered manifests (image tags, env, resources, policies) of `<rev>` as a new revision ("Rollback to N").
+- It does **not** touch data: the PVCs (MariaDB, WordPress files, Postgres) carry `helm.sh/resource-policy: keep` and are not part of the diff, so orders, users, keys and the audit log stay.
+- Gateway DB migrations (`services/gateway/drizzle/*.sql`) run at startup and are **forward-only**. They have been additive so far (new tables/columns), so an older gateway image runs against a newer schema. A future destructive migration must be split in two releases (add + backfill, then drop) so that the previous revision still works after a rollback.
+- WordPress/WooCommerce: wp-init is idempotent and runs on every revision; WooCommerce's own DB upgrades are not reverted by a rollback — pin `store.init.woocommerceVersion` and take a MariaDB dump before changing it (`kubectl -n store exec mariadb-0 -- sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" wordpress' > backup.sql`).
+
+**Verified on k3d (REL-11, 2026-10-18):** rev 60 (gateway `sha-838c10adbbe1`) → upgrade to a new gateway build `sha-41dcd802e51a` = rev 61 (B's tools/list 64 tools) → `helm rollback platform 60` = rev 62 "Rollback to 60", gateway back on `sha-838c10adbbe1`; before/after: 26 users, 3 upstreams, 198 older audit rows, 8 orders unchanged; B's orders check passed after the rollback.
 
 ## 7. Troubleshooting (to grow)
 | Symptom | Check |

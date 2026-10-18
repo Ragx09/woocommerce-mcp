@@ -1926,7 +1926,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-11 — Helm upgrade and rollback
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** REL-03
 - **Requirements:** REQ-DEL-09
@@ -1935,8 +1935,8 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** Rollback restores the previous revision without data loss.
 - **Tests:** TC-K8S-03.
 - **Command:** `helm history platform && helm rollback platform <rev>`
-- **Evidence:** —
-- **Regression risk:** DB migrations are forward-only → note in docs.
+- **Evidence:** 2026-10-18 on k3d (the same Helm chart/commands as the VPS; REL-03 not needed to prove the mechanism): snapshot `26 users, 34 keys, 3 upstreams, 198 audit rows (older than 1 min), 8 orders | gateway image gateway:sha-838c10adbbe1` (rev 60) → new gateway build `sha-41dcd802e51a` → `scripts/deploy.sh local --set gateway.image.tag=sha-41dcd802e51a` → `REVISION: 61`, same counts, `PASS TC-EXT-01 … (64 tools)` → `helm rollback platform 60 --wait` → `Rollback was a success!`, `helm history`: `62 deployed … Rollback to 60`, gateway image `sha-838c10adbbe1`, counts unchanged (keys 35: the check's own temporary key, revoked), `PASS e2e orders: 3 passed`. All pods Running/Completed. DEPLOYMENT.md §6 written (commands, what a rollback does not undo: PVC data kept, forward-only migrations → two-step destructive changes, WooCommerce DB upgrades → dump first). Re-run on the VPS is part of REL-03.
+- **Regression risk:** Forward-only migrations (documented).
 
 ### REL-12 — README
 - **Priority:** P0
