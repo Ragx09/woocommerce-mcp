@@ -1968,7 +1968,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-14 — Threat model final
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** REL-07, REL-08
 - **Requirements:** REQ-DEL-07
@@ -1977,8 +1977,8 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** All 4 required questions answered; no unverified claims.
 - **Tests:** checklist review.
 - **Command:** —
-- **Evidence:** —
-- **Regression risk:** —
+- **Evidence:** 2026-10-18: THREAT_MODEL.md final for the local deployment. §4: all four REQ-DEL-07 questions answered with the tests behind each claim (Q3 untrusted upstreams: namespacing, caps, server-side prompt, loop limits, admin-only servers, SSRF, instant disable, residual risk stated; Q4 member vs member: the REL-07 boundaries plus shared-credential writes, shared LLM quota, login lockout scope). Row statuses re-checked against evidence: T-03, T-05, T-08, T-11 → Implemented with test IDs; T-07/T-13/T-19 stay Partial and T-17/18/20 Planned (Phase 10 / VPS), with what is missing stated. **Two gaps closed while reviewing:** (1) T-08: no upstream response size cap → `capResponse` in the pool (4 MiB, `UPSTREAM_MAX_RESPONSE_BYTES`, Helm `gateway.upstreamMaxResponseBytes`; Content-Length check + streaming count, POST only); TC-T08-1..3, unit `Tests 99 passed (99)` (mutation: cap off → TC-T08-1 fails), int 118/118, k3d rev 65 acceptance `26 passed, 0 failed, 1 skipped`; also fixed Helm rendering 4194304 as `4.194304e+06` (`int64`). (2) T-11: `scripts/secret-scan.sh` (gitleaks v8.28.0, history + committable files) → first run `leaks found: 35`, all one prose false positive (`token gone from URL, weak/mismatched password…` in TASKS.md and tracker/data.js) → allowlisted in `.gitleaks.toml` → `no leaks found` ×2, `PASS secret scan`; a planted fake `ghp_` token → `leaks found: 1`, `FAIL`; `.env` (gitignored) is excluded by design.
+- **Regression risk:** Low; the cap applies to POST responses only (GET SSE untouched).
 
 ### REL-15 — Demo rehearsal
 - **Priority:** P0

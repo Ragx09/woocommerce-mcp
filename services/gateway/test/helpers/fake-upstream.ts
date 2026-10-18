@@ -62,6 +62,7 @@ export async function startFakeUpstream(
       const { name, arguments: args } = req.params;
       if (!tools.includes(name)) return { isError: true, content: [{ type: 'text' as const, text: `Tool ${name} not found` }] };
       if (name === 'boom') throw new McpError(-32603, 'boom failed');
+      if (name === 'big') return { content: [{ type: 'text' as const, text: 'x'.repeat(Number((args as { bytes?: number })?.bytes ?? 0)) }] };
       if (name === 'slow') {
         await new Promise<void>((r) => {
           const t = setTimeout(r, callDelayMs);

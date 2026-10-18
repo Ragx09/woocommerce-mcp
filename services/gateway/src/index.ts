@@ -57,7 +57,8 @@ else app.log.warn('LLM_API_KEY not set: the chat agent is disabled');
 const ssrf = ssrfPolicy([...cfg.upstreamAllowedHosts, ...seedPlan.seeds.map((s) => new URL(s.url).hostname)]);
 app.log.info({ allowedHosts: [...ssrf.allowedHosts] }, 'ssrf allowlist');
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
-const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, ssrf, log: app.log });
+const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, ssrf, log: app.log,
+  maxResponseBytes: cfg.upstreamMaxResponseBytes });
 await upstreamPool.sync(await listUpstreams(createDb(dbPool)));
 app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug), timeouts: cfg.upstreamTimeouts }, 'upstream pool ready');
 

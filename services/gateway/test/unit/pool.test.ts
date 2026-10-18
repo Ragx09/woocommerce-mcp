@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { encryptCredential, loadCredentialKey } from '../../src/crypto/credentials.js';
 import type { Upstream } from '../../src/db/schema.js';
-import { UpstreamPool, UpstreamUnavailableError } from '../../src/upstreams/pool.js';
+import { capResponse, ResponseTooLargeError, UpstreamPool, UpstreamUnavailableError } from '../../src/upstreams/pool.js';
 import { startFakeUpstream, type FakeUpstream } from '../helpers/fake-upstream.js';
 
 const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
@@ -14,8 +14,8 @@ async function fake(opts?: Parameters<typeof startFakeUpstream>[0]): Promise<Fak
   cleanup.push(f.close);
   return f;
 }
-function pool(): UpstreamPool {
-  const p = new UpstreamPool({ key, connectTimeoutMs: 1_000 });
+function pool(maxResponseBytes?: number): UpstreamPool {
+  const p = new UpstreamPool({ key, connectTimeoutMs: 1_000, maxResponseBytes });
   cleanup.unshift(() => p.close()); // close the pool before the fake servers
   return p;
 }
@@ -112,5 +112,37 @@ describe('UpstreamPool (GW-04)', () => {
     expect(r.isError).toBe(true); // unknown tool → error result from the upstream, connection kept
     expect(up.headers.length - before).toBe(1);
     expect(up.initializeCount()).toBe(1);
+  });
+});
+
+describe('upstream response size cap (T-08)', () => {
+  const errText = (e: unknown): string => { let t = ''; for (let x = e as { message?: string; cause?: unknown } | undefined; x; x = x.cause as typeof x) t += ` ${x.message}`; return t; };
+
+  it('TC-T08-1: a response over the cap is refused, smaller ones pass, the connection keeps working', async () => {
+    const up = await fake({ tools: ['echo', 'big'] });
+    const p = pool(64 * 1024);
+    await p.sync([row({ url: up.url })]);
+    const call = (bytes: number) => p.withClient('u1', (c) => c.callTool({ name: 'big', arguments: { bytes } }));
+    const ok = await call(10_000);
+    expect((ok.content as Array<{ text: string }>)[0]?.text).toHaveLength(10_000);
+    const err = await call(200_000).then(() => null, (e: unknown) => e);
+    expect(errText(err)).toContain('upstream response larger than 65536 bytes');
+    const again = await call(1_000);
+    expect((again.content as Array<{ text: string }>)[0]?.text).toHaveLength(1_000);
+  });
+
+  it('TC-T08-2: a declared Content-Length over the cap is refused before the body is read', async () => {
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({ pull(ctl) { pulled++; ctl.enqueue(new Uint8Array(10)); } });
+    const res = new Response(body, { headers: { 'content-length': String(10_000_000) } });
+    await expect(capResponse(res, 1024)).rejects.toBeInstanceOf(ResponseTooLargeError);
+    expect(pulled).toBeLessThanOrEqual(1); // at most the stream's initial pull, never the 10 MB
+  });
+
+  it('TC-T08-3: the default cap leaves normal tool lists and calls alone', async () => {
+    const up = await fake();
+    const p = pool();
+    await p.sync([row({ url: up.url })]);
+    expect(await toolNames(p)).toEqual(['echo', 'ping']);
   });
 });

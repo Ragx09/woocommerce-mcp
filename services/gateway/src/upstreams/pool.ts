@@ -10,6 +10,9 @@
 //   drops Authorization on a cross-origin redirect but keeps custom headers like X-Api-Key). The SDK
 //   (1.32) already stops cross-origin redirects; `redirect: 'error'` is a second layer that does not
 //   depend on the SDK default. Registered URLs are exact endpoints, so no redirect is expected.
+// - Response size cap (T-08): an upstream response body larger than `maxResponseBytes` (default 4 MiB) is
+//   refused — by Content-Length up front, or while streaming — so a hostile or broken upstream cannot
+//   exhaust the gateway's memory and take every other server down with it.
 // - SSRF guard at connect time (T-06, `ssrf` option): every DNS answer the agent connects to and every
 //   literal-IP URL is checked against the policy (ssrf.ts), so DNS rebinding or a row written around
 //   the API cannot reach internal addresses.
@@ -30,6 +33,37 @@ export interface PoolOptions {
   /** Refuse internal addresses unless allowlisted (production). Unset: no check (tests with local fakes). */
   ssrf?: SsrfPolicy;
   log?: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void };
+  /** Largest upstream response body accepted, in bytes (T-08). Default 4 MiB. */
+  maxResponseBytes?: number;
+}
+
+export const DEFAULT_MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+
+/** The upstream sent more than the response budget; the message is safe to show. */
+export class ResponseTooLargeError extends Error {
+  constructor(max: number) { super(`upstream response larger than ${max} bytes`); this.name = 'ResponseTooLargeError'; }
+}
+
+/**
+ * Wraps a POST response so that reading more than `max` body bytes fails with ResponseTooLargeError.
+ * GET responses (the optional server→client SSE stream) are long-lived and left alone.
+ */
+export async function capResponse(res: Response, max: number): Promise<Response> {
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > max) {
+    await res.body?.cancel().catch(() => {});
+    throw new ResponseTooLargeError(max);
+  }
+  if (!res.body) return res;
+  let seen = 0;
+  const limited = res.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, ctl) {
+      seen += chunk.byteLength;
+      if (seen > max) ctl.error(new ResponseTooLargeError(max));
+      else ctl.enqueue(chunk);
+    },
+  }));
+  return new Response(limited, { status: res.status, statusText: res.statusText, headers: res.headers });
 }
 
 /** Thrown for problems reaching an upstream; message is safe to show (no URL secrets, no credentials). */
@@ -186,11 +220,13 @@ export class UpstreamPool {
     const headers = upstreamHeaders(this.opts.key, row);
     const dispatcher = this.dispatcher;
     const ssrf = this.opts.ssrf;
+    const maxBytes = this.opts.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     const transport = new StreamableHTTPClientTransport(new URL(row.url), {
       requestInit: { headers },
       fetch: (async (url: string | URL, init?: RequestInit) => {
         if (ssrf) checkLiteralHost(url, ssrf); // IP hosts never reach the agent's lookup
-        return undiciFetch(url, { ...(init as object), dispatcher, redirect: 'error' });
+        const res = await undiciFetch(url, { ...(init as object), dispatcher, redirect: 'error' }) as unknown as Response;
+        return (init?.method ?? 'GET').toUpperCase() === 'POST' ? capResponse(res, maxBytes) : res;
       }) as unknown as typeof fetch,
     });
     const client = new Client(CLIENT_INFO, { capabilities: {} });
@@ -244,6 +280,7 @@ export function safeReason(e: unknown): string {
   // SDK errors first: their numeric `code` is a JSON-RPC / HTTP status, not a socket error code.
   if (e instanceof StreamableHTTPError) return `HTTP ${e.code ?? 'error'}`;
   if (e instanceof McpError) return `MCP error ${e.code}`;
+  if (e instanceof ResponseTooLargeError) return e.message;
   const err = e as { code?: string; cause?: { code?: string }; message?: string };
   const code = err.cause?.code ?? err.code;
   if (code) return String(code);

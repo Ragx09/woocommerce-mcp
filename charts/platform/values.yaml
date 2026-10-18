@@ -99,6 +99,7 @@ gateway:
     connect: 2000
     list: 3000
     call: 15000
+  upstreamMaxResponseBytes: 4194304          # larger upstream responses are refused (T-08)
   healthIntervalMs: 10000                    # upstream health loop (GW-10)
   # SSRF guard (T-06): admin-added servers may not resolve to internal addresses unless their host
   # name is listed here. The seeded servers' hosts (woo-mcp, everything-mcp) are allowed automatically.

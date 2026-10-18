@@ -66,7 +66,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DEL-04 | Deliverables | Source code for all components | repo | INF-01, WC-06, GW-01, UI-01 | TC-INF-01-1 | Not Started | — |
 | REQ-DEL-05 | Deliverables | Helm charts + values files | charts | INF-03, INF-04 | TC-K8S-01 | Not Started | — |
 | REQ-DEL-06 | Deliverables | System design & trade-offs note | docs | ARC-01, REL-13 | checklist | Verified | 2026-10-18 REL-13: [docs/SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) covers all three bullets (checklist in TASKS.md REL-13) |
-| REQ-DEL-07 | Deliverables | Threat model note (4 questions) | docs | REL-14 | checklist | In Progress | THREAT_MODEL.md draft |
+| REQ-DEL-07 | Deliverables | Threat model note (4 questions) | docs | REL-14 | checklist | Verified | 2026-10-18 REL-14: THREAT_MODEL.md §4 answers all four questions with test references; §3 statuses re-checked (TASKS.md REL-14) |
 | REQ-DEL-08 | Deliverables | List of bonus items attempted | docs | REL-12 | checklist | Not Started | — |
 | REQ-DEL-09 | Submission | Demo video (6 topics) | video | REL-15, REL-16 | checklist | Not Started | — |
 | REQ-DEL-10 | Submission | Submit form with video + repo | user | P0-01, REL-17 | user confirmation | Not Started | — |

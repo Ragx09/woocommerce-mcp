@@ -9,6 +9,8 @@ export interface Config {
   bodyLimit: number;
   /** Upstream budgets in ms (GW-09, docs/MCP_DESIGN.md §6). */
   upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
+  /** Largest upstream response body the gateway accepts, in bytes (T-08). */
+  upstreamMaxResponseBytes: number;
   /** Period of the upstream health loop in ms (GW-10). */
   healthIntervalMs: number;
   /** Session cookie gets the Secure flag (true when the public URL is https). */
@@ -82,6 +84,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       listMs: int('UPSTREAM_LIST_TIMEOUT_MS', env.UPSTREAM_LIST_TIMEOUT_MS, 3_000, 100, 60_000),
       callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
     },
+    upstreamMaxResponseBytes: int('UPSTREAM_MAX_RESPONSE_BYTES', env.UPSTREAM_MAX_RESPONSE_BYTES, 4 * 1024 * 1024, 64 * 1024, 64 * 1024 * 1024),
     healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
     publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),

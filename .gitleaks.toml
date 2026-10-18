@@ -1,0 +1,10 @@
+# gitleaks config (T-11, scripts/secret-scan.sh): the default rules plus one reviewed false positive.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed false positives (prose, not secrets)"
+# TASKS.md AUTH-04 evidence sentence "invite token gone from URL, weak/mismatched password blocked, …"
+# (and its copy in the generated tracker/data.js) matches generic-api-key.
+regexTarget = "match"
+regexes = ['''token gone from URL, weak''']
