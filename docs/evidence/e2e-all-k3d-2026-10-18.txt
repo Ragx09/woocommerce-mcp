@@ -1,0 +1,83 @@
+
+> Create a product called Demo Mug 10180923 priced 249.75
+HTTP 200 in 2142 ms, stopped=answer
+  tool woo__create_product {"name":"Demo Mug 10180923","regular_price":"249.75"} → ok (270 ms) {"id":153,"name":"Demo Mug 10180923","status":"publish","price":"249.75","regular_price":"249.75","stock_status":"instock","permalink":"http://store.127.0.0.1.n
+  reply: ✅ Product created: **Demo Mug 10180923** – ₹249.75 (ID 153).
+PASS  chat called woo__create_product through the gateway (woo__create_product)
+PASS  arguments: the asked name and price ({"name":"Demo Mug 10180923","regular_price":"249.75"})
+PASS  tool result has the new product id and permalink ({"id":153,"name":"Demo Mug 10180923","status":"publish","price":"249.75","regular_price":"249.75","stock_status":"instoc)
+PASS  reply confirms the product
+PASS  product page live on the storefront (200 http://store.127.0.0.1.nip.io/product/demo-mug-10180923/)
+PASS  public Store API lists it, published at the asked price (INR 24975)
+PASS  storefront order placed for the new product (#154)
+PASS  the order contains the new product (Demo Mug 10180923)
+PASS  the order line is charged the exact price (not rounded) (line total 249.75)
+
+store database: 4 order(s) on 2026-10-18 (Asia/Kolkata): #154, #152, #149, #147
+
+> What orders came in today?
+HTTP 200 in 2041 ms, stopped=answer
+  tool woo__list_orders {"date":"today"} → ok (139 ms) {"count":4,"date":"2026-10-18","orders":[{"id":154,"number":"154","status":"processing","total":"249.75","currency":"INR","date_created":"2026-10-18T14:53:49","
+  reply: **Today's orders (2026‑10‑18)**  
+
+| Order # | ID | Status | Total (INR) | Time (store) | Customer | Items |
+|---------|----|--------|-------------|--------------|----------|-------|
+| 154 | 154 | processing | 249.75 | 14:53:49 | Asha Rao | 1 × Demo Mug 10180923 |
+| 152 | 152 | processing | 12.50 | 14:47:44 | Asha Rao | 1 × Demo Mug 10180917 |
+| 149 | 149 | processing | 499.00 | 00:22:57 | Asha Rao | 1 × Demo Mug 10171852 |
+| 147 | 147 | processing | 13.00 | 00:21:58 | Asha Rao | 1 × Demo Mug 10171851 |
+PASS  chat called woo__list_orders (woo__list_orders)
+  (result excerpt cut off at 500 chars; count not compared)
+PASS  the answer names the new order (#154)
+PASS  audit: create_product and list_orders under the admin with source=chat (2 chat tool calls since start)
+
+PASS  UI-19 chat flow (12/12): Demo Mug 10180923 id 153, order #154
+
+== users
+PASS  TC-E2E-03-1 user A signs in (admin) (admin@example.invalid)
+PASS  TC-E2E-03-1 user B signs in (member) and has an own key (demo-b@example.invalid, key mgw_JY3PXADs…)
+
+== url
+PASS  TC-K8S-04a /mcp without a key → 401 + WWW-Authenticate (401)
+PASS  TC-K8S-04b /mcp with a forged key → 401 (401)
+PASS  TC-K8S-04c initialize with B's key → ok (mcp-gateway 2025-06-18)
+PASS  TC-K8S-04d GET /mcp → 405 (405)
+
+== tools
+PASS  TC-EXT-01 B tools/list → tools of every enabled server (woo:5 everything:13 github:46; enabled: woo, everything, github)
+PASS  TC-EXT-01 MCP Inspector CLI with B's key lists woo, everything and github tools (64 tools)
+
+== orders
+PASS  TC-EXT-02 B woo__list_orders {date: today} = the store database (tool [#147, #149, #152, #154], db [#147, #149, #152, #154] on 2026-10-18 Asia/Kolkata)
+
+== cross
+SKIP  TC-E2E-07 one prompt, two upstreams (woo → github issue) (GITHUB_REPO=owner/repo not set (GW-15 blocked))
+
+== disable
+PASS  TC-E2E-09a admin disables everything (200)
+PASS  TC-E2E-09b B's tools/list has no everything tools (woo:5 github:46)
+PASS  TC-E2E-09c B calling everything__echo → upstream_disabled ({"code":-32602,"message":"MCP error -32602: upstream everything is disabled","data":{"code":"upstrea)
+PASS  TC-E2E-09d the chat agent has no everything tools (no everything__ call, reply says so) (calls: [find_tools, find_tools], reply: I don’t have an “everything” server or an echo tool available.)
+PASS  TC-E2E-09e re-enabled everything
+PASS  TC-E2E-09f B sees everything tools again (woo:5 everything:13 github:46)
+
+== killpod
+PASS  TC-E2E-10a dashboard API shows everything Unreachable (as B sees it) (unreachable after 5 s)
+PASS  TC-E2E-10b B still lists woo and github tools (woo:5 github:46)
+PASS  TC-E2E-10c woo__list_products still works (103 ms)
+PASS  TC-E2E-10d github__get_me still works (465 ms)
+PASS  TC-E2E-10e everything__echo fails fast (17 ms)
+PASS  TC-E2E-10f everything Connected again after scale 1 (connected)
+
+== revoke
+PASS  TC-E2E-08a B's key works before the revoke (woo:5 everything:13 github:46)
+PASS  TC-E2E-08b admin revokes B's key (204)
+PASS  TC-E2E-08c B's next call → 401 (401 {"error":"invalid_api_key","message":"missing or invalid API key"})
+
+== audit
+PASS  TC-E2E-11 every request of this run is in the audit log with the right user and outcome (13 requests, 15 rows since start)
+PASS  TC-E2E-11 no row with B's key is attributed to anyone else (0)
+
+PASS  e2e all: 26 passed, 0 failed, 1 skipped
+
+PASS  scripts/e2e.sh all (chat flow + acceptance)

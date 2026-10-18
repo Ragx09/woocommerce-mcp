@@ -1585,7 +1585,7 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 
 ### E2E-01 — External gateway URL
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** AUTH-08, INF-11
 - **Requirements:** REQ-GW-12
@@ -1594,12 +1594,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Without a key → 401; with a key → initialize ok.
 - **Tests:** TC-K8S-04.
 - **Command:** `curl -s -o /dev/null -w '%{http_code}' -X POST http://app.127.0.0.1.nip.io/mcp`
-- **Evidence:** —
+- **Evidence:** 2026-10-18, k3d: `node scripts/e2e-acceptance.mjs url` (part of `scripts/e2e.sh all`, `docs/evidence/e2e-all-k3d-2026-10-18.txt`) → `PASS TC-K8S-04a /mcp without a key → 401 + WWW-Authenticate`, `PASS TC-K8S-04b forged key → 401`, `PASS TC-K8S-04c initialize with B's key → ok (mcp-gateway 2025-06-18)`, `PASS TC-K8S-04d GET /mcp → 405`; both 401s found in the audit as `denied` without a user. URL documented in README § Connect an external MCP client (`http://app.127.0.0.1.nip.io/mcp`; same from Windows via nip.io → 127.0.0.1).
 - **Regression risk:** —
 
 ### E2E-02 — Client configuration docs
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-01
 - **Requirements:** REQ-DEL-03
@@ -1608,26 +1608,26 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Following the docs verbatim works.
 - **Tests:** TC-EXT-01/02.
 - **Command:** —
-- **Evidence:** —
+- **Evidence:** 2026-10-18: README § Using the system → Claude Code (`claude mcp add --transport http … --header` and a `--mcp-config` file), Cursor (`mcp.json` with `url` + `headers`), MCP Inspector (UI and CLI). Verified as written: Inspector CLI `--method tools/list` → 64 tools (TC-EXT-01) and `--method tools/call --tool-name woo__list_orders --tool-arg date=today` → `{"count":4,"date":"2026-10-18","orders":[{"id":154 …`; Claude Code 2.1.302 with the `--mcp-config` form and B's key answered the orders question (E2E-05). **Not run:** `claude mcp add` itself (it would change the user's Claude Code config; same URL/header as the verified file form) and Cursor (not installed here).
 - **Regression risk:** —
 
 ### E2E-03 — Users A and B
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** AUTH-05, AUTH-06
 - **Requirements:** REQ-DOD-12
 - **Description:** Script or runbook to create user A (admin or member) and user B (member) with keys.
-- **Output:** `scripts/seed-demo-users.sh` (passwords from env, not committed).
+- **Output:** `scripts/seed-demo-users.mjs` (B's password in Secret `platform/demo-users`, never committed).
 - **Acceptance:** Both log in and have keys.
 - **Tests:** TC-E2E-03-1.
-- **Command:** `scripts/seed-demo-users.sh`
-- **Evidence:** —
+- **Command:** `node scripts/seed-demo-users.mjs [--key]`
+- **Evidence:** 2026-10-18: `scripts/seed-demo-users.mjs` (Node instead of the planned `.sh`, reuses `scripts/lib/gateway-key.mjs`): A = seeded admin, B = member `demo-b@example.invalid` created through the real invite → accept flow; B's password generated into Secret `platform/demo-users` (via `kubectl apply` stdin, never printed or committed); `--key` prints a new key for B once. First run → `created user B demo-b@example.invalid (member) through the invite flow`, `ok user A admin@example.invalid (admin) signs in`, `ok user B … (member) signs in`; second run idempotent (no create). TC-E2E-03-1 PASS in the acceptance run.
 - **Regression risk:** —
 
 ### E2E-04 — B lists tools externally
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-03
 - **Requirements:** REQ-DOD-05, REQ-DOD-06
@@ -1636,12 +1636,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** woo, everything and github tools listed.
 - **Tests:** TC-EXT-01, TC-EXT-02.
 - **Command:** Inspector CLI list
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): `PASS TC-EXT-01 B tools/list → tools of every enabled server (woo:5 everything:13 github:46; enabled: woo, everything, github)`, `PASS TC-EXT-01 MCP Inspector CLI with B's key lists woo, everything and github tools (64 tools)`. Claude Code with B's key used `woo__list_orders` and `github__search_issues` (E2E-05/06).
 - **Regression risk:** —
 
 ### E2E-05 — B asks the orders question
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-04
 - **Requirements:** REQ-DOD-06
@@ -1650,12 +1650,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Correct order list.
 - **Tests:** TC-EXT-02.
 - **Command:** manual (Claude Code)
-- **Evidence:** —
+- **Evidence:** 2026-10-18: scripted `PASS TC-EXT-02 B woo__list_orders {date: today} = the store database (tool [#147, #149, #152, #154], db [#147, #149, #152, #154] on 2026-10-18 Asia/Kolkata)`. Real Claude Code 2.1.302 (`claude -p "What orders came in today in the store? …" --mcp-config <B's key> --strict-mcp-config`) → "Four orders came in today, October 18, 2026" with #154 ₹249.75, #152 ₹12.50, #149 ₹499.00, #147 ₹13.00 (= MariaDB); audit rows `demo-b@example.invalid mgw_rcoWEuUd woo list_orders ok`. Temporary key revoked afterwards.
 - **Regression risk:** —
 
 ### E2E-06 — Cross-upstream prompt
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-04, GW-15
 - **Requirements:** REQ-DOD-07
@@ -1664,12 +1664,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Both servers' tools called (audit shows both).
 - **Tests:** TC-E2E-07.
 - **Command:** manual + audit query
-- **Evidence:** —
+- **Evidence:** 2026-10-18, read-only variant (REQ-DOD-07 needs tools from two upstreams in one prompt; GW-15's issue write still waits for the throwaway repo): Claude Code with B's key, one prompt "get today's store orders … then search open GitHub issues in the public repo woocommerce/woocommerce that mention 'cash on delivery' … whether any could affect today's orders" → called `woo__list_orders`, `woo__get_order` ×4 and `github__search_issues`, answered with today's 4 orders and woocommerce/woocommerce#68674; audit: all rows under `demo-b@example.invalid` (`woo list_orders ok`, `github search_issues ok`, `woo get_order ok` ×4). An earlier attempt on the private project repo → `github list_issues tool_error` (the PAT cannot see it; also audited). Issue-creating variant: `GITHUB_REPO=owner/repo scripts/e2e.sh cross` once the repo is known (GW-15).
 - **Regression risk:** —
 
 ### E2E-07 — Revoke B
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-04, UI-10
 - **Requirements:** REQ-DOD-08
@@ -1678,12 +1678,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** 401 + audit `denied`.
 - **Tests:** TC-E2E-08.
 - **Command:** `scripts/e2e.sh revoke`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): `PASS TC-E2E-08a B's key works before the revoke`, `PASS TC-E2E-08b admin revokes B's key (204)` (same `DELETE /api/keys/:id` the dashboard's Revoke button calls, browser-tested in UI-10), `PASS TC-E2E-08c B's next call → 401 ({"error":"invalid_api_key"…})`; the 401 is in the audit as `denied`.
 - **Regression risk:** —
 
 ### E2E-08 — Disable an upstream
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** UI-07
 - **Requirements:** REQ-DOD-09
@@ -1692,12 +1692,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Both lists exclude everything tools.
 - **Tests:** TC-E2E-09.
 - **Command:** `scripts/e2e.sh disable`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): `PASS TC-E2E-09b B's tools/list has no everything tools (woo:5 github:46)`, `PASS TC-E2E-09c B calling everything__echo → upstream_disabled`, `PASS TC-E2E-09d the chat agent has no everything tools (calls: [find_tools, find_tools], reply: I don’t have an “everything” server or an echo tool available.)` (real Groq, as A), re-enabled → `woo:5 everything:13 github:46`.
 - **Regression risk:** —
 
 ### E2E-09 — Kill an upstream pod
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** GW-16, UI-04
 - **Requirements:** REQ-DOD-10
@@ -1706,12 +1706,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** As described.
 - **Tests:** TC-E2E-10.
 - **Command:** `scripts/e2e.sh killpod`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): everything-mcp scaled to 0 → `PASS TC-E2E-10a dashboard API shows everything Unreachable (as B sees it) (unreachable after 5 s)` (the API the Servers page polls; the page itself browser-tested in UI-04), `PASS 10b B still lists woo and github tools`, `PASS 10c woo__list_products still works (103 ms)`, `PASS 10d github__get_me still works (465 ms)`, `PASS 10e everything__echo fails fast (17 ms)`, `PASS 10f everything Connected again after scale 1`. Pod-delete variant: GW-16 `k8s-checks.sh killpod`.
 - **Regression risk:** —
 
 ### E2E-10 — Audit attribution check
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-05..E2E-09
 - **Requirements:** REQ-DOD-11
@@ -1720,12 +1720,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Audit query assertions pass.
 - **Tests:** TC-E2E-11.
 - **Command:** `scripts/e2e.sh audit`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): each `/mcp` request of the run is raw JSON-RPC with its `x-request-id`, looked up in `GET /api/audit` → `PASS TC-E2E-11 every request of this run is in the audit log with the right user and outcome (13 requests, 15 rows since start)` (B's ok calls, `rejected` while disabled, `unreachable` while killed, `denied` without a user for no key/forged/revoked), `PASS no row with B's key is attributed to anyone else (0)`; chat calls under A with source=chat checked by the chat flow. The check caught a real difference first: refused calls store the public tool name (`everything__echo`), routed ones the upstream name (`echo`) — the test now accepts both.
 - **Regression risk:** —
 
 ### E2E-11 — A creates a product via chat
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** UI-19
 - **Requirements:** REQ-DOD-03
@@ -1734,12 +1734,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Product on the storefront.
 - **Tests:** TC-E2E-03.
 - **Command:** manual + `scripts/e2e.sh chat`
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): as user A (seeded admin) with real Groq: `woo__create_product {"name":"Demo Mug 10180923","regular_price":"249.75"} → ok`, product page 200, `public Store API … (INR 24975)`. Same earlier with 12.50 (product 151) and in the browser (UI-19).
 - **Regression risk:** —
 
 ### E2E-12 — Manual COD order
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** WC-04, E2E-11
 - **Requirements:** REQ-DOD-01, REQ-DOD-02, REQ-DOD-04
@@ -1748,12 +1748,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** Order in wp-admin.
 - **Tests:** TC-E2E-01, TC-E2E-02.
 - **Command:** manual
-- **Evidence:** —
+- **Evidence:** 2026-10-18: guest COD order in a real browser for the chat-created product → `PASS storefront order placed for the new product (#154)`, line total 249.75 (exact); `scripts/e2e-checkout.sh` now also signs in to wp-admin (password from Secret `store/wordpress-admin`, never printed) → `PASS order placed: #155`, `PASS order #155 listed in WooCommerce admin → Orders ("… #155 Asha Rao 6 seconds ago …")`, screenshot `tests/e2e/out/admin-orders.png`.
 - **Regression risk:** —
 
 ### E2E-13 — A asks today's orders via chat
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-12
 - **Requirements:** REQ-DOD-04
@@ -1762,12 +1762,12 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** The order number matches.
 - **Tests:** TC-E2E-04.
 - **Command:** manual
-- **Evidence:** —
+- **Evidence:** 2026-10-18 (`docs/evidence/e2e-all-k3d-2026-10-18.txt`): `PASS chat called woo__list_orders`, `PASS the answer names the new order (#154)`, `PASS audit: create_product and list_orders under the admin with source=chat`.
 - **Regression risk:** —
 
 ### E2E-14 — Scripted acceptance suite
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 6
 - **Depends on:** E2E-01..E2E-13
 - **Requirements:** REQ-DOD-01..12
@@ -1776,7 +1776,7 @@ Exit criterion: required workflows work across dashboard chat, gateway, external
 - **Acceptance:** All automated checks PASS on local; re-run on the VPS.
 - **Tests:** TC-E2E-01..12.
 - **Command:** `scripts/e2e.sh all`
-- **Evidence:** —
+- **Evidence:** 2026-10-18, local k3d rev 58: `PRICE=249.75 scripts/e2e.sh all` → `PASS UI-19 chat flow (12/12): Demo Mug 10180923 id 153, order #154`, `PASS e2e all: 26 passed, 0 failed, 1 skipped` (skip = `cross`, needs `GITHUB_REPO`), `PASS scripts/e2e.sh all (chat flow + acceptance)`; log `docs/evidence/e2e-all-k3d-2026-10-18.txt` (0 key/token strings in it). Manual items: Claude Code / Cursor and the browser walk-through in `docs/DEMO_RUNBOOK.md`. **Open:** re-run on the VPS (blocked: no VPS, REL-01).
 - **Regression risk:** —
 
 ---

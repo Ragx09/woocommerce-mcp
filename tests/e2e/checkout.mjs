@@ -30,6 +30,21 @@ try {
   const orderId = new URL(page.url()).pathname.match(/order-received\/(\d+)/)?.[1];
   await page.screenshot({ path: '/out/order-received.png', fullPage: true });
   console.log(`PASS  order placed: #${orderId} (${page.url().replace(/key=[^&]+/, 'key=…')})`);
+  // TC-E2E-02 (REQ-DOD-02): the order is visible in WooCommerce admin (only when the admin password is passed in).
+  if (process.env.ADMIN_PASSWORD) {
+    const admin = await browser.newPage();
+    await admin.goto(`${STORE}/wp-login.php`);
+    await admin.fill('#user_login', process.env.ADMIN_USER ?? 'admin');
+    await admin.fill('#user_pass', process.env.ADMIN_PASSWORD);
+    await Promise.all([admin.waitForURL(/wp-admin/), admin.click('#wp-submit')]);
+    await admin.goto(`${STORE}/wp-admin/admin.php?page=wc-orders`, { waitUntil: 'networkidle' });
+    if (!/page=wc-orders/.test(admin.url()) || !(await admin.locator('#the-list').count())) await admin.goto(`${STORE}/wp-admin/edit.php?post_type=shop_order`, { waitUntil: 'networkidle' });
+    const row = admin.locator('#the-list tr', { hasText: `#${orderId}` }).first();
+    const visible = await row.isVisible().catch(() => false);
+    await admin.screenshot({ path: '/out/admin-orders.png', fullPage: true });
+    if (!visible) throw new Error(`order #${orderId} not listed in WooCommerce admin → Orders`);
+    console.log(`PASS  order #${orderId} listed in WooCommerce admin → Orders ("${(await row.innerText()).replace(/\s+/g, ' ').slice(0, 80)}")`);
+  }
 } catch (e) {
   await page.screenshot({ path: '/out/checkout-failure.png', fullPage: true }).catch(() => {});
   console.error(`FAIL  ${e.message.split('\n')[0]}`);

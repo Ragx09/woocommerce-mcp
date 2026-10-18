@@ -35,7 +35,50 @@ More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Full instructions are f
 _To be written in REL-12._
 
 ## Using the system
-_Placing an order, connecting Claude Code / Cursor / MCP Inspector, using the chat agent: to be written in E2E-02 / REL-12._
+
+### Demo users (A and B)
+`node scripts/seed-demo-users.mjs --key` makes sure user **A** (the seeded admin, Secret `platform/gateway-admin`) and user **B** (a member, invited and accepted through the normal flow; password in Secret `platform/demo-users`) exist, and prints a fresh API key for B **once**. Any user can also create their own key in the dashboard → **API keys**. Keys are shown once and stored only as a hash.
+
+### Connect an external MCP client
+All a client needs is the gateway URL and a personal key. Local k3d: `http://app.127.0.0.1.nip.io/mcp` (works from WSL and from Windows, nip.io resolves to 127.0.0.1); VPS: `https://app.<domain>/mcp`. Transport: Streamable HTTP. Every tool is named `<server>__<tool>` (e.g. `woo__list_orders`, `github__get_me`).
+
+**Claude Code**
+```bash
+claude mcp add --transport http mcp-gateway http://app.127.0.0.1.nip.io/mcp \
+  --header "Authorization: Bearer mgw_…your key…"
+claude mcp list                     # mcp-gateway … ✔ Connected
+claude                              # then ask: "What orders came in today in the store?"
+```
+Or without changing your Claude Code config, with a file (keep it out of git, it holds the key):
+```json
+{ "mcpServers": { "mcp-gateway": { "type": "http", "url": "http://app.127.0.0.1.nip.io/mcp",
+    "headers": { "Authorization": "Bearer mgw_…your key…" } } } }
+```
+`claude --mcp-config gateway.json --strict-mcp-config`
+
+**Cursor** — `~/.cursor/mcp.json` (or `.cursor/mcp.json` in a project), then Settings → MCP shows the tools:
+```json
+{ "mcpServers": { "mcp-gateway": { "url": "http://app.127.0.0.1.nip.io/mcp",
+    "headers": { "Authorization": "Bearer mgw_…your key…" } } } }
+```
+
+**MCP Inspector**
+```bash
+# UI: choose Transport "Streamable HTTP", URL as above, add header Authorization: Bearer mgw_…
+npx @modelcontextprotocol/inspector@2.10.1
+# CLI:
+npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http \
+  --header "Authorization: Bearer mgw_…" --method tools/list
+npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http \
+  --header "Authorization: Bearer mgw_…" --method tools/call --tool-name woo__list_orders --tool-arg date=today
+```
+Without a key, or with a revoked key, `/mcp` answers 401. Disabled servers' tools are not listed. Every call is in the dashboard → **Audit log** under your name.
+
+### Chat agent
+Dashboard → **Chat** (signed in as any user). Try "Create a product called Demo Mug priced 499" and "What orders came in today?". The chat uses the same gateway `/mcp` with your identity; its calls are audited with source `chat`.
+
+### Acceptance checks
+`scripts/e2e.sh all` runs every automatable Definition-of-Done check (chat flow with the real LLM, A/B users, external key, revoke, disable, kill pod, audit attribution) and prints PASS/FAIL lines; `GITHUB_REPO=owner/repo` adds the cross-server GitHub issue. Manual steps: [docs/DEMO_RUNBOOK.md](docs/DEMO_RUNBOOK.md).
 
 ## Documentation
 | Doc | Purpose |

@@ -1,12 +1,13 @@
 # Progress
 
 ## Current phase
-Phase 6 — Dashboard and chat (Day 5 work started 2026-10-14)
+Phase 7 — External MCP clients and acceptance testing: done on local k3d (2026-10-18, Day 8 — one day past the 2026-10-17 deadline). Phase 8 (VPS, release) next.
 
 ## Current task
-UI-16, UI-17 and UI-19 done (2026-10-17, Day 7). Next: E2E-01..14 (E2E-06 blocked by GW-15); UI-18 (error states, P2) if time allows.
+E2E-01..13 Done, E2E-14 In Progress (local PASS; VPS re-run blocked). Next: REL-02 (values-prod), REL-07, REL-09..14 (audits + docs, no VPS needed); REL-01/03..06 when the VPS exists; UI-18 (P2) if time allows.
 
 ## Recently completed
+- 2026-10-18: **E2E-01..13 — Phase 7 acceptance on k3d**: `scripts/seed-demo-users.mjs` (A = admin, B = member via invite, password in Secret `platform/demo-users`), `scripts/e2e-acceptance.mjs` (url/users/tools/orders/cross/disable/killpod/revoke + audit by request id) behind `scripts/e2e.sh all` → chat flow 12/12 + `e2e all: 26 passed, 0 failed, 1 skipped` (log `docs/evidence/e2e-all-k3d-2026-10-18.txt`). Real Claude Code 2.1.302 with B's key: orders question correct; one read-only prompt across woo + github (`github__search_issues` on woocommerce/woocommerce). Inspector CLI tools/list + tools/call as in the README. `e2e-checkout.sh` confirms the order in wp-admin → Orders. README client docs written (Claude Code, Cursor, Inspector). Not run: Cursor, `claude mcp add` (would change the user's config). Order #147 (₹13 for a ₹12.50 item) is the pre-fix rounding bug, left as test data.
 - 2026-10-18: **Price rounding fixed**: store keeps 2 decimals, theme hides `.00` (SPEC A-09 rewritten). Real-Groq `PRICE=12.50 scripts/chat-flow.mjs` 12/12 on k3d rev 58; order #152 line total 12.5; catalogue still shows ₹1,299.
 - 2026-10-17: **UI-19 — chat "create product" flow**: `scripts/e2e.sh chat` (new; first mode of the E2E-14 script, runs `scripts/chat-flow.mjs`) with real Groq → 12/12: chat creates "Demo Mug <stamp>" at ₹499 via `woo__create_product`, page live + Store API, guest COD order #149 for it (`e2e-checkout.sh` takes `PRODUCT_SLUG`), chat's today's orders names #149 and its count equals MariaDB, audit rows under the admin with source=chat. Browser `dashboard-screens.sh chat-create` 6/6 (tool card, storefront page ₹499). **Found:** the store shows INR without decimals, so "priced 12.50" became ₹13 on the storefront and in the order total → demo prompt uses whole rupees (SPEC A-09, runbook). Test data kept: products 146/148/150, orders #147/#149.
 - 2026-10-16: **UI-17 — chat attribution test**: TC-UI-17-1 (int) — three users chat concurrently (3 rounds, barrier-synchronized) while another uses an API key on `/mcp`: every `tools/call` row under the right user with the right `source` and key; a failed call too; admin audit filter by user returns only that user's chat calls, member 403. Int 118/118; a planted bug (token minted for the first user) fails 5 tests.
@@ -68,7 +69,7 @@ UI-16, UI-17 and UI-19 done (2026-10-17, Day 7). Next: E2E-01..14 (E2E-06 blocke
 
 ## Blockers
 - **LLM free-tier budget**: Groq allows 8k tokens/min ≈ two chat questions per minute. Enough for the demo if paced; otherwise a paid tier or another provider (values change).
-- **GW-15** needs the throwaway GitHub repo (owner/repo) the PAT may write issues to.
+- **GW-15** (issue-writing cross-server demo) needs the throwaway GitHub repo (owner/repo) the PAT may write issues to; REQ-DOD-07 itself is met read-only (E2E-06).
 - SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
@@ -77,7 +78,7 @@ UI-16, UI-17 and UI-19 done (2026-10-17, Day 7). Next: E2E-01..14 (E2E-06 blocke
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-Day 5: dashboard UI-01..20 (login, servers, members/invites, keys, audit, chat) on top of the finished /api. GW-15 once the throwaway repo name is known (one command).
+REL-02 values-prod, then REL-07/09/10/12/13/14 (reviews, audits, README, design note, threat model) — none need the VPS. With a VPS: REL-01 → REL-03..06 → E2E-14 re-run → REL-15..17.
 
 ## Remaining mandatory acceptance criteria
 All 12 DoD checks (REQ-DOD-01…12): not started.
