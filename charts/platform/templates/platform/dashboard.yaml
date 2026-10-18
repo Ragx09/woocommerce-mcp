@@ -31,6 +31,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      {{- include "platform.pullSecrets" . | nindent 6 }}
       enableServiceLinks: false
       securityContext:
         runAsUser: 101           # nginx-unprivileged's nginx user

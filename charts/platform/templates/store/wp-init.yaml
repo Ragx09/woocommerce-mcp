@@ -31,6 +31,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
+      {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 33       # www-data of the Debian-based Apache image, which owns the files
         runAsGroup: 33
@@ -39,8 +40,8 @@ spec:
       {{- if $i.brand.enabled }}
       initContainers:
         - name: store-assets   # copies theme, catalogue and images into the shared volume
-          image: "{{ $i.brand.image.repository }}:{{ $i.brand.image.tag }}"
-          imagePullPolicy: IfNotPresent
+          image: {{ include "platform.image" (dict "root" . "image" $i.brand.image) }}   # our image: registry prefix in prod
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

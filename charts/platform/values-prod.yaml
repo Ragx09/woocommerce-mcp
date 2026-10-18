@@ -1,4 +1,6 @@
-# VPS (k3s). Set global.domain at install time: --set global.domain=<ip>.sslip.io (or a real domain).
+# VPS (k3s). Set global.domain at install time: --set global.domain=<ip>.sslip.io (or a real domain);
+# the render fails while it is still CHANGE-ME. Image tags come from .images.env (scripts/deploy.sh prod),
+# the same content-addressed tags as local, pushed to GHCR (REL-03).
 global:
   domain: CHANGE-ME.sslip.io
   scheme: https
@@ -7,6 +9,9 @@ global:
     clusterIssuer: letsencrypt-prod
   imageRegistry: ghcr.io/ragx09/
   imagePullPolicy: IfNotPresent
+  # GHCR packages are private by default: either make them public, or create a docker-registry Secret
+  # named ghcr-pull in both namespaces (docs/DEPLOYMENT.md §5) and uncomment:
+  # imagePullSecrets: [ghcr-pull]
 store:
   mariadb:
     storage: 5Gi
@@ -15,3 +20,6 @@ store:
       limits: { memory: 768Mi }
   wordpress:
     storage: 5Gi
+    resources:
+      requests: { cpu: 200m, memory: 384Mi }
+      limits: { memory: 768Mi }

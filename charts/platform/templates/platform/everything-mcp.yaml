@@ -32,6 +32,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      {{- include "platform.pullSecrets" . | nindent 6 }}
       enableServiceLinks: false   # no *_SERVICE_HOST variables for get-env to reveal
       # node runs as PID 1 and the server has no SIGTERM handler: without this a delete waits 30 s.
       terminationGracePeriodSeconds: 5

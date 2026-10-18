@@ -27,6 +27,16 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{/* Our own images get the registry prefix; third-party images are used as written. */}}
 {{- define "platform.image" -}}{{ printf "%s%s:%s" .root.Values.global.imageRegistry .image.repository (toString .image.tag) }}{{- end }}
 
+{{/* Pull secrets for our own images from a private registry (prod: GHCR packages that are not public). */}}
+{{- define "platform.pullSecrets" -}}
+{{- with .Values.global.imagePullSecrets }}
+imagePullSecrets:
+{{- range . }}
+  - name: {{ . }}
+{{- end }}
+{{- end }}
+{{- end }}
+
 {{/* Hardened container defaults for images that run as non-root. */}}
 {{- define "platform.containerSecurity" -}}
 allowPrivilegeEscalation: false

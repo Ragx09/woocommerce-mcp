@@ -71,7 +71,8 @@ Steps:
 2. Preflight (read-only): `ssh <alias> 'bash -s' < scripts/vps-preflight.sh` must exit 0.
 3. Install k3s, pinned to the local k3d version (the script also sets Traefik `externalTrafficPolicy: Local`, so the gateway sees real client IPs for its login rate limit): `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
 4. Kubeconfig over an SSH tunnel (the script prints the exact commands) → `~/.kube/vps.yaml`, never committed.
-5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard,store-assets,everything-mcp}:<tag>` (multi-arch if the VPS is arm64).
+5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard,store-assets,everything-mcp}:<tag>` (multi-arch if the VPS is arm64). GHCR packages are private by default: make them public, or create a pull Secret in both namespaces (`kubectl -n store create secret docker-registry ghcr-pull --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT with read:packages>`, same for `platform`) and set `global.imagePullSecrets: [ghcr-pull]`.
+   `values-prod.yaml` refuses to render while `global.domain` is the `CHANGE-ME` placeholder; pass `--set global.domain=<ip>.sslip.io`.
 6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
 7. Optional TLS: cert-manager + Let's Encrypt (REL-04).
 

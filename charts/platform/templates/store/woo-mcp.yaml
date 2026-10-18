@@ -30,6 +30,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

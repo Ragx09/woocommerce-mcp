@@ -10,6 +10,7 @@ global:
     clusterIssuer: ""             # cert-manager ClusterIssuer (prod)
   imageRegistry: ""               # prefix for our own images, e.g. ghcr.io/ragx09/
   imagePullPolicy: IfNotPresent
+  imagePullSecrets: []            # Secret names (docker-registry type) for imageRegistry, e.g. [ghcr-pull]
   namespaces:
     store: store
     platform: platform

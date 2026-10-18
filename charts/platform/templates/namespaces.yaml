@@ -1,3 +1,6 @@
+{{- if contains "CHANGE-ME" .Values.global.domain }}
+{{- fail "global.domain is still the placeholder: install with --set global.domain=<ip>.sslip.io (or your domain)" }}
+{{- end }}
 {{- range $key, $ns := .Values.global.namespaces }}
 apiVersion: v1
 kind: Namespace
@@ -5,8 +8,8 @@ metadata:
   name: {{ $ns }}
   labels:
     app.kubernetes.io/part-of: platform
-    # Enforce the restricted-ish baseline; WordPress needs root for Apache, so "baseline" not "restricted".
-    pod-security.kubernetes.io/enforce: baseline
+    # Pod Security "restricted" for every pod (REL-09: all workloads incl. WordPress run as non-root).
+    pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/warn: restricted
   annotations:
     # Uninstalling the release must not delete namespaces (and with them the PVCs).
