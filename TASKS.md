@@ -1954,16 +1954,16 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-13 — System design and trade-offs note
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** E2E-14
 - **Requirements:** REQ-DEL-06
 - **Description:** `docs/SYSTEM_DESIGN.md` (or a README section): architecture choices, aggregation, routing, failure handling, production changes.
-- **Output:** Note.
+- **Output:** `docs/SYSTEM_DESIGN.md`
 - **Acceptance:** Covers all bullets of REQ-DEL-06.
 - **Tests:** checklist review.
 - **Command:** —
-- **Evidence:** —
+- **Evidence:** 2026-10-18: `docs/SYSTEM_DESIGN.md` (55 lines). Checklist against REQ-DEL-06: architecture choices → §1 what runs where + §2 choices table with costs (D-002/003/004/008/009/011/012/018/019); tool aggregation, routing, failure handling → §3 (naming/collisions, parallel list with 3 s deadlines and last-good cache, call path with credential injection and retry rules, health loop and fast fail, SSRF guard); production changes → §4 table DNS, ingress, TLS, images, storage class, secrets, resources, upgrade/rollback + what a real production would add. Every behaviour claimed links to verified tasks (E2E-08/09, GW-16, REL-09/11, TC-INT-05); TLS on the VPS is marked as REL-04. Also refreshed the stale 'draft' banners in ARCHITECTURE.md and MCP_DESIGN.md (protocol version note corrected to 'negotiated', audit now implemented).
 - **Regression risk:** —
 
 ### REL-14 — Threat model final

@@ -1,6 +1,6 @@
 # MCP Design
 
-> Status: **draft design**, to be validated by ARC-13/15 and implemented in Phase 4.
+> Status: **implemented** (Phases 4–6) and verified end to end on k3d (Phase 7, 2026-10-18). Section numbers are referenced from code comments.
 
 ## 1. Roles of each component
 | Component | MCP role | Transport |
@@ -14,7 +14,7 @@
 
 ## 2. Streamable HTTP (what we rely on)
 - A single endpoint. The client POSTs JSON-RPC messages; the server answers with `application/json` or an SSE stream (`text/event-stream`).
-- Protocol version 2025-11-25, negotiated during `initialize`. We use stateless mode (no `Mcp-Session-Id`): each POST is self-contained, so any gateway replica can serve it.
+- Protocol version negotiated during `initialize` (the SDK supports up to 2025-11-25; e.g. a client asking for 2025-06-18 gets 2025-06-18). We use stateless mode (no `Mcp-Session-Id`): each POST is self-contained, so any gateway replica can serve it.
 - SDK: `@modelcontextprotocol/sdk` v1.x (`McpServer`/`Server` + `StreamableHTTPServerTransport({ sessionIdGenerator: undefined })`; `Client` + `StreamableHTTPClientTransport(url, { requestInit: { headers } })`).
 
 ## 3. Tool naming and collisions (D-005)
@@ -38,7 +38,7 @@ Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 - Status per upstream: `connected` · `unreachable` · `disabled` (· `unknown` before the first check), plus `lastError` (safe text, kept after recovery), `lastCheckedAt`, `lastOkAt`. Each change is logged once (`upstream status changed`, warn for unreachable).
 - Traffic feeds it too: a successful list or call → connected; could not connect (or no list within its budget) → unreachable at once. A tool call that times out does **not** change health (a slow tool is not a dead server).
 - Unreachable → skipped by `tools/list` and `tools/call` returns `upstream_unreachable: <lastError>` without contacting it. Recovery is noticed by the next loop round (≤ 10 s).
-- Read by `GET /api/upstreams` once sessions exist (UI-04/AUTH-03).
+- Read by `GET /api/upstreams` (the dashboard's Servers page, UI-04).
 
 ## 5. Routing `tools/call`
 1. Parse the public name → (slug, rest) (`parsePublicName`). Malformed or unknown slug → JSON-RPC `-32602`, `data.code = unknown_tool`.
@@ -46,7 +46,7 @@ Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 3. Resolve the upstream tool name through a `ToolIndex` over `ToolDiscovery.toolsFor(row)` (cached list if ≤ 60 s old and the config is unchanged, otherwise refreshed). Not found → `unknown_tool`. This makes shortened (hashed) names routable.
 4. Forward `callTool({name: tool, arguments})` with a 15 s timeout → return the upstream result as-is (`isError` preserved). A transport failure is retried once **only** if the call certainly did not run (`isSafeCallRetry`: HTTP 404 stale session, `ECONNREFUSED`).
 5. Failures reaching the upstream become `isError` results the model can read: `upstream_unreachable: …`, `upstream_timeout: …`, `upstream_error: …` (no URLs, no credentials).
-6. Log `tools/call {upstream, tool, outcome, ms}` (never arguments or results); the audit row (§9) comes with Phase 5.
+6. Log `tools/call {upstream, tool, outcome, ms}` (never arguments or results) and write the audit row (§9).
 Implemented in `services/gateway/src/mcp/route.ts` (GW-08).
 
 ## 6. Timeouts and errors
