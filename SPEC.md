@@ -111,7 +111,7 @@ Bonus multi-store provisioning; stand-out items: VPS deployment with TLS, per-ro
 - **A-06** The VPS is not available yet. Development is local on k3d (k3s in Docker) so the VPS step is values-only.
 - **A-07** Storefront brand (Phase 9, not part of the problem statement's requirements): the current working concept is TATVA (D-015). Where `docs/PRODUCT_IMAGES.md` says "16 products", the catalogue in `docs/tatva-brand-and-products.md` (50 products) is authoritative, so images were sourced for all 50.
 - **A-08** Storefront photos are used as the mock products' own images without on-site credits (user decision 2026-10-12); therefore only CC0 / Public Domain images are used. Source and licence records stay in `services/store-assets/images/manifest.json`.
-- **A-09** Product prices in the demo are whole rupees (e.g. "Demo Mug priced 499"). The store shows INR without decimals (brand setting), so WooCommerce shows and charges a fractional price rounded (12.50 → ₹13). `create_product` still accepts and stores two decimals.
+- **A-09** Prices are never rounded: the store keeps two decimals (`woocommerce_price_num_decimals` = 2), so a product priced 12.50 is shown and charged ₹12.50; the tatva theme hides a zero fraction, so whole prices read ₹1,299 (not ₹1,299.00). (Before 2026-10-18 the brand import set 0 decimals and 12.50 became ₹13.)
 
 ## 10. Open questions
 - **Q-01** VPS provider and size (needs ≥4 GB RAM). Tracked as a blocker for REL-01.

@@ -72,8 +72,9 @@ function tatva_term( string $taxonomy, string $slug, string $name, string $descr
 	return (int) $t->term_id;
 }
 
-// Store presentation: INR without decimals (₹1,299), reviews off (no review data exists).
-update_option( 'woocommerce_price_num_decimals', 0 );
+// Store presentation: INR with two decimals so prices are never rounded (₹12.50 is shown and charged as 12.50);
+// the tatva theme hides a zero fraction, so whole prices still read ₹1,299. Reviews off (no review data exists).
+update_option( 'woocommerce_price_num_decimals', 2 );
 update_option( 'woocommerce_price_thousand_sep', ',' );
 update_option( 'woocommerce_price_decimal_sep', '.' );
 update_option( 'woocommerce_currency_pos', 'left' );

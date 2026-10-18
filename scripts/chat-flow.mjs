@@ -2,8 +2,8 @@
 // UI-19 / TC-E2E-03 + TC-E2E-04: the two DoD chat prompts with the real LLM on a running cluster.
 //   1. "Create a product called Demo Mug <stamp> priced 499" → woo__create_product through the gateway,
 //      the product page is live on the storefront (HTTP 200, name + exact price) and in the public Store API.
-//      Whole rupees: the store shows INR without decimals, so WooCommerce would show and charge 12.50 as ₹13
-//      (SPEC § Assumptions).
+//      PRICE may have paise (e.g. 12.50): the store keeps two decimals, so the page, the Store API and the
+//      order total must show the exact price, never a rounded one (SPEC A-09).
 //   2. A guest orders that product on the storefront (scripts/e2e-checkout.sh, Cash on delivery).
 //   3. "What orders came in today?" → woo__list_orders; the answer names the new order, and the call's
 //      count matches the store database (MariaDB, read with kubectl).
@@ -89,6 +89,8 @@ if (product && !process.env.SKIP_ORDER) {
   if (orderId) {
     const line = sql(`SELECT order_item_name FROM wp_woocommerce_order_items WHERE order_id=${Number(orderId)} AND order_item_type="line_item"`);
     check('the order contains the new product', line.split('\n').includes(NAME), line);
+    const total = sql(`SELECT m.meta_value FROM wp_woocommerce_order_itemmeta m JOIN wp_woocommerce_order_items i USING (order_item_id) WHERE i.order_id=${Number(orderId)} AND i.order_item_type="line_item" AND m.meta_key="_line_total"`);
+    check('the order line is charged the exact price (not rounded)', Number(total) === Number(PRICE), `line total ${total}`);
   }
 }
 

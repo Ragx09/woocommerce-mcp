@@ -106,6 +106,9 @@ add_filter(
 	2
 );
 
+/** Whole prices without ".00" (₹1,299), fractional prices exact (₹12.50): the store keeps two decimals. */
+add_filter( 'woocommerce_price_trim_zeros', '__return_true' );
+
 /** No reviews exist in this demo, so do not offer "Sort by average rating". */
 add_filter(
 	'woocommerce_catalog_orderby',
