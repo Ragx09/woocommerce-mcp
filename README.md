@@ -2,7 +2,8 @@
 
 A WooCommerce store on Kubernetes, a self-written WooCommerce MCP server, and a **team MCP gateway**. An admin registers MCP servers once; every team member then uses all of them through one MCP endpoint (with a personal API key) or through a chat agent in the dashboard. Every call is audited.
 
-> **Status:** planning complete, implementation starting (see [`docs/PROGRESS.md`](docs/PROGRESS.md) and the visual tracker at [`tracker/index.html`](tracker/index.html)).
+> **Status (2026-10-18):** complete and verified on local k3d — every Definition-of-Done check passes (`scripts/e2e.sh all`). VPS deployment is prepared (scripts + `values-prod.yaml`) but not yet run on a real VPS. Progress: [`docs/PROGRESS.md`](docs/PROGRESS.md), tracker [`tracker/index.html`](tracker/index.html).
+> Short design note for reviewers: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) · threat model: [`THREAT_MODEL.md`](THREAT_MODEL.md)
 > Requirements: [`problem-statement.md`](problem-statement.md) · Spec: [`SPEC.md`](SPEC.md) · Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Project tracker
@@ -29,12 +30,26 @@ scripts/down.sh --all    # delete the cluster and ALL data
 | Dashboard | http://app.127.0.0.1.nip.io — admin `admin@example.invalid`, password: `kubectl -n platform get secret gateway-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
 | Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — personal API key: `node scripts/lib/gateway-key.mjs create my-laptop` (prints `<id> <key>`; see docs/DEPLOYMENT.md) |
 
-More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Full instructions are finished in REL-12.
+More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## VPS (k3s) setup
-_To be written in REL-12._
+> Prepared and checked with `helm template`/policy checks; **not yet run on a real VPS** (waiting for one). Details: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §5.
+
+Needs Ubuntu LTS, x86_64, ≥ 4 GB RAM, ≥ 2 vCPU, ≥ 20 GB disk; TCP 22/80/443 open (keep 6443 closed).
+```bash
+ssh <vps> 'bash -s' < scripts/vps-preflight.sh                        # read-only checks, must exit 0
+scp scripts/vps-install-k3s.sh <vps>: && ssh <vps> sudo bash vps-install-k3s.sh   # k3s pinned to the k3d version, Traefik real client IPs
+# kubeconfig over an SSH tunnel (the script prints the commands) → ~/.kube/vps.yaml (never committed)
+scripts/build-images.sh                                               # then push the same tags to ghcr.io/ragx09/<service>
+scripts/make-secrets.sh --context vps                                 # K8s Secrets from your .env
+scripts/deploy.sh prod --kube-context vps --set global.domain=<ip>.sslip.io
+```
+What differs from local is only Helm values (`charts/platform/values-prod.yaml`): domain, https + cert-manager issuer (Secure cookies follow), GHCR images (+ optional `global.imagePullSecrets`), storage sizes and resources. Upgrade and rollback: `helm history platform` / `helm rollback platform <rev>` ([DEPLOYMENT.md](docs/DEPLOYMENT.md) §6).
 
 ## Using the system
+
+### Place an order
+Open the storefront (local: http://store.127.0.0.1.nip.io), pick a product → **Add to cart** → **Checkout** → fill in an Indian address (the store is in INR, Karnataka) → payment **Cash on delivery** → **Place order**. The order appears in wp-admin → **WooCommerce → Orders** (as *Processing*). Scripted in a real browser: `scripts/e2e-checkout.sh` (also confirms the order in wp-admin).
 
 ### Demo users (A and B)
 `node scripts/seed-demo-users.mjs --key` makes sure user **A** (the seeded admin, Secret `platform/gateway-admin`) and user **B** (a member, invited and accepted through the normal flow; password in Secret `platform/demo-users`) exist, and prints a fresh API key for B **once**. Any user can also create their own key in the dashboard → **API keys**. Keys are shown once and stored only as a hash.
@@ -94,4 +109,15 @@ Dashboard → **Chat** (signed in as any user). Try "Create a product called Dem
 | [knowledge/](knowledge) | learning notes |
 
 ## Bonus / stand-out items attempted
-_None yet._
+| Item (problem statement § "Other ways to stand out") | What was built | Where |
+|---|---|---|
+| 4) Handling many tools | 64 tools from 3 servers do not fit a free-tier LLM: the chat offers the most relevant tools within a size budget plus a `find_tools` meta-tool that searches the full list and makes matches callable | D-019, `services/gateway/src/chat/agent.ts`, MCP_DESIGN §10 |
+| 6) Security hardening — SSRF | URL guard on save **and** on every connection (private/loopback/metadata ranges, DNS-rebinding safe, redirects refused, host allowlist) | `services/gateway/src/upstreams/ssrf.ts`, MCP_DESIGN §12, TC-SEC-01 |
+| 6) Security hardening — NetworkPolicy, non-root | Default-deny NetworkPolicies per path (verified with probe pods); every container non-root, read-only root, no capabilities; namespaces enforce Pod Security `restricted` | `charts/platform/templates/*/networkpolicies.yaml`, `scripts/k8s-checks.sh netpol`, `scripts/lib/chart-policy.py` |
+| 6) Security hardening — encrypted credentials, RBAC | Upstream credentials AES-256-GCM at rest, write-only in the API; no workload talks to the Kubernetes API and none mounts a ServiceAccount token (nothing to grant) | `services/gateway/src/crypto/credentials.ts`, THREAT_MODEL T-03 |
+| 7) Scaling — rate limits | Per user: one chat request at a time, 30 per 10 min; login limits per IP+email and per IP. Stateless MCP; disable/enable tested with two gateway replicas | THREAT_MODEL T-13/T-23, TC-INT-05 |
+| 8) Observability — clear failure reasons | Servers page shows Connected/Unreachable/Disabled with the last error; calls fail with readable `upstream_unreachable` / `upstream_timeout` / `upstream_disabled`; audit log with outcome per call | UI-04, MCP_DESIGN §4a/§6 |
+| 9) Upgrades and rollback | Documented and verified on k3d (upgrade → `helm rollback` → data intact) | [DEPLOYMENT.md](docs/DEPLOYMENT.md) §6 |
+| 1) VPS deployment | Prepared (scripts, prod values, policy-checked), **not yet deployed** | DEPLOYMENT §5 |
+
+Not attempted: multi-store bonus, 2) per-role tool permissions, 3) OAuth, 5) hosted MCP servers.

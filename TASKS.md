@@ -1940,7 +1940,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-12 — README
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 7
 - **Depends on:** E2E-14
 - **Requirements:** REQ-DEL-01, REQ-DEL-02, REQ-DEL-03, REQ-DEL-08
@@ -1949,7 +1949,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** A fresh reader can follow it (dry run on a clean cluster).
 - **Tests:** TC-REL-12-1: `scripts/down.sh && follow README` → works.
 - **Command:** manual
-- **Evidence:** —
+- **Evidence:** 2026-10-18: README complete in content: status, local setup (`scripts/up.sh`, URLs, passwords from Secrets), VPS setup (commands; marked not yet run on a real VPS), place an order, demo users, Claude Code / Cursor / Inspector (verified in E2E-02), chat, acceptance script, stand-out table with where to find each item (4 many tools, 6 hardening, 7 rate limits, 8 failure reporting, 9 upgrade/rollback; 1 VPS prepared only; not attempted: multi-store, 2, 3, 5). All linked files exist (checked). **Open:** TC-REL-12-1 clean-cluster dry run (`scripts/down.sh --all` deletes all local data — waiting for the user's go-ahead) and running the VPS section on a real VPS (REL-01/03).
 - **Regression risk:** —
 
 ### REL-13 — System design and trade-offs note
