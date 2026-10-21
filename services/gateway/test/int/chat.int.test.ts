@@ -45,6 +45,8 @@ const ids: Record<Who, string> = {} as never;
 const seen: { tools: string[]; messages: ChatMessage[] }[] = [];
 let failWith: LlmError | null = null;
 let gate: Promise<void> | null = null;
+/** UI-18: what the route's `unavailable` lookup returns (an Error = the lookup throws). */
+let down: { server: string; name: string }[] | Error = [];
 const stubLlm: ChatCompletion = async ({ messages, tools }) => {
   seen.push({ tools: tools.map((t: LlmTool) => t.function.name), messages: structuredClone(messages) });
   if (gate) await gate;
@@ -86,7 +88,8 @@ beforeAll(async () => {
   registerMcp(app, { authenticate: mcpAuthenticator(db, signer), loadUpstreams: () => listUpstreams(db), pool: upstreamPool,
     discovery: new ToolDiscovery(upstreamPool, { listTimeoutMs: 2_000 }), audit: dbAuditSink(db, app.log) });
   let port = 0;
-  registerChatRoutes(app, { llm: stubLlm, signer, mcpUrl: () => `http://127.0.0.1:${port}/mcp`, limits: { perWindow: 6, windowMs: 60_000 } });
+  registerChatRoutes(app, { llm: stubLlm, signer, mcpUrl: () => `http://127.0.0.1:${port}/mcp`, limits: { perWindow: 9, windowMs: 60_000 },
+    unavailable: async () => { if (down instanceof Error) throw down; return down; } });
   await app.listen({ port: 0, host: '127.0.0.1' });
   port = (app.server.address() as { port: number }).port;
   for (const name of ['alice', 'bob', 'carol'] as const) {
@@ -108,11 +111,28 @@ beforeEach(async () => {
   seen.length = 0;
   failWith = null;
   gate = null;
+  down = [];
   await pool.query('TRUNCATE audit_log');
   await pool.query(`UPDATE upstreams SET enabled = true`);
 });
 
 describe('TC-INT-07 chat agent loop through the gateway', () => {
+  it('TC-UI-18-API: unreachable servers are returned and named to the model; a failed lookup does not fail the chat', async () => {
+    down = [{ server: 'woo', name: 'Woo' }];
+    let res = await chat('bob', say('echo'));
+    expect(res.statusCode).toBe(200);
+    expect(res.json().unavailable).toEqual([{ server: 'woo', name: 'Woo' }]);
+    expect(seen.at(-1)!.messages[0]!.content).toContain('cannot be reached right now, so their tools are missing: woo.');
+    down = [];
+    res = await chat('bob', say('echo'));
+    expect(res.json().unavailable).toEqual([]);
+    expect(seen.at(-1)!.messages[0]!.content).not.toContain('cannot be reached');
+    down = new Error('db down');
+    res = await chat('bob', say('echo'));
+    expect(res.statusCode).toBe(200);
+    expect(res.json().unavailable).toEqual([]);
+  });
+
   it('runs LLM → tools/call via /mcp → LLM and returns the reply with the tool transcript', async () => {
     const res = await chat('alice', say('list_orders'));
     expect(res.statusCode).toBe(200);
@@ -182,8 +202,8 @@ describe('TC-UI-14-API validation and guard rails', () => {
     expect((await other).statusCode).toBe(200);
     expect((await first).statusCode).toBe(200);
     gate = null;
-    // Window: 6 per minute per user (carol is used only here); 1 used above (the busy refusal does not count).
-    for (let i = 0; i < 5; i++) expect((await chat('carol', say('x'))).statusCode).toBe(200);
+    // Window: 9 per minute per user (carol is used only here); 1 used above (the busy refusal does not count).
+    for (let i = 0; i < 8; i++) expect((await chat('carol', say('x'))).statusCode).toBe(200);
     const limited = await chat('carol', say('x'));
     expect(limited.statusCode).toBe(429);
     expect(limited.json()).toMatchObject({ error: 'rate_limited' });

@@ -6,7 +6,7 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { ToolCall } from '../api.js';
 import { useMe } from '../auth.js';
-import { chatStore, formatArgs, formatResult, MAX_CONTENT, replyLines, toolLabel, useChat, type Turn } from '../chat.js';
+import { chatStore, describeToolError, formatArgs, formatResult, MAX_CONTENT, replyLines, retryWait, toolLabel, useChat, type ChatState, type Turn } from '../chat.js';
 
 const SUGGESTIONS = [
   'What orders came in today?',
@@ -66,13 +66,13 @@ export function Chat() {
         <div ref={endRef} className="transcript-end" />
       </div>
 
-      {chat.error && <p className="error" role="alert">{chat.error.message}</p>}
+      {chat.error && <ChatError error={chat.error} onRetry={() => send()} canRetry={!pending && chat.draft.trim() !== ''} />}
       <form className="composer" onSubmit={submit}>
         <label className="sr-only" htmlFor="chat-input">Message</label>
         <textarea id="chat-input" ref={inputRef} rows={2} maxLength={MAX_CONTENT} value={chat.draft}
           placeholder="Ask something… (Enter to send, Shift+Enter for a new line)"
           onChange={(e) => chatStore.setDraft(e.target.value)} onKeyDown={onKey} />
-        <button type="submit" disabled={pending || chat.draft.trim() === ''}>{pending ? 'Working…' : 'Send'}</button>
+        <SendButton pending={pending} empty={chat.draft.trim() === ''} error={chat.error} />
       </form>
     </section>
   );
@@ -100,6 +100,7 @@ function AnswerTurn({ turn }: { turn: Turn }) {
         </div>
       )}
       {calls.length === 0 && <p className="small muted">No tools were used for this answer.</p>}
+      {(failed > 0 || (turn.unavailable?.length ?? 0) > 0) && <FailedSummary calls={calls} unavailable={turn.unavailable ?? []} />}
       {turn.stopped && turn.stopped !== 'answer' && (
         <p className="small warn">{turn.stopped === 'deadline' ? 'Stopped: time limit reached.' : 'Stopped: too many tool rounds.'}</p>
       )}
@@ -119,13 +120,16 @@ function ReplyText({ text }: { text: string }) {
 
 function ToolCallCard({ call }: { call: ToolCall }) {
   const args = formatArgs(call.args);
+  const problem = call.ok ? null : describeToolError(call);
+  const badge = problem ? BADGE[problem.kind] : 'ok';
   return (
     <details className={`toolcall ${call.ok ? 'ok' : 'failed'}`}>
       <summary>
-        <span className={`outcome ${call.ok ? 'ok' : 'error'}`}>{call.ok ? 'ok' : 'error'}</span>
+        <span className={`outcome ${problem?.kind ?? 'ok'}`}>{badge}</span>
         <code className="tool-name">{toolLabel(call)}</code>
         <span className="muted small">{call.server ?? 'agent'}</span>
         <span className="muted small ms">{call.ms} ms</span>
+        {problem && <span className="toolcall-problem small">{problem.message}</span>}
       </summary>
       <div className="toolcall-body">
         <div>
@@ -156,4 +160,64 @@ function Thinking({ since }: { since: number }) {
       <p className="muted small thinking">Working on it… {Math.max(0, Math.round((now - since) / 1000))} s (calling tools can take a while)</p>
     </div>
   );
+}
+
+const BADGE = {
+  unreachable: 'unreachable',
+  timeout: 'timed out',
+  disabled: 'disabled',
+  unknown_tool: 'unknown tool',
+  upstream_error: 'server error',
+  tool_error: 'error',
+} as const;
+
+/** UI-18: one line per distinct server problem, above the answer, so it is seen without opening a card. */
+function FailedSummary({ calls, unavailable }: { calls: ToolCall[]; unavailable: NonNullable<Turn['unavailable']> }) {
+  const lines = [...new Set([
+    ...unavailable.map((u) => `The ${u.server} server (${u.name}) could not be reached, so its tools were not available for this answer. Check the Servers page and try again in a moment.`),
+    ...calls.filter((c) => !c.ok).map((c) => describeToolError(c))
+    .filter((p) => p.kind !== 'tool_error').map((p) => p.message)])];
+  if (lines.length === 0) return null;
+  return (
+    <div className="notice warn-box" role="note">
+      {lines.map((l) => <p key={l} className="small">{l}</p>)}
+      <p className="small muted">The answer below was written without those results, so it may be incomplete.</p>
+    </div>
+  );
+}
+
+/** Ticks once a second while a rate-limit wait is running. */
+function useRetryWait(error: ChatState['error']): number {
+  const [now, setNow] = useState(Date.now());
+  const wait = retryWait(error, now);
+  useEffect(() => {
+    if (retryWait(error, Date.now()) === 0) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [error]);
+  return wait;
+}
+
+function ChatError({ error, onRetry, canRetry }: { error: NonNullable<ChatState['error']>; onRetry: () => void; canRetry: boolean }) {
+  const wait = useRetryWait(error);
+  const retryable = error.code !== 'chat_disabled' && error.code !== 'unauthenticated' && error.code !== 'forbidden';
+  return (
+    <div className="notice error-box row between" role="alert">
+      <p className="error">
+        {error.retryAfterSec && error.code === 'llm_rate_limited'
+          ? wait > 0 ? `The AI provider's rate limit was reached. You can retry in ${wait} s.` : "The AI provider's rate limit has reset. You can retry now."
+          : error.message}
+      </p>
+      {retryable && (
+        <button type="button" className="ghost" onClick={onRetry} disabled={!canRetry || wait > 0}>
+          {wait > 0 ? `Retry in ${wait} s` : 'Retry'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SendButton({ pending, empty, error }: { pending: boolean; empty: boolean; error: ChatState['error'] }) {
+  const wait = useRetryWait(error);
+  return <button type="submit" disabled={pending || empty || wait > 0}>{pending ? 'Working…' : wait > 0 ? `Wait ${wait} s` : 'Send'}</button>;
 }

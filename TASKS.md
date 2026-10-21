@@ -1538,17 +1538,17 @@ Exit criterion: dashboard and chat work with the real gateway and store.
 
 ### UI-18 — Error states
 - **Priority:** P2
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 5
 - **Depends on:** UI-16
 - **Requirements:** REQ-GW-06
 - **Description:** Friendly display of LLM rate limits, upstream errors and timeouts.
 - **Output:** UI handling.
 - **Acceptance:** A killed upstream yields a readable error in chat.
-- **Tests:** TC-UI-18-1 (manual).
-- **Command:** manual
-- **Evidence:** —
-- **Regression risk:** —
+- **Tests:** TC-UI-18-1 (browser, real LLM), TC-UI-18-U1 (dashboard unit), TC-UI-18-U2 (gateway unit), TC-UI-18-API (int).
+- **Command:** `npm -w @platform/dashboard test`; `npx vitest run test/unit` (services/gateway); `scripts/gateway-db-int.sh`; `scripts/dashboard-screens.sh chat-errors` (scales woo-mcp to 0 and back); `scripts/dashboard-screens.sh chat`
+- **Evidence:** 2026-10-21. **Found:** a killed upstream never produced a tool error in chat — the gateway leaves an unreachable server's tools out of `tools/list`, so the model only said it had no such tool. Fix: `POST /api/chat` now returns `unavailable:[{server,name}]` (enabled + health-monitor unreachable) and names those slugs in the system prompt; a failed lookup does not fail the chat. Dashboard: `describeToolError()` maps `upstream_unreachable` / `upstream_timeout` (with seconds) / `upstream … is disabled` / `unknown tool` / `upstream_error` to one actionable sentence and badge per card (raw excerpt only in the expanded card); a summary box above the answer; LLM `Retry-After` becomes a live countdown (Send/Retry disabled, the store refuses to send during the wait). Dashboard unit `Tests 25 passed (25)`; gateway unit `Tests 100 passed (100)`; int `Tests 119 passed (119)`. Mutations: unreachable mapping off → 1 fail; send guard off → 1 fail; prompt without `unavailable` → 1 fail; restored. k3d rev 67: `dashboard-screens.sh chat-errors` → `chat-errors: 15/15 passed` (stubbed 4 failure kinds, no IP/ECONNREFUSED in the visible text; real Groq with woo-mcp at 0: `unavailable [{"server":"woo","name":"WooCommerce"}]`, notice "The woo server (WooCommerce) could not be reached…", model reply "The WooCommerce server (woo) is currently unreachable, so I can't retrieve today's orders right now."); woo-mcp restored Ready. Regression `dashboard-screens.sh chat` → `TC-UI-16-1 (21/21)` (rate-limit stub now 3 s; checks the countdown). Screenshots `tests/e2e/out/screens/ui18-*.png`.
+- **Regression risk:** low — chat response gains one field; the chat int test window raised 6 → 9 per minute to fit the new test.
 
 ### UI-19 — Chat "create product" flow
 - **Priority:** P0

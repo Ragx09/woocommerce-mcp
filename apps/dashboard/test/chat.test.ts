@@ -1,7 +1,7 @@
 // TC-UI-16-U1: chat conversation store and display helpers (no DOM needed).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, toApiError, type ChatReply } from '../src/api.js';
-import { buildHistory, chatStore, formatArgs, formatResult, MAX_CONTENT, MAX_MESSAGES, replyLines, toolLabel, type Turn } from '../src/chat.js';
+import { buildHistory, chatStore, describeToolError, formatArgs, formatResult, MAX_CONTENT, MAX_MESSAGES, replyLines, retryWait, toolLabel, type Turn } from '../src/chat.js';
 
 const reply = (over: Partial<ChatReply> = {}): ChatReply => ({
   reply: 'There are 2 orders today.',
@@ -77,10 +77,8 @@ describe('chatStore.send', () => {
     const s = chatStore.get();
     expect(s.turns).toEqual([]);
     expect(s.draft).toBe('orders?');
-    expect(s.error).toEqual({ message: "The AI provider's rate limit was reached. Try again in 23 s.", retryAfterSec: 23 });
-    // the next successful send clears the error
-    await chatStore.send('orders?', vi.fn().mockResolvedValue(reply()));
-    expect(chatStore.get().error).toBeNull();
+    expect(s.error).toMatchObject({ message: "The AI provider's rate limit was reached. Try again in 23 s.", code: "llm_rate_limited", retryAfterSec: 23 });
+    // the next send clears the error once the wait is over: see 'rate-limit wait' (TC-UI-18-U1)
   });
   it('an answer that arrives after "New chat" / sign-out is dropped', async () => {
     let resolve!: (r: ChatReply) => void;
@@ -90,6 +88,10 @@ describe('chatStore.send', () => {
     await p;
     expect(chatStore.get().turns).toEqual([]);
     expect(chatStore.get().pendingSince).toBeNull();
+  });
+  it('keeps the unreachable servers of an answer (UI-18)', async () => {
+    await chatStore.send('orders?', vi.fn().mockResolvedValue(reply({ toolCalls: [], unavailable: [{ server: 'woo', name: 'Woo' }] })));
+    expect(chatStore.get().turns[1]!.unavailable).toEqual([{ server: 'woo', name: 'Woo' }]);
   });
   it('another user starts with an empty conversation', async () => {
     await chatStore.send('mine', vi.fn().mockResolvedValue(reply()));
@@ -121,5 +123,52 @@ describe('replyLines (Markdown subset as text)', () => {
   });
   it('HTML in a reply stays text; unmatched markers are kept', () => {
     expect(replyLines('<img src=x onerror=alert(1)> **x')).toEqual([[{ text: '<img src=x onerror=alert(1)> **x' }]]);
+  });
+});
+
+// TC-UI-18-U1: failed tool calls and rate limits become messages a user can act on.
+describe('describeToolError', () => {
+  const d = (resultPreview: string, server: string | null = 'woo') => describeToolError({ server, resultPreview });
+  it('maps the gateway failure texts', () => {
+    expect(d('upstream_unreachable: upstream woo unreachable: connect ECONNREFUSED')).toMatchObject({ kind: 'unreachable', message: expect.stringMatching(/^The woo server could not be reached/) });
+    expect(d('upstream_timeout: upstream woo did not answer within 15 s')).toMatchObject({ kind: 'timeout', message: expect.stringContaining('(15 s)') });
+    expect(d('MCP error -32602: upstream github is disabled', 'github')).toMatchObject({ kind: 'disabled', message: expect.stringMatching(/^The github server is turned off/) });
+    expect(d('unknown tool woo__made_up')).toMatchObject({ kind: 'unknown_tool' });
+    expect(d('upstream_error: upstream woo failed: bad gateway')).toMatchObject({ kind: 'upstream_error' });
+  });
+  it("a tool's own error stays a tool error, even when it mentions a timeout", () => {
+    expect(d('{"code":"woocommerce_rest_invalid_id","message":"Invalid ID."}').kind).toBe('tool_error');
+    expect(d('payment provider timeout, upstream_timeout: not ours').kind).toBe('tool_error');
+    expect(d('the arguments were not a JSON object', null).kind).toBe('tool_error');
+  });
+  it('never echoes the raw text in the friendly message', () => {
+    expect(d('upstream_unreachable: upstream woo unreachable: http://10.43.0.5:3000 refused').message).not.toContain('10.43');
+  });
+});
+
+describe('rate-limit wait', () => {
+  it('counts down from the arrival time and blocks sending until it is over', async () => {
+    vi.useFakeTimers({ now: 1_000_000 });
+    try {
+      await chatStore.send('orders?', vi.fn().mockRejectedValue(toApiError(429, { error: 'llm_rate_limited' }, '20')));
+      const err = chatStore.get().error!;
+      expect(err).toMatchObject({ code: 'llm_rate_limited', retryAfterSec: 20, at: 1_000_000 });
+      expect(retryWait(err, 1_000_000)).toBe(20);
+      expect(retryWait(err, 1_012_500)).toBe(8);
+      const post = vi.fn().mockResolvedValue(reply());
+      await chatStore.send('orders?', post);
+      expect(post).not.toHaveBeenCalled();
+      vi.setSystemTime(1_020_000);
+      expect(retryWait(err, Date.now())).toBe(0);
+      await chatStore.send('orders?', post);
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(chatStore.get().error).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('errors without Retry-After do not block', () => {
+    expect(retryWait({ message: 'x', code: 'llm_timeout' }, Date.now())).toBe(0);
+    expect(retryWait(null, Date.now())).toBe(0);
   });
 });

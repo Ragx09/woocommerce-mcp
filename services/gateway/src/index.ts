@@ -91,6 +91,8 @@ registerChatRoutes(app, {
   llm: cfg.llm.apiKey ? openAiCompatible(cfg.llm) : null,
   signer: internalTokens,
   mcpUrl: () => `http://127.0.0.1:${cfg.port}/mcp`,
+  unavailable: async () => (await listUpstreams(db)).filter((r) => r.enabled && health.isUnreachable(r.id))
+    .map((r) => ({ server: r.slug, name: r.name })),
 });
 
 await app.listen({ port: cfg.port, host: cfg.host });

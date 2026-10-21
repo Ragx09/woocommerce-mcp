@@ -11,7 +11,9 @@
 #            save the LLM free-tier budget)
 #   chat-create  UI-19 the DoD "create a product" prompt on the Chat page with the real LLM, then its storefront
 #            page (creates one product "Demo Mug <stamp>"; not part of `all`)
-# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|chat-create|all] (default all). The admin credentials come from
+#   chat-errors  TC-UI-18-1 chat error states: stubbed tool failures, then woo-mcp scaled to 0 and one real
+#            question (restored afterwards; not part of `all`)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|chat-create|chat-errors|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,6 +45,12 @@ case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
 case "${1:-all}" in team|all) run dashboard-team.mjs || rc=1 ;; esac
 case "${1:-all}" in chat) run dashboard-chat.mjs || rc=1 ;; esac
 case "${1:-all}" in chat-create) run dashboard-chat-create.mjs || rc=1 ;; esac
+case "${1:-all}" in chat-errors)
+  kubectl -n store scale deploy/woo-mcp --replicas=0 >/dev/null; echo "host: woo-mcp scaled to 0"
+  run dashboard-chat-errors.mjs || rc=1
+  kubectl -n store scale deploy/woo-mcp --replicas=1 >/dev/null; echo "host: woo-mcp scaled to 1"   # whatever happened, put it back
+  kubectl -n store rollout status deploy/woo-mcp --timeout=120s >/dev/null && echo "host: woo-mcp Ready" ;;
+esac
 case "${1:-all}" in admin|all) run dashboard-server-admin.mjs || rc=1 ;; esac
 case "${1:-all}" in servers|all)
   rm -f "$OUT/.want-kill" "$OUT/.want-restore"

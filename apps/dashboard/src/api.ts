@@ -208,4 +208,6 @@ export interface ChatReply {
   reply: string;
   toolCalls: ToolCall[];
   stopped: ChatStop;
+  /** UI-18: enabled servers that could not be reached when the question was asked (their tools were missing). */
+  unavailable?: { server: string; name: string }[];
 }

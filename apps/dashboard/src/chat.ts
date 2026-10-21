@@ -11,13 +11,15 @@ export interface Turn {
   content: string;
   toolCalls?: ToolCall[];
   stopped?: ChatStop;
+  unavailable?: { server: string; name: string }[];
 }
 export interface ChatState {
   userId: string | null;
   turns: Turn[];
   /** Start time (ms) of the request in flight, or null. */
   pendingSince: number | null;
-  error: { message: string; retryAfterSec?: number } | null;
+  /** `at` = when the error arrived (ms), so the page can count down `retryAfterSec`. */
+  error: { message: string; code?: string; retryAfterSec?: number; at?: number } | null;
   draft: string;
 }
 
@@ -61,6 +63,44 @@ export function formatResult(preview: string): string {
   }
 }
 
+// --- failed tool calls (UI-18) ---
+// The gateway reports a failed call as text: `upstream_unreachable: …`, `upstream_timeout: …`,
+// `upstream_error: …` (isError results), JSON-RPC errors such as `upstream woo is disabled` /
+// `unknown tool: x`, or the tool's own error text. Each becomes a kind and one sentence a user can act on;
+// the raw excerpt stays in the expanded card.
+export type ToolErrorKind = 'unreachable' | 'timeout' | 'disabled' | 'unknown_tool' | 'upstream_error' | 'tool_error';
+export interface ToolErrorInfo { kind: ToolErrorKind; message: string }
+
+export function describeToolError(call: Pick<ToolCall, 'server' | 'resultPreview'>): ToolErrorInfo {
+  const text = call.resultPreview;
+  const who = call.server ? `The ${call.server} server` : 'The server';
+  const secs = /within ([\d.]+) s/.exec(text)?.[1];
+  // Only the gateway's own codes and phrasings count; a tool's error text that merely mentions
+  // "timeout" stays a tool error.
+  if (/^upstream_unreachable:/.test(text)) {
+    return { kind: 'unreachable', message: `${who} could not be reached. It may be down or restarting; check the Servers page and try again in a moment.` };
+  }
+  if (/^upstream_timeout:/.test(text)) {
+    return { kind: 'timeout', message: `${who} did not answer in time${secs ? ` (${secs} s)` : ''}. Try again, or ask for less data.` };
+  }
+  if (/\bupstream \S+ is disabled\b/.test(text)) {
+    return { kind: 'disabled', message: `${who} is turned off by an admin, so its tools cannot be used.` };
+  }
+  if (/\bunknown tool\b/.test(text)) {
+    return { kind: 'unknown_tool', message: 'The AI asked for a tool that does not exist. Rephrasing the question usually helps.' };
+  }
+  if (/^upstream_error:/.test(text)) {
+    return { kind: 'upstream_error', message: `${who} failed while handling the call. Try again; if it keeps failing, check the Servers page.` };
+  }
+  return { kind: 'tool_error', message: 'The tool reported an error (for example invalid input). Details below.' };
+}
+
+/** Seconds left until a rate-limited chat may be retried; 0 when it can be sent now. */
+export function retryWait(error: ChatState['error'], now: number): number {
+  if (!error?.retryAfterSec || error.at === undefined) return 0;
+  return Math.max(0, Math.ceil((error.at + error.retryAfterSec * 1000 - now) / 1000));
+}
+
 // --- store ---
 const empty = (userId: string | null): ChatState => ({ userId, turns: [], pendingSince: null, error: null, draft: '' });
 let state: ChatState = empty(null);
@@ -101,7 +141,8 @@ export const chatStore = {
   async send(question: string, post: (body: { messages: ChatMessage[] }) => Promise<ChatReply> = (body) =>
     api<ChatReply>('/api/chat', { method: 'POST', body })): Promise<void> {
     const q = question.trim();
-    if (!q || state.pendingSince !== null) return;
+    // A rate-limited request would only be refused again (UI-18): wait for the provider's reset.
+    if (!q || state.pendingSince !== null || retryWait(state.error, Date.now()) > 0) return;
     const gen = generation;
     const messages = buildHistory(state.turns, q);
     const userTurn: Turn = { id: nextId++, role: 'user', content: q };
@@ -109,13 +150,15 @@ export const chatStore = {
     try {
       const r = await post({ messages });
       if (gen !== generation) return;
-      const answer: Turn = { id: nextId++, role: 'assistant', content: r.reply, toolCalls: r.toolCalls, stopped: r.stopped };
+      const answer: Turn = { id: nextId++, role: 'assistant', content: r.reply, toolCalls: r.toolCalls, stopped: r.stopped, unavailable: r.unavailable };
       set({ turns: [...state.turns, answer], pendingSince: null });
     } catch (e) {
       if (gen !== generation) return;
       // The question did not get an answer: take it out of the conversation and give it back to the
       // input box, so a retry sends it again with the same history.
-      const err = e instanceof ApiError ? { message: e.message, retryAfterSec: e.retryAfterSec } : { message: 'The chat request failed. Try again.' };
+      const err = e instanceof ApiError
+        ? { message: e.message, code: e.code, ...(e.retryAfterSec ? { retryAfterSec: e.retryAfterSec, at: Date.now() } : {}) }
+        : { message: 'The chat request failed. Try again.' };
       set({ turns: state.turns.filter((t) => t.id !== userTurn.id), pendingSince: null, error: err, draft: state.draft || q });
     }
   },

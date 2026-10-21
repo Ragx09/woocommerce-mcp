@@ -19,8 +19,13 @@ export interface ChatDeps {
   /** The gateway's own /mcp over loopback, e.g. http://127.0.0.1:8080/mcp. */
   mcpUrl: () => string;
   limits?: { windowMs?: number; perWindow?: number };
+  /** UI-18: enabled servers the health monitor has as unreachable right now (none if not given). */
+  unavailable?: () => Promise<UnavailableServer[]>;
   agent?: { maxSteps?: number; deadlineMs?: number };
 }
+
+/** Slug + display name only: what the Servers page already shows every signed-in user. */
+export interface UnavailableServer { server: string; name: string }
 
 interface ChatBody { messages: { role: 'user' | 'assistant'; content: string }[] }
 
@@ -85,14 +90,16 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
     };
     let offered = { count: 0, notOffered: 0 };
     try {
+      // A failed lookup must not fail the chat; it only loses the hint.
+      const unavailable = await (deps.unavailable?.() ?? Promise.resolve([])).catch(() => [] as UnavailableServer[]);
       const result = await runAgent({
-        llm, connect, maxSteps: deps.agent?.maxSteps, deadlineMs: deps.agent?.deadlineMs,
+        llm, connect, maxSteps: deps.agent?.maxSteps, deadlineMs: deps.agent?.deadlineMs, unavailable: unavailable.map((u) => u.server),
         onToolsListed: (count, notOffered) => { offered = { count, notOffered }; }, // the rest is reachable via find_tools
       }, msgs);
       // Tool names and outcomes only: no message text, arguments or results in the log.
       req.log.info({ steps: result.steps, stopped: result.stopped, ms: Date.now() - started, toolsOffered: offered,
-        tools: result.toolCalls.map((c) => `${c.name}:${c.ok ? 'ok' : 'error'}`) }, 'chat');
-      return { reply: result.reply, toolCalls: result.toolCalls, stopped: result.stopped };
+        tools: result.toolCalls.map((c) => `${c.name}:${c.ok ? 'ok' : 'error'}`), unavailable: unavailable.map((u) => u.server) }, 'chat');
+      return { reply: result.reply, toolCalls: result.toolCalls, stopped: result.stopped, unavailable };
     } catch (e) {
       if (e instanceof LlmError) {
         req.log.warn({ code: e.code, detail: e.message, ms: Date.now() - started }, 'chat: llm failed'); // message = status + provider code only

@@ -30,13 +30,17 @@ check('empty chat offers suggestions', await p.getByRole('button', { name: 'What
 await p.screenshot({ path: `${OUT}/ui16-chat-empty.png`, fullPage: true });
 
 // 1. Error states, stubbed (no LLM call).
-await p.route('**/api/chat', (r) => r.fulfill({ status: 429, contentType: 'application/json', headers: { 'retry-after': '17' },
+await p.route('**/api/chat', (r) => r.fulfill({ status: 429, contentType: 'application/json', headers: { 'retry-after': '3' },
   body: JSON.stringify({ error: 'llm_rate_limited', message: 'provider says slow down' }) }));
 await p.getByLabel('Message').fill('stubbed question');
 await p.getByLabel('Message').press('Enter');
 const alert = p.getByRole('alert');
 await alert.waitFor();
-check('LLM rate limit → readable error with the wait time', /rate limit.*17 s/.test(await alert.textContent()), await alert.textContent());
+check('LLM rate limit → readable error with the wait time', /rate limit.*retry in [1-3] s/.test(await alert.textContent()), await alert.textContent());
+// UI-18: sending is blocked during the provider's wait, then allowed again.
+check('Send blocked while waiting', await p.getByRole('button', { name: /^Wait \d+ s$/ }).isDisabled());
+await p.getByRole('button', { name: 'Retry', exact: true }).waitFor({ timeout: 6_000 });
+check('rate-limit wait over → Retry offered', /has reset/.test(await alert.textContent()));
 check('failed question goes back to the input, not into the transcript',
   (await p.getByLabel('Message').inputValue()) === 'stubbed question' && (await p.locator('.turn.user').count()) === 0);
 await p.unroute('**/api/chat');

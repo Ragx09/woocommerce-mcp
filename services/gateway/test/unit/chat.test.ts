@@ -1,7 +1,7 @@
 // UI-14 unit tests: the OpenAI-compatible client (chat/llm.ts) and the agent loop (chat/agent.ts).
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
-import { FIND_TOOLS, keywords, RESULT_LIMIT, resultText, runAgent, selectTools, toLlmTool, type McpSession } from '../../src/chat/agent.js';
+import { FIND_TOOLS, keywords, RESULT_LIMIT, resultText, runAgent, selectTools, systemPrompt, toLlmTool, type McpSession } from '../../src/chat/agent.js';
 import { LlmError, openAiCompatible, type ChatCompletion, type ChatMessage, type Completion } from '../../src/chat/llm.js';
 import type { LlmConfig } from '../../src/config.js';
 
@@ -133,6 +133,11 @@ const answer = (text: string): Completion => ({ content: text, toolCalls: [], fi
 const USER = [{ role: 'user' as const, content: "today's orders?" }];
 
 describe('TC-UI-14-U2 agent loop', () => {
+  it('TC-UI-18-U2: the system prompt names unreachable servers only when there are some', () => {
+    const now = new Date('2026-10-21T10:00:00Z');
+    expect(systemPrompt(now)).not.toContain('cannot be reached');
+    expect(systemPrompt(now, ['woo', 'github'])).toContain('These servers cannot be reached right now, so their tools are missing: woo, github.');
+  });
   it('lists tools, runs the requested call, feeds the result back and returns the answer with a transcript', async () => {
     const mcp = stubMcp();
     const { llm, seen } = scripted([toolRound(call('c1', 'woo__list_orders', '{"date":"today"}')), answer('One order: #20.')]);
