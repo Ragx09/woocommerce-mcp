@@ -31,6 +31,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 33       # www-data of the Debian-based Apache image, which owns the files

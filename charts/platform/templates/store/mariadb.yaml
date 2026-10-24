@@ -33,6 +33,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       securityContext:
         runAsUser: 999      # mysql user in the official image; entrypoint supports running as it directly
         runAsGroup: 999

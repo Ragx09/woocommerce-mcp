@@ -28,11 +28,31 @@ data:
   ports.conf: |
     Listen 8080
   000-default.conf: |
+    # F-WEB-4: no version banner (the image ships no security.conf, so Apache printed its full version).
+    ServerTokens Prod
+    ServerSignature Off
     <VirtualHost *:8080>
       DocumentRoot /var/www/html
       ErrorLog ${APACHE_LOG_DIR}/error.log
       CustomLog ${APACHE_LOG_DIR}/access.log combined
+      <Directory /var/www/html>
+        Options -Indexes
+      </Directory>
+      # F-WEB-2: XML-RPC is not used (no apps, no pingbacks); system.multicall amplifies password guessing.
+      <Files "xmlrpc.php">
+        Require all denied
+      </Files>
+      # F-WEB-4: files that only reveal the WordPress version.
+      <FilesMatch "^(readme\.html|license\.txt|wp-config-sample\.php)$">
+        Require all denied
+      </FilesMatch>
     </VirtualHost>
+  # F-WEB-4: no X-Powered-By: PHP/<version>.
+  zz-security.ini: |
+    expose_php = Off
+  # F-WEB-1/3/5: no user enumeration (must-use plugin, see files/wp-hardening.php).
+  platform-hardening.php: |
+{{ .Files.Get "files/wp-hardening.php" | indent 4 }}
 ---
 apiVersion: v1
 kind: Service
@@ -60,8 +80,11 @@ spec:
   template:
     metadata:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
+      annotations:   # subPath mounts never pick up ConfigMap edits: roll the pod when they change
+        checksum/hardening: {{ .Files.Get "files/wp-hardening.php" | sha256sum | trunc 16 }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       securityContext:
         runAsNonRoot: true
         runAsUser: 33        # www-data, owner of the files on the data volume
@@ -89,6 +112,9 @@ spec:
                 define('WP_SITEURL', getenv('WP_HOME'));
                 if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') { $_SERVER['HTTPS'] = 'on'; }
                 define('DISALLOW_FILE_EDIT', true);
+                // F-INF-2: the pod has no internet egress; fail external HTTP at once instead of waiting
+                // for a timeout. WP-CLI (wp-init) may still download WooCommerce.
+                define('WP_HTTP_BLOCK_EXTERNAL', PHP_SAPI !== 'cli');
           # Runs as www-data on 8080 (REL-09): no capabilities, read-only image; writable paths are the
           # data volume and emptyDirs for Apache's pid/lock files and PHP's temp files.
           securityContext:
@@ -99,6 +125,8 @@ spec:
             - { name: data, mountPath: /var/www/html }
             - { name: apache, mountPath: /etc/apache2/ports.conf, subPath: ports.conf, readOnly: true }
             - { name: apache, mountPath: /etc/apache2/sites-enabled/000-default.conf, subPath: 000-default.conf, readOnly: true }
+            - { name: apache, mountPath: /usr/local/etc/php/conf.d/zz-security.ini, subPath: zz-security.ini, readOnly: true }
+            - { name: apache, mountPath: /var/www/html/wp-content/mu-plugins/platform-hardening.php, subPath: platform-hardening.php, readOnly: true }
             - { name: run, mountPath: /var/run/apache2 }
             - { name: lock, mountPath: /var/lock/apache2 }
             - { name: tmp, mountPath: /tmp }

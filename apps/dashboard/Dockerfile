@@ -8,7 +8,11 @@ COPY apps/dashboard apps/dashboard
 RUN npm run build -w apps/dashboard
 
 # Static files only: no Node, no secrets, nothing that runs at request time except nginx.
-FROM nginxinc/nginx-unprivileged:1.30.4-alpine3.24
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24
+# F-INF-1: patched OS packages (libexpat, libx11, pcre2, tiff were behind); back to the image's own user.
+USER root
+RUN apk upgrade --no-cache
+USER 101
 COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/dashboard/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/apps/dashboard/dist /usr/share/nginx/html

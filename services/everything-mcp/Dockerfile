@@ -8,6 +8,10 @@ COPY services/everything-mcp/package.json services/everything-mcp/
 RUN npm ci --workspace services/everything-mcp --omit=dev --no-audit --no-fund
 
 FROM node:24.19.0-alpine3.24
+# F-INF-1: patched OS packages, and no npm/npx/corepack at runtime (nothing here runs them; their bundled
+# dependencies carried the image's HIGH/CRITICAL CVEs).
+RUN apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 # No secrets ever: the server has a get-env tool that returns its whole environment (T-15).
 # GZIP_ALLOWED_DOMAINS: its gzip tool may fetch http(s) URLs; only the reserved .invalid TLD is
 # allowed (nothing resolves), and the NetworkPolicy denies all egress as well.

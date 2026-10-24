@@ -102,7 +102,7 @@ describe('sessions (AUTH-03)', () => {
       [{ 'sec-fetch-site': 'same-site' }, 403], // another *.example.test subdomain is not us
       [{ origin: ORIGIN }, 200],
       [{ 'sec-fetch-site': 'same-origin' }, 200],
-      [{}, 200], // no browser headers: not a browser, so no ambient-cookie CSRF
+      [{}, 403], // F-AUTH-1: the session cookie without any browser header is refused too
     ];
     for (const [headers, want] of cases) {
       const res = await app.inject({ method: 'POST', url: '/api/admin-only', headers: { cookie: a, ...headers } });

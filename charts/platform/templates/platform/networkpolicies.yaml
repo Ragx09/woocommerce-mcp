@@ -1,19 +1,51 @@
 {{- if .Values.gateway.enabled }}
 {{- $ns := .Values.global.namespaces.platform }}
 {{- $ctx := dict "root" . "app" "netpol" }}
-# Default deny: nothing in the platform namespace accepts traffic unless a policy below allows it.
+# Default deny, both directions (F-INF-2): nothing in the platform namespace accepts or opens a
+# connection unless a policy below allows it. Postgres has no egress at all.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
+  name: default-deny
   namespace: {{ $ns }}
   labels: {{- include "platform.labels" $ctx | nindent 4 }}
 spec:
   podSelector: {}
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
 ---
-# Gateway ← Traefik only (public /api and /mcp). Egress stays open: it must reach upstream MCP
-# servers, including remote ones (GitHub) and the LLM API; per-upstream SSRF checks live in code.
+# Gateway → Postgres, DNS, the in-cluster MCP servers, and the public internet only (remote MCP
+# servers such as GitHub, the LLM API). Private ranges and link-local/metadata are excluded, so even
+# a bypass of the SSRF guard in code (T-06, F-MCP-4) cannot reach the cluster or the cloud metadata.
+# An admin-added upstream inside the cluster needs its own rule here (hosted servers: BON-10).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-egress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: gateway } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: postgres } }
+      ports: [{ port: 5432 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.global.namespaces.store }} } }
+          podSelector: { matchLabels: { app: woo-mcp } }
+        - podSelector: { matchLabels: { app: everything-mcp } }
+      ports: [{ port: 8080 }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            # Never the cluster, private networks, CGNAT, loopback or link-local (cloud metadata).
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16]
+---
+# Gateway ← Traefik only (public /api and /mcp).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -45,6 +77,22 @@ spec:
         - namespaceSelector: {}
           podSelector:
             matchLabels: {{- toYaml .Values.gateway.metrics.scraperLabel | nindent 14 }}
+      ports: [{ port: {{ .Values.gateway.metrics.port }} }]
+---
+# A scraper in this namespace may reach the gateway's metrics port (egress side of the rule above).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metrics-scrapers-egress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- toYaml .Values.gateway.metrics.scraperLabel | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: gateway } }
       ports: [{ port: {{ .Values.gateway.metrics.port }} }]
 {{- end }}
 ---

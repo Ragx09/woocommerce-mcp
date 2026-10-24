@@ -34,6 +34,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       securityContext:
         runAsUser: 70       # postgres user in the official alpine image
         runAsGroup: 70

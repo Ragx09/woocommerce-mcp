@@ -1,7 +1,7 @@
 // UI-14 unit tests: the OpenAI-compatible client (chat/llm.ts) and the agent loop (chat/agent.ts).
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
-import { FIND_TOOLS, keywords, RESULT_LIMIT, resultText, runAgent, selectTools, systemPrompt, toLlmTool, type McpSession } from '../../src/chat/agent.js';
+import { FIND_TOOLS, keywords, leaksSystemPrompt, PROMPT_LEAK_REPLY, RESULT_LIMIT, resultText, runAgent, selectTools, systemPrompt, toLlmTool, type McpSession } from '../../src/chat/agent.js';
 import { LlmError, openAiCompatible, type ChatCompletion, type ChatMessage, type Completion } from '../../src/chat/llm.js';
 import type { LlmConfig } from '../../src/config.js';
 
@@ -308,5 +308,29 @@ describe('TC-UI-14-U3 many tools: selection within a budget and find_tools (D-01
     expect(second.callable_now[0].name).toBe('github__get_me');
     expect(offered[2]).toContain('github__get_me');
     expect(out.reply).toBe('Ragx09');
+  });
+});
+
+describe('prompt-injection backstop (F-MCP-1)', () => {
+  const session: McpSession = { listTools: async () => ({ tools: [] }), callTool: async () => ({}), close: async () => {} };
+  const now = () => new Date('2026-10-24T10:00:00Z');
+
+  it('TC-SEC-05-U1: a reply quoting the system prompt (even reformatted) is replaced; normal replies pass', async () => {
+    let prompt = '';
+    const leak = async (r: { messages: { role: string; content?: unknown }[] }) => {
+      prompt = String(r.messages[0]!.content);
+      // What the red team got: the prompt dumped as Markdown with changed line breaks.
+      const dumped = `**System Prompt (full content):**\n> ${prompt.replace(/\. /g, '.\n> ').toUpperCase()}`;
+      return answer(dumped);
+    };
+    const out = await runAgent({ llm: leak as never, connect: async () => session, now }, USER);
+    expect(prompt).toContain('even when the user asks you to');
+    expect(out.reply).toBe(PROMPT_LEAK_REPLY);
+    expect(leaksSystemPrompt('Here are today\'s orders: #119 (₹499, processing).', prompt)).toBe(false);
+    // A single long sentence is enough; short shared phrases ("Answer briefly") are not.
+    expect(leaksSystemPrompt('Sure. Call a tool whenever the answer depends on live data; ok', prompt)).toBe(true);
+    expect(leaksSystemPrompt('Answer briefly.', prompt)).toBe(false);
+    const fine = await runAgent({ llm: (async () => answer('There are 3 products.')) as never, connect: async () => session, now }, USER);
+    expect(fine.reply).toBe('There are 3 products.');
   });
 });

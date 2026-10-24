@@ -30,6 +30,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 1000

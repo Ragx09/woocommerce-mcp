@@ -15,17 +15,23 @@ for d in docs:
         errors.append(f"{ref}: chart must not render Secrets (use existingSecret / scripts/make-secrets.sh)")
     if kind == "Service" and d["spec"].get("type", "ClusterIP") != "ClusterIP":
         errors.append(f"{ref}: type {d['spec']['type']} (only ClusterIP; Traefik is the only public entry)")
+    if kind == "ServiceAccount" and d.get("automountServiceAccountToken") is not False:
+        errors.append(f"{ref}: ServiceAccount must set automountServiceAccountToken: false")
     if kind not in ("Deployment", "StatefulSet", "Job"):
         continue
     pod = d["spec"]["template"]["spec"]
     psc = pod.get("securityContext") or {}
     if pod.get("automountServiceAccountToken") is not False:
         errors.append(f"{ref}: automountServiceAccountToken must be false")
+    if pod.get("serviceAccountName") != "workload":
+        errors.append(f"{ref}: serviceAccountName must be 'workload' (no token, F-INF-4), not the namespace default")
     for c in pod.get("containers", []) + pod.get("initContainers", []):
         cref = f"{ref}[{c['name']}]"
         r = c.get("resources") or {}
         if not r.get("requests") or not r.get("limits"):
             errors.append(f"{cref}: missing resources.requests/limits")
+        elif not {"cpu", "memory"} <= set(r["limits"]):
+            errors.append(f"{cref}: limits need both cpu and memory (F-INF-3)")
         if kind != "Job":
             for p in ("readinessProbe", "livenessProbe"):
                 if p not in c:

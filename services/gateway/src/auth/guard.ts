@@ -20,6 +20,8 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * POST/PUT/PATCH/DELETE and `Sec-Fetch-Site` on every request; a request with neither is not from a
  * browser page, so no ambient cookie can be abused by a third-party site. With no public origin
  * configured, every browser-originated mutation is refused (fail closed).
+ * F-AUTH-1: a mutation that carries the session cookie must also carry one of those browser headers;
+ * only cookie-less requests (login, scripts with their own credentials) may omit both.
  */
 export function originAllowed(req: FastifyRequest, publicOrigin: string | undefined): boolean {
   if (!MUTATING.has(req.method)) return true;
@@ -27,8 +29,11 @@ export function originAllowed(req: FastifyRequest, publicOrigin: string | undefi
   const site = req.headers['sec-fetch-site'];
   if (origin !== undefined) return publicOrigin !== undefined && origin === publicOrigin;
   if (site !== undefined) return site === 'same-origin' || site === 'none';
-  return true;
+  return !hasSessionCookie(req.headers.cookie);
 }
+
+const hasSessionCookie = (header: string | undefined): boolean =>
+  (header ?? '').split(';').some((c) => c.trim().startsWith(`${SESSION_COOKIE}=`));
 
 export function registerOriginCheck(app: FastifyInstance, publicOrigin: string | undefined): void {
   app.addHook('onRequest', async (req, reply) => {

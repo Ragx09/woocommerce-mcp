@@ -2,16 +2,63 @@
 {{- $ns := .Values.global.namespaces.store }}
 {{- $pns := .Values.global.namespaces.platform }}
 {{- $ctx := dict "root" . "app" "netpol" }}
-# Default deny: nothing in the store namespace accepts traffic unless a policy below allows it.
+# Default deny, both directions (F-INF-2): nothing in the store namespace accepts or opens a
+# connection unless a policy below allows it.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
+  name: default-deny
   namespace: {{ $ns }}
   labels: {{- include "platform.labels" $ctx | nindent 4 }}
 spec:
   podSelector: {}
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
+---
+# WordPress → MariaDB and DNS only. No internet: a compromised plugin or PHP shell cannot call out
+# (WordPress itself skips external HTTP, WP_HTTP_BLOCK_EXTERNAL in wordpress.yaml).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wordpress-egress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: wordpress } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: mariadb } }
+      ports: [{ port: 3306 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+# wp-init Job → MariaDB, DNS and HTTPS to the internet: WP-CLI downloads WooCommerce from
+# wordpress.org on the first install. It runs once per Helm revision and exits.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wp-init-egress
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: wp-init } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: mariadb } }
+      ports: [{ port: 3306 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            # Never the cluster, private networks, CGNAT, loopback or link-local (cloud metadata).
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16]
+      ports: [{ port: 443 }]
 ---
 # MariaDB ← WordPress and the wp-init Job only.
 apiVersion: networking.k8s.io/v1

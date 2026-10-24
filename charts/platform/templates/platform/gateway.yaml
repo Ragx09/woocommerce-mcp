@@ -39,6 +39,7 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       # BON-04: preStop pause (5 s) + graceful close of in-flight requests (index.ts, ≤ 5 s) fit in 15 s.
       terminationGracePeriodSeconds: 15
       {{- include "platform.pullSecrets" . | nindent 6 }}
@@ -105,6 +106,7 @@ spec:
             {{- if and $v.seed.everything.enabled .Values.everythingMcp.enabled }}
             - { name: SEED_EVERYTHING_URL, value: "http://everything-mcp.{{ $ns }}.svc.cluster.local/mcp" }
             - { name: SEED_EVERYTHING_NAME, value: {{ $v.seed.everything.name | quote }} }
+            - { name: SEED_EVERYTHING_MEMBER_TOOLS, value: {{ join "," ($v.seed.everything.memberTools | default list) | quote }} }
             {{- end }}
             {{- if $v.seed.github.enabled }}
             - { name: SEED_GITHUB_URL, value: {{ $v.seed.github.url | quote }} }

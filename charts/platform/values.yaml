@@ -24,13 +24,13 @@ store:
     existingSecret: mariadb-secrets          # keys: mariadb-password, mariadb-root-password
     resources:
       requests: { cpu: 100m, memory: 256Mi }
-      limits: { memory: 512Mi }
+      limits: { cpu: 1000m, memory: 512Mi }
   wordpress:
     image: wordpress:7.1.3-php8.3-apache
     storage: 2Gi
     resources:
       requests: { cpu: 100m, memory: 256Mi }
-      limits: { memory: 512Mi }
+      limits: { cpu: 1000m, memory: 512Mi }
   init:
     image: wordpress:cli-2.12.0-php8.3
     woocommerceVersion: 11.2.1
@@ -47,12 +47,12 @@ store:
         tag: dev
       resources:
         requests: { cpu: 10m, memory: 16Mi }
-        limits: { memory: 64Mi }
+        limits: { cpu: 200m, memory: 64Mi }
     adminSecret: wordpress-admin             # keys: admin-user, admin-password, admin-email
     apiSecret: woo-api                       # keys: consumer-key, consumer-secret
     resources:
       requests: { cpu: 100m, memory: 128Mi }
-      limits: { memory: 512Mi }
+      limits: { cpu: 500m, memory: 512Mi }
 
 wooMcp:
   enabled: true
@@ -63,7 +63,7 @@ wooMcp:
   authSecret: woo-mcp-auth                   # key: token (the gateway holds the same value)
   resources:
     requests: { cpu: 50m, memory: 96Mi }
-    limits: { memory: 256Mi }
+    limits: { cpu: 500m, memory: 256Mi }
 
 # GW-13: reference upstream server-everything (in the platform namespace, gateway-only).
 everythingMcp:
@@ -74,7 +74,7 @@ everythingMcp:
   replicas: 1
   resources:
     requests: { cpu: 20m, memory: 64Mi }
-    limits: { memory: 192Mi }
+    limits: { cpu: 250m, memory: 192Mi }
 
 # UI-20: dashboard SPA at app.<domain>/ (same host as the gateway: same-origin cookie, no CORS).
 dashboard:
@@ -85,7 +85,7 @@ dashboard:
   replicas: 1
   resources:
     requests: { cpu: 10m, memory: 16Mi }
-    limits: { memory: 64Mi }
+    limits: { cpu: 250m, memory: 64Mi }
 
 gateway:
   enabled: true
@@ -129,6 +129,10 @@ gateway:
     everything:                              # GW-13: needs everythingMcp.enabled
       enabled: true
       name: Everything (reference)
+      # F-MCP-2: every tool except get-env (it prints the pod's environment: Service IPs, pod name) for members.
+      memberTools: [echo, get-annotated-message, get-resource-links, get-resource-reference, get-structured-content, get-sum,
+        get-tiny-image, gzip-file-as-resource, toggle-simulated-logging, toggle-subscriber-updates,
+        trigger-long-running-operation, simulate-research-query]
     github:                                  # GW-14: PAT from the seed Secret (key github-pat); empty → skipped
       enabled: true
       name: GitHub
@@ -144,11 +148,11 @@ gateway:
     maxTokens: 1024
   resources:
     requests: { cpu: 50m, memory: 128Mi }
-    limits: { memory: 384Mi }
+    limits: { cpu: 1000m, memory: 384Mi }
   postgres:
     image: postgres:16.15-alpine3.24
     storage: 1Gi
     existingSecret: postgres-secrets         # key: password (user and database: gateway)
     resources:
       requests: { cpu: 50m, memory: 128Mi }
-      limits: { memory: 384Mi }
+      limits: { cpu: 500m, memory: 384Mi }

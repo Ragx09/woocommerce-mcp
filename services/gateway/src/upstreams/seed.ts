@@ -91,10 +91,13 @@ export function loadWooSeed(env: NodeJS.ProcessEnv = process.env): SeedUpstream 
   if (!token) throw new Error('SEED_WOO_TOKEN is required when SEED_WOO_URL is set');
   const seed: SeedUpstream = { slug: 'woo', name: env.SEED_WOO_NAME?.trim() || 'WooCommerce', url, authType: 'bearer', credential: token };
   // BON-01: e.g. "list_products,list_orders,get_order" → members read-only on the store. Empty → all tools.
-  const memberTools = (env.SEED_WOO_MEMBER_TOOLS ?? '').split(',').map((t) => t.trim()).filter(Boolean);
+  const memberTools = toolList(env.SEED_WOO_MEMBER_TOOLS);
   if (memberTools.length) seed.memberTools = memberTools;
   return seed;
 }
+
+/** A comma-separated tool list from the chart; empty means no rule (members get all tools). */
+const toolList = (v: string | undefined): string[] => (v ?? '').split(',').map((t) => t.trim()).filter(Boolean);
 
 export interface SeedPlan {
   seeds: SeedUpstream[];
@@ -113,7 +116,13 @@ export function loadSeeds(env: NodeJS.ProcessEnv = process.env): SeedPlan {
   if (woo) plan.seeds.push(woo);
 
   const evUrl = env.SEED_EVERYTHING_URL?.trim();
-  if (evUrl) plan.seeds.push({ slug: 'everything', name: env.SEED_EVERYTHING_NAME?.trim() || 'Everything (reference)', url: evUrl, authType: 'none' });
+  if (evUrl) {
+    const ev: SeedUpstream = { slug: 'everything', name: env.SEED_EVERYTHING_NAME?.trim() || 'Everything (reference)', url: evUrl, authType: 'none' };
+    // F-MCP-2: the chart leaves get-env out for members (it shows the pod's environment: cluster addresses).
+    const memberTools = toolList(env.SEED_EVERYTHING_MEMBER_TOOLS);
+    if (memberTools.length) ev.memberTools = memberTools;
+    plan.seeds.push(ev);
+  }
 
   const ghUrl = env.SEED_GITHUB_URL?.trim();
   if (ghUrl) {

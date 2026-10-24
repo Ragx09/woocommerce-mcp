@@ -26,4 +26,11 @@ describe('loadSeeds (GW-03/13/14)', () => {
     expect(loadSeeds({})).toEqual({ seeds: [], skipped: [] });
     expect(() => loadSeeds({ SEED_WOO_URL: WOO.SEED_WOO_URL })).toThrow('SEED_WOO_TOKEN is required');
   });
+
+  it('TC-BON-01-U4 / F-MCP-2: member tool lists from the chart (woo read-only, everything without get-env); empty → no rule', () => {
+    const plan = loadSeeds({ ...WOO, SEED_WOO_MEMBER_TOOLS: 'list_products, list_orders,get_order',
+      SEED_EVERYTHING_URL: 'http://everything-mcp.platform.svc.cluster.local/mcp', SEED_EVERYTHING_MEMBER_TOOLS: 'echo,get-sum' });
+    expect(plan.seeds.map((s) => [s.slug, s.memberTools])).toEqual([['woo', ['list_products', 'list_orders', 'get_order']], ['everything', ['echo', 'get-sum']]]);
+    expect(loadSeeds({ ...WOO, SEED_WOO_MEMBER_TOOLS: ' , ' }).seeds[0]!.memberTools).toBeUndefined();
+  });
 });

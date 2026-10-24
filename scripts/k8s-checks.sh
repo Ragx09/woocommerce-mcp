@@ -42,6 +42,18 @@ netpol() {
   expect CLOSED "TC-GW-13-2a everything-mcp from a random pod in $PLATFORM" "$PLATFORM" app=intruder "$ev" 80
   expect CLOSED "TC-GW-13-2b everything-mcp from $STORE" "$STORE" app=gateway "$ev" 80
   expect OPEN   "TC-GW-13-2c everything-mcp from app=gateway in $PLATFORM" "$PLATFORM" app=gateway "$ev" 80
+  # F-INF-2: egress default-deny. Internet target 1.1.1.1:443 (reachable from the cluster without policies).
+  local inet=1.1.1.1 pg="postgres.$PLATFORM.svc.cluster.local"
+  expect CLOSED "TC-SEC-10a internet from app=wordpress" "$STORE" app=wordpress "$inet" 443
+  expect CLOSED "TC-SEC-10b internet from app=mariadb" "$STORE" app=mariadb "$inet" 443
+  expect CLOSED "TC-SEC-10c internet from app=postgres" "$PLATFORM" app=postgres "$inet" 443
+  expect CLOSED "TC-SEC-10d internet from a random pod in $PLATFORM" "$PLATFORM" app=intruder "$inet" 443
+  expect OPEN   "TC-SEC-10e internet (remote MCP / LLM) from app=gateway" "$PLATFORM" app=gateway "$inet" 443
+  expect CLOSED "TC-SEC-10f cloud metadata 169.254.169.254 from app=gateway" "$PLATFORM" app=gateway 169.254.169.254 80
+  expect CLOSED "TC-SEC-10g Kubernetes API 10.43.0.1 from app=gateway" "$PLATFORM" app=gateway 10.43.0.1 443
+  expect CLOSED "TC-SEC-10h mariadb from app=gateway" "$PLATFORM" app=gateway "$db" 3306
+  expect OPEN   "TC-SEC-10i postgres from app=gateway" "$PLATFORM" app=gateway "$pg" 5432
+  expect OPEN   "TC-SEC-10j internet 443 (WooCommerce download) from app=wp-init" "$STORE" app=wp-init "$inet" 443
   local out
   # Raw TCP connect to the API server's ClusterIP (the gateway, with open egress, gets OPEN here).
   out=$(kubectl -n "$PLATFORM" exec deploy/everything-mcp -- node -e \
