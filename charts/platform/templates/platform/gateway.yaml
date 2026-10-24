@@ -80,6 +80,7 @@ spec:
             # GW-03: register woo-mcp on first start (admin edits are never overwritten).
             - { name: SEED_WOO_URL, value: "http://woo-mcp.{{ .Values.global.namespaces.store }}.svc.cluster.local/mcp" }
             - { name: SEED_WOO_NAME, value: {{ $v.seed.woo.name | quote }} }
+            - { name: SEED_WOO_MEMBER_TOOLS, value: {{ join "," ($v.seed.woo.memberTools | default list) | quote }} }
             - name: SEED_WOO_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: woo-token } }
             {{- end }}

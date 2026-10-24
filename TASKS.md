@@ -2276,16 +2276,16 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-01 — Per-role tool permissions
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 15
 - **Depends on:** AUTH-10, GW-08
 - **Requirements:** REQ-SO-02
-- **Description:** Admin-managed rules per role (and optionally per user) over servers and tools: allow/deny by `server` and by `server__tool` pattern; default for members configurable per server (e.g. woo: read tools only). `tools/list` hides denied tools; `tools/call` to a denied tool is refused server-side (`tool_forbidden`) and audited as `denied`, also when the name is guessed and also for the chat (internal token carries the user, the same rules apply). Dashboard page to edit the rules; members see only their allowed tools.
+- **Description:** Admin-managed rule per server for the member role (D-021): all tools, none, or selected tools; default for woo from the chart (read tools only). `tools/list` hides denied tools; `tools/call` to a denied tool is refused server-side (`tool_forbidden`) and audited as `denied`, also when the name is guessed and also for the chat (internal token carries the user, the same rules apply). Dashboard page to edit the rules; members see only their allowed tools.
 - **Output:** migration (`tool_rules`), `services/gateway/src/authz/tool-rules.ts`, `/api/tool-rules` (admin), dashboard Permissions page, MCP_DESIGN + API_CONTRACTS sections, DECISIONS entry.
 - **Acceptance:** With the rule "members: woo read-only", member B's `tools/list` has no `woo__create_product`/`woo__update_order_status`, a direct call to either is refused and audited, admin A still sees and calls them; the chat for B cannot create a product.
 - **Tests:** TC-BON-01-1 (int): list filtered per role; TC-BON-01-2 (int): direct call refused + audit row `denied`; TC-BON-01-3 (int): chat token obeys the rules; TC-BON-01-4 (browser): rule edited in the dashboard takes effect on the next request.
 - **Command:** `npm test -w services/gateway && scripts/gateway-db-int.sh && scripts/dashboard-screens.sh permissions`
-- **Evidence:** —
+- **Evidence:** 2026-10-24: per-server member rule (`member_access` all/none/selected + `member_tools`, migration 0003, D-021) enforced in `/mcp` (`src/authz/tool-access.ts`); admin API + dashboard server form "Member access"; chart seeds woo members read-only on first creation (`gateway.seed.woo.memberTools`). `npm test -w services/gateway` → `Tests 103 passed (103)` (TC-BON-01-U1..U3; both enforcement points mutation-checked: removing either guard → 1 failed). `scripts/gateway-db-int.sh` → `Tests 124 passed (124)` (TC-BON-01-1..5: lists per role, direct call refused + audited `rejected/tool_forbidden` with no upstream call, chat internal token gets the member's tools, admin-only + API/DB validation, seeder sets the default once). Dashboard unit 25/25. k3d rev 69: `scripts/dashboard-screens.sh permissions` → `17/17 passed` (form sets woo read-only + everything hidden; member key: woo__list_products/list_orders/get_order only, `woo__create_product` → "tool not allowed for your role", admin still 64 tools; member Servers page 3 tools, everything hidden; audit row; rules restored); `admin` 16/16; `check-chart.sh` 0 violations. Existing k3d rows stay `all` (seed default applies to new installs; REL-12 clean run).
 - **Regression risk:** A wrong default hides tools from admins; find_tools (D-019) must search only allowed tools.
 
 ### BON-02 — Many tools (search, then call)

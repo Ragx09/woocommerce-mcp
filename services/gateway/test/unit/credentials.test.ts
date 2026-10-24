@@ -38,7 +38,7 @@ describe('credential encryption (D-009)', () => {
     const now = new Date();
     const pub = toPublic({
       id: 'id', slug: 'woo', name: 'WooCommerce', url: 'http://x/mcp', enabled: true, authType: 'bearer',
-      authHeader: null, credentialEnc: encryptCredential(key, 'woo', 't'), createdBy: null, createdAt: now, updatedAt: now,
+      authHeader: null, credentialEnc: encryptCredential(key, 'woo', 't'), memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now,
     });
     expect(pub.hasCredential).toBe(true);
     expect(Object.keys(pub)).not.toContain('credentialEnc');
@@ -49,7 +49,7 @@ describe('credential encryption (D-009)', () => {
 function row(over: Partial<Upstream>): Upstream {
   const now = new Date('2026-10-13T00:00:00Z');
   return { id: 'u1', slug: 'woo', name: 'Woo', url: 'http://up/mcp', enabled: true, authType: 'none', authHeader: null,
-    credentialEnc: null, createdBy: null, createdAt: now, updatedAt: now, ...over };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now, ...over };
 }
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { while (cleanup.length) await cleanup.pop()!(); });

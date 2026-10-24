@@ -1,10 +1,12 @@
 // UI-05 / UI-06: add or edit an MCP server (admin). The credential is write-only: the form never
 // receives it, only `hasCredential`; leaving the field empty on edit keeps the stored one. The server
 // validates everything again (slug format, SSRF guard on the URL, auth/credential combinations).
+// BON-01: "Member access" sets which of the server's tools members may list and call; the gateway
+// enforces it on /mcp (this form only edits the rule).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { api, type Upstream } from '../api.js';
+import { api, type MemberAccess, type ToolInfo, type Upstream } from '../api.js';
 
 type AuthType = 'none' | 'bearer' | 'header';
 const SLUG_RE = /^[a-z0-9-]{1,20}$/;
@@ -35,16 +37,30 @@ function Form({ existing }: { existing?: Upstream }) {
   const [authHeader, setAuthHeader] = useState(existing?.authHeader ?? '');
   const [credential, setCredential] = useState('');
   const [localError, setLocalError] = useState('');
+  const [memberAccess, setMemberAccess] = useState<MemberAccess>(existing?.memberAccess ?? 'all');
+  const [memberTools, setMemberTools] = useState<string[]>(existing?.memberTools ?? []);
   const hadCredential = !!existing?.hasCredential;
+  // The tools to choose from; a server that cannot be reached still shows the tools already selected.
+  const tools = useQuery({
+    queryKey: ['upstream-tools', existing?.id],
+    queryFn: () => api<ToolInfo[]>(`/api/upstreams/${existing!.id}/tools`),
+    enabled: !!existing?.enabled,
+    staleTime: 60_000,
+  });
+  const toolNames = [...new Set([...(tools.data ?? []).map((t) => t.name), ...memberTools])];
+  const toggleTool = (t: string) => setMemberTools((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
 
   const save = useMutation({
     mutationFn: () => {
       const auth = { authType, ...(authType === 'header' ? { authHeader: authHeader.trim() } : {}), ...(credential ? { credential } : {}) };
-      if (!editing) return api<Upstream>('/api/upstreams', { method: 'POST', body: { name: name.trim(), slug, url: url.trim(), ...auth } });
+      const access = { memberAccess, ...(memberAccess === 'selected' ? { memberTools } : {}) };
+      if (!editing) return api<Upstream>('/api/upstreams', { method: 'POST', body: { name: name.trim(), slug, url: url.trim(), ...auth, ...access } });
       const body: Record<string, unknown> = {};
       if (name.trim() !== existing.name) body.name = name.trim();
       if (url.trim() !== existing.url) body.url = url.trim();
       if (authType !== existing.authType || (authType === 'header' && authHeader.trim() !== existing.authHeader) || credential) Object.assign(body, auth);
+      if (memberAccess !== existing.memberAccess) body.memberAccess = memberAccess;
+      if (memberAccess === 'selected' && memberTools.join('\n') !== (existing.memberTools ?? []).join('\n')) body.memberTools = memberTools;
       if (Object.keys(body).length === 0) return Promise.resolve(existing);
       return api<Upstream>(`/api/upstreams/${existing.id}`, { method: 'PATCH', body });
     },
@@ -119,6 +135,33 @@ function Form({ existing }: { existing?: Upstream }) {
               <input type="password" autoComplete="off" spellCheck={false} maxLength={4096} value={credential}
                 onChange={(e) => setCredential(e.target.value)} placeholder={hadCredential && existing?.authType !== 'none' ? '••••••••' : ''} />
             </label>
+          )}
+        </fieldset>
+        <fieldset>
+          <legend>Member access <span className="muted small">(admins can always use every tool)</span></legend>
+          <div className="choices">
+            {(['all', 'selected', 'none'] as const).map((a) => (
+              <label key={a} className="choice">
+                <input type="radio" name="memberAccess" value={a} checked={memberAccess === a} onChange={() => setMemberAccess(a)}
+                  disabled={a === 'selected' && !editing} />
+                {a === 'all' ? 'All tools' : a === 'selected' ? 'Selected tools' : 'No access'}
+              </label>
+            ))}
+          </div>
+          {!editing && <p className="muted small">Choose single tools after the server is added (its tools are listed then).</p>}
+          {memberAccess === 'none' && <p className="muted small">Members do not see this server or its tools.</p>}
+          {memberAccess === 'selected' && (
+            <div className="stack" role="group" aria-label="Tools members may use">
+              {tools.isPending && existing?.enabled && <p className="muted small">Loading tools…</p>}
+              {tools.isError && <p className="error small" role="alert">Tools could not be loaded: {tools.error.message}</p>}
+              {toolNames.length === 0 && !tools.isPending && <p className="muted small">No tools to choose from.</p>}
+              {toolNames.map((t) => (
+                <label key={t} className="choice">
+                  <input type="checkbox" checked={memberTools.includes(t)} onChange={() => toggleTool(t)} />
+                  <code>{t}</code>
+                </label>
+              ))}
+            </div>
           )}
         </fieldset>
         {(localError || save.isError) && <p className="error" role="alert">{localError || save.error?.message}</p>}

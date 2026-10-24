@@ -13,7 +13,9 @@
 #            page (creates one product "Demo Mug <stamp>"; not part of `all`)
 #   chat-errors  TC-UI-18-1 chat error states: stubbed tool failures, then woo-mcp scaled to 0 and one real
 #            question (restored afterwards; not part of `all`)
-# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|chat|chat-create|chat-errors|all] (default all). The admin credentials come from
+#   permissions  TC-BON-01-4 member access per server (woo read-only, everything hidden) set in the form; member
+#            key on /mcp + member Servers page follow, refusal audited; rules restored (creates gus-<ts>@example.invalid)
+# Usage: scripts/dashboard-screens.sh [auth|servers|admin|team|permissions|chat|chat-create|chat-errors|all] (default all). The admin credentials come from
 # the K8s Secret into the container env; they are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,6 +45,7 @@ scaler() {
 rc=0
 case "${1:-all}" in auth|all) run dashboard-auth.mjs || rc=1 ;; esac
 case "${1:-all}" in team|all) run dashboard-team.mjs || rc=1 ;; esac
+case "${1:-all}" in permissions|all) run dashboard-permissions.mjs || rc=1 ;; esac
 case "${1:-all}" in chat) run dashboard-chat.mjs || rc=1 ;; esac
 case "${1:-all}" in chat-create) run dashboard-chat-create.mjs || rc=1 ;; esac
 case "${1:-all}" in chat-errors)

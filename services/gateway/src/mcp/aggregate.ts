@@ -11,12 +11,17 @@ export interface Aggregate {
   index: ToolIndex;
 }
 
-export function aggregateTools(result: DiscoveryResult): Aggregate {
+/**
+ * `allow` (BON-01) drops tools the caller may not use before names are assigned; it is given the
+ * upstream id and the upstream's own tool name.
+ */
+export function aggregateTools(result: DiscoveryResult, allow?: (upstreamId: string, tool: string) => boolean): Aggregate {
   const index = new ToolIndex();
   const tools: Tool[] = [];
   for (const { upstream, tools: upstreamTools } of result.upstreams) {
     for (const t of upstreamTools) {
       if (!t.name) continue; // malformed upstream entry
+      if (allow && !allow(upstream.id, t.name)) continue;
       const name = index.add(upstream.id, upstream.slug, t.name);
       if (!name) continue; // duplicate public name: reported in index.conflicts
       const tool: Tool = { name, description: publicDescription(upstream.slug, t.description), inputSchema: t.inputSchema };

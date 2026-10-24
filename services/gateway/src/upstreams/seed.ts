@@ -18,6 +18,8 @@ export interface SeedUpstream {
   authType: AuthType;
   authHeader?: string | null;
   credential?: string | null;
+  /** BON-01: tools members may use; set only when the row is created (later it is the admin's). Omitted → all. */
+  memberTools?: string[];
 }
 
 export type SeedResult = 'created' | 'refreshed' | 'unchanged' | 'admin-edited' | 'admin-deleted';
@@ -60,6 +62,7 @@ export async function seedUpstream(db: Db, key: CredentialKey, s: SeedUpstream):
       const [row] = await tx.insert(upstreams).values({
         slug: s.slug, name: s.name, url: s.url, authType: s.authType,
         authHeader: s.authHeader ?? null, credentialEnc,
+        ...(s.memberTools ? { memberAccess: 'selected' as const, memberTools: s.memberTools } : {}),
       }).returning({ id: upstreams.id, updatedAt: upstreams.updatedAt });
       await writeRecord(row!.id, row!.updatedAt);
       return 'created';
@@ -80,13 +83,17 @@ export async function seedUpstream(db: Db, key: CredentialKey, s: SeedUpstream):
   });
 }
 
-/** SEED_WOO_URL / SEED_WOO_TOKEN from the chart. Returns null when seeding is turned off. */
+/** SEED_WOO_URL / SEED_WOO_TOKEN (/ SEED_WOO_MEMBER_TOOLS) from the chart. Returns null when seeding is turned off. */
 export function loadWooSeed(env: NodeJS.ProcessEnv = process.env): SeedUpstream | null {
   const url = env.SEED_WOO_URL?.trim();
   if (!url) return null;
   const token = env.SEED_WOO_TOKEN?.trim();
   if (!token) throw new Error('SEED_WOO_TOKEN is required when SEED_WOO_URL is set');
-  return { slug: 'woo', name: env.SEED_WOO_NAME?.trim() || 'WooCommerce', url, authType: 'bearer', credential: token };
+  const seed: SeedUpstream = { slug: 'woo', name: env.SEED_WOO_NAME?.trim() || 'WooCommerce', url, authType: 'bearer', credential: token };
+  // BON-01: e.g. "list_products,list_orders,get_order" → members read-only on the store. Empty → all tools.
+  const memberTools = (env.SEED_WOO_MEMBER_TOOLS ?? '').split(',').map((t) => t.trim()).filter(Boolean);
+  if (memberTools.length) seed.memberTools = memberTools;
+  return seed;
 }
 
 export interface SeedPlan {

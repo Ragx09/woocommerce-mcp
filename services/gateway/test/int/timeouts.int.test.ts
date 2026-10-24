@@ -24,7 +24,7 @@ afterEach(async () => { while (cleanup.length) await cleanup.pop()!(); });
 function row(id: string, slug: string, url: string): Upstream {
   const now = new Date('2026-10-13T00:00:00Z');
   return { id, slug, name: slug, url, enabled: true, authType: 'none', authHeader: null,
-    credentialEnc: null, createdBy: null, createdAt: now, updatedAt: now };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now };
 }
 
 async function gatewayClient(rows: Upstream[]): Promise<Client> {

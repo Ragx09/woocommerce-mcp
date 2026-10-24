@@ -13,6 +13,8 @@ export interface PublicUpstream {
   authType: Upstream['authType'];
   authHeader: string | null;
   hasCredential: boolean;
+  memberAccess: Upstream['memberAccess'];
+  memberTools: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +29,8 @@ export function toPublic(u: Upstream): PublicUpstream {
     authType: u.authType,
     authHeader: u.authHeader,
     hasCredential: u.credentialEnc !== null,
+    memberAccess: u.memberAccess,
+    memberTools: u.memberTools,
     createdAt: u.createdAt.toISOString(),
     updatedAt: u.updatedAt.toISOString(),
   };

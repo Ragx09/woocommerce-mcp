@@ -2,6 +2,8 @@
 // Reads for every signed-in user: registry row (allowlisted fields only, never a credential) + this
 // replica's health + tool count. Members get fewer fields than admins: the URL and auth header name
 // describe internal topology and are only needed to edit a server.
+// Members see only servers and tools their role may use (BON-01); admins set that per server
+// (memberAccess all/none/selected + memberTools).
 // Writes are admin-only: create / edit / enable-disable / delete. The credential is write-only: it is
 // encrypted on the way in and never returned. URLs pass the SSRF guard (ssrf.ts) before they are saved.
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
@@ -9,7 +11,8 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { encryptCredential, type CredentialKey } from '../crypto/credentials.js';
 import type { Db } from '../db/index.js';
-import { upstreams, type Upstream } from '../db/schema.js';
+import { canSeeUpstream, canUseTool } from '../authz/tool-access.js';
+import { MEMBER_ACCESS, upstreams, type Upstream } from '../db/schema.js';
 import { MAX_DESCRIPTION, SLUG_RE, toPublicName } from '../mcp/naming.js';
 import type { ToolDiscovery } from './discovery.js';
 import { healthError, type HealthMonitor } from './health.js';
@@ -46,6 +49,10 @@ const fields = {
   url: { type: 'string', minLength: 1, maxLength: 2048 },
   authType: { type: 'string', enum: ['none', 'bearer', 'header'] },
   authHeader: { type: ['string', 'null'], pattern: '^[A-Za-z0-9-]{1,64}$' },
+  // BON-01: what members may use. Tool names as the upstream knows them (MCP allows more than public names).
+  memberAccess: { type: 'string', enum: MEMBER_ACCESS },
+  memberTools: { type: 'array', maxItems: 200, uniqueItems: true,
+    items: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[\\x21-\\x7e]+$' } },
 } as const;
 const createBody = { type: 'object', additionalProperties: false, required: ['name', 'slug', 'url', 'authType'],
   properties: { ...fields, slug: { type: 'string', pattern: SLUG_RE.source }, credential } } as const;
@@ -58,7 +65,8 @@ const RESERVED_HEADERS = new Set(['host', 'content-length', 'content-type', 'tra
   'te', 'trailer', 'accept', 'accept-encoding', 'user-agent', 'cookie', 'mcp-session-id', 'mcp-protocol-version', 'last-event-id',
   'authorization', 'proxy-authorization', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-request-id']);
 
-type CreateBody = { name: string; slug: string; url: string; authType: Upstream['authType']; authHeader?: string | null; credential?: string };
+type CreateBody = { name: string; slug: string; url: string; authType: Upstream['authType']; authHeader?: string | null; credential?: string;
+  memberAccess?: Upstream['memberAccess']; memberTools?: string[] };
 type PatchBody = Partial<Omit<CreateBody, 'slug' | 'credential'>> & { enabled?: boolean; credential?: string | null };
 
 class InputError extends Error {
@@ -117,14 +125,17 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     const h = health.get(row);
     const t = row.enabled ? await tools(row) : undefined;
     const pub = toPublic(row);
+    const role = isAdmin ? 'admin' : 'member';
     const base = {
       id: pub.id, name: pub.name, slug: pub.slug, enabled: pub.enabled,
       status: h.status, lastError: h.lastError,
       lastCheckedAt: h.lastCheckedAt?.toISOString() ?? null, lastOkAt: h.lastOkAt?.toISOString() ?? null,
-      toolCount: t && 'tools' in t ? t.tools.length : null,
+      // Members count only the tools they may use (BON-01), the same set /mcp gives them.
+      toolCount: t && 'tools' in t ? t.tools.filter((x) => x.name && canUseTool(role, row, x.name)).length : null,
     };
     return isAdmin ? { ...base, url: pub.url, authType: pub.authType, authHeader: pub.authHeader,
-      hasCredential: pub.hasCredential, createdAt: pub.createdAt, updatedAt: pub.updatedAt } : base;
+      hasCredential: pub.hasCredential, memberAccess: pub.memberAccess, memberTools: pub.memberTools,
+      createdAt: pub.createdAt, updatedAt: pub.updatedAt } : base;
   }
 
   /** Registry changed: align the pool now and run a health round in the background (status within seconds). */
@@ -151,19 +162,21 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
   app.get('/api/upstreams', { config: { access: 'session' } }, async (req) => {
     const rows = await listUpstreams(db);
     await pool.sync(rows); // a server added a moment ago can be listed before the next health round
-    return Promise.all(rows.map((row) => view(row, req.user!.role === 'admin')));
+    const role = req.user!.role;
+    return Promise.all(rows.filter((row) => canSeeUpstream(role, row)).map((row) => view(row, role === 'admin')));
   });
 
   app.get<{ Params: { id: string } }>('/api/upstreams/:id/tools', {
     config: { access: 'session' }, schema: { params: idParams },
   }, async (req, reply) => {
     const [row] = await db.select().from(upstreams).where(eq(upstreams.id, req.params.id));
-    if (!row) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
+    const role = req.user!.role;
+    if (!row || !canSeeUpstream(role, row)) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
     if (!row.enabled) return reply.code(409).send({ error: 'upstream_disabled', message: `server ${row.slug} is disabled` });
     await pool.sync(await listUpstreams(db));
     const t = await tools(row);
     if ('error' in t) return reply.code(502).send({ error: 'upstream_unreachable', message: t.error });
-    return t.tools.filter((x) => x.name).map((x) => toolView(row.slug, x));
+    return t.tools.filter((x) => x.name && canUseTool(role, row, x.name)).map((x) => toolView(row.slug, x));
   });
 
   // Create (UI-05).
@@ -175,6 +188,7 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
       const [row] = await db.insert(upstreams).values({
         slug: b.slug, name: b.name.trim(), url, authType: auth.authType, authHeader: auth.authHeader,
         credentialEnc: auth.newCredential ? encryptCredential(deps.key!, b.slug, auth.newCredential) : null,
+        memberAccess: b.memberAccess ?? 'all', memberTools: b.memberTools ?? [],
         createdBy: req.user!.id,
       }).returning();
       req.log.info({ upstream: row!.slug, upstreamId: row!.id, by: req.user!.id }, 'upstream created');
@@ -195,6 +209,8 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
       const set: Partial<typeof upstreams.$inferInsert> = {};
       if (b.name !== undefined) set.name = b.name.trim();
       if (b.enabled !== undefined) set.enabled = b.enabled;
+      if (b.memberAccess !== undefined) set.memberAccess = b.memberAccess;
+      if (b.memberTools !== undefined) set.memberTools = b.memberTools;
       if (b.url !== undefined && b.url !== prev.url) set.url = await checkedUrl(b.url);
       if (touchesAuth) {
         const auth = resolveAuth(prev, b);

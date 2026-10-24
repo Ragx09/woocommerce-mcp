@@ -79,7 +79,7 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-BON-07 | Bonus multi-store | Retry-safe create; restart completes or fails cleanly | provisioner | BON-09, BON-12, BON-14 | TC-BON-09-1, TC-BON-14-3 | Not Started | — |
 | REQ-BON-08 | Bonus multi-store | Chat compares orders across two stores; delete removes tools | e2e | BON-15 | TC-BON-15-1 | Not Started | — |
 | REQ-SO-01 | Stand-out 1 | VPS deployment + Helm-values doc + TLS | charts + VPS | BON-07, REL-01..REL-06 | TC-E2E-14 (VPS) | Blocked | No VPS yet (P0-03) |
-| REQ-SO-02 | Stand-out 2 | Per-role/per-user tool permissions, hidden + rejected | gateway | BON-01 | TC-BON-01-1..4 | Not Started | — |
+| REQ-SO-02 | Stand-out 2 | Per-role/per-user tool permissions, hidden + rejected | gateway | BON-01 | TC-BON-01-U1..U3, TC-BON-01-1..5 | Verified | 2026-10-24 BON-01: member rule per server enforced in /mcp; unit 103/103, int 124/124, browser `dashboard-screens.sh permissions` 17/17 on k3d rev 69 (TASKS.md BON-01) |
 | REQ-SO-03 | Stand-out 3 | OAuth (MCP authorization spec) on the gateway | gateway | BON-08 | TC-BON-08-1..3 | Not Started | — |
 | REQ-SO-04 | Stand-out 4 | Many tools: search then call | gateway chat | BON-02, UI-14 | TC-UI-14-API, TC-INT-07 | Verified | 2026-10-15 UI-14: `find_tools` → `github__get_me` with real Groq on k3d (TASKS.md BON-02) |
 | REQ-SO-05 | Stand-out 5 | Hosted MCP servers by container image | provisioner + gateway | BON-09, BON-10 | TC-BON-10-1..3 | Not Started | — |

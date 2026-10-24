@@ -13,6 +13,9 @@ export interface EncryptedCredential {
 export const AUTH_TYPES = ['none', 'header', 'bearer'] as const;
 export type AuthType = (typeof AUTH_TYPES)[number];
 
+export const MEMBER_ACCESS = ['all', 'none', 'selected'] as const;
+export type MemberAccess = (typeof MEMBER_ACCESS)[number];
+
 /** Registered upstream MCP servers. Runtime state (status, tools) lives in memory, not here. */
 export const upstreams = pgTable(
   'upstreams',
@@ -27,6 +30,10 @@ export const upstreams = pgTable(
     /** Header name for authType=header, e.g. X-Internal-Token. Bearer uses Authorization. */
     authHeader: text('auth_header'),
     credentialEnc: jsonb('credential_enc').$type<EncryptedCredential>(),
+    /** BON-01: which of its tools members may list and call (admins: all). 'selected' → `memberTools`. */
+    memberAccess: text('member_access', { enum: MEMBER_ACCESS }).notNull().default('all'),
+    /** Upstream tool names (not public names) members may use when memberAccess = 'selected'. */
+    memberTools: jsonb('member_tools').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** The admin who added it; null for rows seeded at startup (or when that user is gone). */
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -45,6 +52,8 @@ export const upstreams = pgTable(
           and (${t.authHeader} is null or ${t.authHeader} ~ '^[A-Za-z0-9-]{1,64}$')`,
     ),
     check('upstreams_credential', sql`${t.authType} <> 'none' or ${t.credentialEnc} is null`),
+    check('upstreams_member_access', sql`${t.memberAccess} in ('all', 'none', 'selected')`),
+    check('upstreams_member_tools', sql`jsonb_typeof(${t.memberTools}) = 'array' and jsonb_array_length(${t.memberTools}) <= 200`),
   ],
 );
 

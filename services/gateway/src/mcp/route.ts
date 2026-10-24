@@ -9,6 +9,8 @@
 //   Unknown, malformed, revoked keys and keys of disabled users → 401. The dashboard chat agent uses a
 //   short-lived internal token instead (UI-15, auth/internal-token.ts), accepted only over loopback. The inbound Authorization header
 //   is only checked here; it is never forwarded upstream (T-04).
+// - Tool permissions (BON-01, authz/tool-access.ts): members get only the tools their role may use;
+//   tools/list leaves the others out, tools/call refuses them with `tool_forbidden` (audited as rejected).
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -18,8 +20,9 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import { VERSION } from '../app.js';
 import type { Principal } from '../auth/api-keys.js';
 import { isLoopback } from '../auth/internal-token.js';
+import { canCallPublicName, canSeeUpstream, canUseTool } from '../authz/tool-access.js';
 import type { AuditEvent, AuditMethod, AuditSink, CallContext } from '../audit/audit.js';
-import type { AuditOutcome } from '../db/schema.js';
+import type { AuditOutcome, Role } from '../db/schema.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
 import type { HealthMonitor } from '../upstreams/health.js';
@@ -67,6 +70,10 @@ async function loadRows(deps: McpDeps, log: FastifyBaseLogger, method: string): 
 const unknownTool = (name: string) =>
   new McpError(ErrorCode.InvalidParams, `unknown tool: ${name.slice(0, 80)}`, { code: 'unknown_tool' });
 
+/** BON-01: the caller's role may not use this tool. Same error whether the tool exists or not. */
+const forbiddenTool = (name: string) =>
+  new McpError(ErrorCode.InvalidParams, `tool not allowed for your role: ${name.slice(0, 80)}`, { code: 'tool_forbidden' });
+
 const errorResult = (code: string, message: string): CallToolResult =>
   ({ isError: true, content: [{ type: 'text', text: `${code}: ${message}` }] });
 
@@ -101,7 +108,7 @@ function thrownOutcome(e: unknown): { outcome: AuditOutcome; code: string } {
   return { outcome: 'error', code: 'internal' };
 }
 
-function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext): Server {
+function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext, role: Role): Server {
   const server = new Server({ name: 'mcp-gateway', version: VERSION }, { capabilities: { tools: {} } });
   const callTimeoutMs = deps.callTimeoutMs ?? CALL_TIMEOUT_MS;
   const audit = (method: AuditMethod, started: number, e: Omit<AuditEvent, 'requestId' | 'userId' | 'apiKeyId' | 'source' | 'method' | 'durationMs'>) =>
@@ -132,6 +139,8 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext): S
     const row = rows.find((r) => r.slug === parsed.slug);
     if (!row) throw unknownTool(publicName);
     rec.upstreamId = row.id;
+    // Before anything else, incl. "disabled": a member must not learn more about a tool they may not use.
+    if (!canCallPublicName(role, row, publicName)) throw forbiddenTool(publicName);
     if (!row.enabled) {
       throw new McpError(ErrorCode.InvalidParams, `upstream ${row.slug} is disabled`, { code: 'upstream_disabled' });
     }
@@ -156,6 +165,7 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext): S
       return f.result;
     }
     if (!tool) throw unknownTool(publicName);
+    if (!canUseTool(role, row, tool)) throw forbiddenTool(publicName); // second check on the resolved name
     rec.tool = tool;
 
     try {
@@ -188,7 +198,12 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext): S
     }
     await deps.pool.sync(rows);
     const result = await deps.discovery.discover();
-    const { tools, index } = aggregateTools(result);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    // Policy from the rows just read (not the discovery cache), so a rule change applies on the next request.
+    const { tools, index } = aggregateTools(result, (id, tool) => {
+      const row = byId.get(id);
+      return !!row && canSeeUpstream(role, row) && canUseTool(role, row, tool);
+    });
     for (const c of index.conflicts) {
       log.warn({ upstream: c.slug, tool: c.tool, publicName: c.publicName, kept: c.keptTool }, 'duplicate public tool name dropped');
     }
@@ -238,7 +253,7 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
 
   app.post('/mcp', { preHandler: authenticate }, async (req, reply) => {
     const p = req.principal!;
-    const server = buildServer(deps, req.log, { requestId: req.id, userId: p.userId, keyId: p.keyId, source: p.source ?? 'mcp' });
+    const server = buildServer(deps, req.log, { requestId: req.id, userId: p.userId, keyId: p.keyId, source: p.source ?? 'mcp' }, p.role);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     reply.raw.setHeader('x-request-id', req.id); // hijacked replies skip Fastify's headers
     reply.hijack(); // the SDK transport writes the raw response

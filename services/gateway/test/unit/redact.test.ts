@@ -61,7 +61,7 @@ describe('TC-UNIT-06 log redaction (GW-17)', () => {
 describe('TC-UNIT-06 request ids and tool-call logging (GW-17)', () => {
   const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
   const row = (url: string): Upstream => ({ id: 'u1', slug: 'woo', name: 'woo', url, enabled: true, authType: 'none',
-    authHeader: null, credentialEnc: null, createdBy: null, createdAt: new Date(0), updatedAt: new Date(0) });
+    authHeader: null, credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: new Date(0), updatedAt: new Date(0) });
 
   async function gateway(level: string) {
     const up = await startFakeUpstream({ tools: ['echo'] });

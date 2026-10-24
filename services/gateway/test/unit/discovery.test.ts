@@ -18,7 +18,7 @@ async function fake(opts?: Parameters<typeof startFakeUpstream>[0]): Promise<Fak
 function row(over: Partial<Upstream> & { url: string }): Upstream {
   const now = new Date('2026-10-12T00:00:00Z');
   return { id: 'u1', slug: 'woo', name: 'Woo', enabled: true, authType: 'none', authHeader: null,
-    credentialEnc: null, createdBy: null, createdAt: now, updatedAt: now, ...over };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now, ...over };
 }
 /** A pool synced with `rows` and a discovery on top, with a controllable clock. */
 async function setup(rows: Upstream[], opts: DiscoveryOptions = {}) {

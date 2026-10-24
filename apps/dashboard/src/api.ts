@@ -120,7 +120,11 @@ export interface Upstream {
   authType?: 'none' | 'bearer' | 'header';
   authHeader?: string | null;
   hasCredential?: boolean;
+  /** BON-01: which tools members may use (admins always all). */
+  memberAccess?: MemberAccess;
+  memberTools?: string[];
 }
+export type MemberAccess = 'all' | 'none' | 'selected';
 export interface ToolInfo {
   publicName: string;
   name: string;

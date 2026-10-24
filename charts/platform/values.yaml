@@ -111,6 +111,8 @@ gateway:
     woo:
       enabled: true
       name: WooCommerce
+      # BON-01: tools members may use on a fresh install (admins: all); [] → all. Editable in the dashboard.
+      memberTools: [list_products, list_orders, get_order]
     everything:                              # GW-13: needs everythingMcp.enabled
       enabled: true
       name: Everything (reference)

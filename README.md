@@ -111,6 +111,7 @@ Dashboard → **Chat** (signed in as any user). Try "Create a product called Dem
 ## Bonus / stand-out items attempted
 | Item (problem statement § "Other ways to stand out") | What was built | Where |
 |---|---|---|
+| 2) Tool permissions | Per server, admins choose what members may use (all, none, or selected tools); hidden from `tools/list` and refused on `tools/call` for API keys and the chat alike, refusals audited; woo is members-read-only on a fresh install | D-021, `services/gateway/src/authz/tool-access.ts`, MCP_DESIGN §13 |
 | 4) Handling many tools | 64 tools from 3 servers do not fit a free-tier LLM: the chat offers the most relevant tools within a size budget plus a `find_tools` meta-tool that searches the full list and makes matches callable | D-019, `services/gateway/src/chat/agent.ts`, MCP_DESIGN §10 |
 | 6) Security hardening — SSRF | URL guard on save **and** on every connection (private/loopback/metadata ranges, DNS-rebinding safe, redirects refused, host allowlist) | `services/gateway/src/upstreams/ssrf.ts`, MCP_DESIGN §12, TC-SEC-01 |
 | 6) Security hardening — NetworkPolicy, non-root | Default-deny NetworkPolicies per path (verified with probe pods); every container non-root, read-only root, no capabilities; namespaces enforce Pod Security `restricted` | `charts/platform/templates/*/networkpolicies.yaml`, `scripts/k8s-checks.sh netpol`, `scripts/lib/chart-policy.py` |
@@ -120,4 +121,4 @@ Dashboard → **Chat** (signed in as any user). Try "Create a product called Dem
 | 9) Upgrades and rollback | Documented and verified on k3d (upgrade → `helm rollback` → data intact) | [DEPLOYMENT.md](docs/DEPLOYMENT.md) §6 |
 | 1) VPS deployment | Prepared (scripts, prod values, policy-checked), **not yet deployed** | DEPLOYMENT §5 |
 
-Not attempted: multi-store bonus, 2) per-role tool permissions, 3) OAuth, 5) hosted MCP servers.
+Not attempted yet: multi-store bonus, 3) OAuth, 5) hosted MCP servers (in progress, TASKS.md Phase 11).

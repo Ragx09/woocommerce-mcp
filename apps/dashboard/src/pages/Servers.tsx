@@ -81,6 +81,8 @@ function ServerCard({ u, now, isAdmin }: { u: Upstream; now: number; isAdmin: bo
           <dd><code>{u.url}</code></dd>
           <dt>Auth</dt>
           <dd>{u.authType === 'none' ? 'none' : `${u.authType}${u.authHeader ? ` (${u.authHeader})` : ''}, ${u.hasCredential ? 'credential stored (encrypted, never shown)' : 'no credential'}`}</dd>
+          <dt>Members</dt>
+          <dd>{memberAccessText(u)}</dd>
         </dl>
       )}
       <div className="row wrap">
@@ -148,4 +150,14 @@ function AdminActions({ u }: { u: Upstream }) {
       {error && <span className="error small" role="alert">{error.message}</span>}
     </>
   );
+}
+
+/** BON-01: what members may use on this server, for the admin's card. */
+function memberAccessText(u: Upstream): string {
+  if (u.memberAccess === 'none') return 'no access (hidden from members)';
+  if (u.memberAccess === 'selected') {
+    const t = u.memberTools ?? [];
+    return t.length ? `only ${t.join(', ')}` : 'no tools selected (members see none)';
+  }
+  return 'all tools';
 }
