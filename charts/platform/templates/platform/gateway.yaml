@@ -28,6 +28,12 @@ spec:
   template:
     metadata:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
+      {{- if $v.metrics.port }}
+      annotations:   # BON-03: for a Prometheus that discovers pods; it needs the scraper label (networkpolicies.yaml)
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ $v.metrics.port | quote }}
+        prometheus.io/path: /metrics
+      {{- end }}
     spec:
       automountServiceAccountToken: false
       {{- include "platform.pullSecrets" . | nindent 6 }}
@@ -42,8 +48,12 @@ spec:
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - { name: http, containerPort: 8080 }
+            {{- if $v.metrics.port }}
+            - { name: metrics, containerPort: {{ $v.metrics.port }} }
+            {{- end }}
           env:
             - { name: PORT, value: "8080" }
+            - { name: METRICS_PORT, value: {{ $v.metrics.port | default 0 | quote }} }   # BON-03; not in the Service/Ingress
             - { name: LOG_LEVEL, value: {{ $v.logLevel | quote }} }
             - { name: TRUST_PROXY_HOPS, value: "1" }   # Traefik
             - { name: UPSTREAM_CONNECT_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.connect | quote }} }

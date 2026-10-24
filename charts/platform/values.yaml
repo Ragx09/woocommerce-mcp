@@ -95,6 +95,11 @@ gateway:
     tag: dev
   replicas: 1
   logLevel: info
+  # BON-03: Prometheus GET /metrics on its own port (pod only: no Service port, no Ingress route). Only pods
+  # labelled metrics.scraper allowed in (any namespace). 0 → off.
+  metrics:
+    port: 9464
+    scraperLabel: { platform.io/metrics-scraper: "true" }
   upstreamTimeouts:                          # ms (GW-09, docs/MCP_DESIGN.md §6)
     connect: 2000
     list: 3000

@@ -1,6 +1,8 @@
 // Runtime configuration from the environment. Secrets come from Kubernetes Secrets via env vars.
 export interface Config {
   port: number;
+  /** BON-03: internal listener for GET /metrics (Prometheus); 0 = off. Never routed by the Ingress. */
+  metricsPort: number;
   host: string;
   logLevel: string;
   /** Number of reverse proxies in front of us (Traefik = 1). Used for client IP and protocol. */
@@ -75,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!LOG_LEVELS.includes(logLevel)) throw new Error(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}`);
   return {
     port: int('PORT', env.PORT, 8080, 1, 65535),
+    metricsPort: int('METRICS_PORT', env.METRICS_PORT, 9464, 0, 65535),
     host: env.HOST?.trim() || '0.0.0.0',
     logLevel,
     trustProxyHops: int('TRUST_PROXY_HOPS', env.TRUST_PROXY_HOPS, 1, 0, 5),

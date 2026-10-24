@@ -16,6 +16,7 @@ import { registerChatRoutes } from './chat/routes.js';
 import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
+import { buildMetricsServer, Metrics } from './metrics.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
@@ -77,9 +78,17 @@ const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamT
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.
 const internalTokens = new InternalTokenSigner();
+// BON-03: every audit event is also a metric observation (same events, counted once).
+const metrics = new Metrics();
+metrics.addGauge({ name: 'mcp_upstream_up', help: 'Upstream health as seen by this replica: 1 connected, 0 otherwise.',
+  read: () => upstreamPool.upstreams().map((r) => {
+    const status = health.get(r).status;
+    return { labels: { upstream: r.slug, status }, value: status === 'connected' ? 1 : 0 };
+  }) });
+const auditToDb = dbAuditSink(db, app.log);
 registerMcp(app, {
   authenticate: mcpAuthenticator(db, internalTokens),
-  audit: dbAuditSink(db, app.log),
+  audit: async (e) => { metrics.record(e); await auditToDb(e); },
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
   discovery,
@@ -96,13 +105,15 @@ registerChatRoutes(app, {
 });
 
 await app.listen({ port: cfg.port, host: cfg.host });
+const metricsApp = cfg.metricsPort ? buildMetricsServer(metrics) : null;
+if (metricsApp) await metricsApp.listen({ port: cfg.metricsPort, host: cfg.host });
 health.start();
-app.log.info({ version: VERSION }, 'gateway listening');
+app.log.info({ version: VERSION, metricsPort: cfg.metricsPort || 'off' }, 'gateway listening');
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sig, () => {
     app.log.info({ sig }, 'shutting down');
     setTimeout(() => process.exit(0), 5_000).unref();
-    app.close().then(() => health.stop()).then(() => upstreamPool.close()).then(() => dbPool.end()).then(() => process.exit(0), () => process.exit(1));
+    app.close().then(() => metricsApp?.close()).then(() => health.stop()).then(() => upstreamPool.close()).then(() => dbPool.end()).then(() => process.exit(0), () => process.exit(1));
   });
 }

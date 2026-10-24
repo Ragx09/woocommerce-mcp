@@ -2304,16 +2304,16 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-03 — Metrics per server
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 15
 - **Depends on:** GW-08, GW-10
 - **Requirements:** REQ-SO-08
-- **Description:** Prometheus `/metrics` on a separate internal port of the gateway (not routed by the Ingress): `mcp_tool_calls_total{upstream,tool,outcome,source}`, `mcp_tool_call_duration_seconds` histogram per upstream, `mcp_upstream_up{upstream}`, list latency, chat rounds; bounded label sets (tool names only from the registry). Dashboard Servers page shows calls, error rate and p95 latency per server for the last hour (from the gateway's own counters). Failure reasons already exist (UI-04, UI-18).
+- **Description:** Prometheus `GET /metrics` on a separate internal port 9464 of the gateway (own listener, no Service port, no Ingress route; NetworkPolicy admits only pods labelled `platform.io/metrics-scraper: "true"`): `mcp_tool_calls_total{upstream,outcome,source}`, `mcp_tool_call_duration_seconds{upstream}` histogram, `mcp_tools_list_total{outcome}`, `mcp_requests_denied_total{reason}`, `mcp_upstream_up{upstream,status}`; fed by the audit events, bounded labels (registry slugs only, no tool names/users). The dashboard (admins) shows per server for the last hour: calls, failed (%), p95, refused — computed from the audit log so it covers every replica. Failure reasons already exist (UI-04, UI-18).
 - **Output:** `services/gateway/src/metrics.ts`, chart port + NetworkPolicy (scrape only from the namespace), Servers page columns, MCP_DESIGN section.
 - **Acceptance:** After calls that succeed, fail and time out, `/metrics` shows matching counters and the Servers page matches them; `/metrics` is not reachable through the Ingress.
 - **Tests:** TC-BON-03-1 (unit): counters and histogram per outcome; TC-BON-03-2 (k3d): `curl app.<domain>/metrics` → 404, in-cluster scrape → 200.
 - **Command:** `npm test -w services/gateway && scripts/k8s-checks.sh metrics`
-- **Evidence:** —
+- **Evidence:** 2026-10-24: `src/metrics.ts` (hand-written exposition, no new dependency), `src/audit/stats.ts`, chart `gateway.metrics` + NetworkPolicy `gateway-metrics-from-scrapers` + prometheus.io annotations, Servers card "Last hour". Unit `Tests 106 passed (106)` (TC-BON-03-1/1b/1c: series per outcome/source, histogram buckets, a client-supplied slug never becomes a label, escaping, listener serves only /metrics). Int `Tests 125 passed (125)` (TC-BON-03-3: last hour only, failed vs refused, p95 = 95th percentile not max). k3d rev 70 `scripts/k8s-checks.sh metrics` → 7 PASS, `failures: 0`: Ingress `/metrics` has no gateway metrics; unlabelled pods in platform and store → CLOSED; labelled scraper → histogram + `mcp_upstream_up{upstream="woo",status="connected"} 1`; two `woo__list_orders` → counter 4 → 6; no keys/tool names/e-mails; dashboard API woo stats `{"calls":10,"failed":0,"rejected":2,"p95Ms":278}`. Regression: `k8s-checks.sh netpol` failures 0, `dashboard-screens.sh servers` 16/16, `check-chart.sh` 32 objects 0 violations.
 - **Regression risk:** Label cardinality; no user ids or arguments in labels.
 
 ### BON-04 — Scaling: replicas and per-key rate limits

@@ -123,6 +123,8 @@ export interface Upstream {
   /** BON-01: which tools members may use (admins always all). */
   memberAccess?: MemberAccess;
   memberTools?: string[];
+  /** BON-03: team-wide tools/call numbers from the audit log (all replicas). */
+  stats?: { windowMinutes: number; calls: number; failed: number; rejected: number; p95Ms: number | null };
 }
 export type MemberAccess = 'all' | 'none' | 'selected';
 export interface ToolInfo {

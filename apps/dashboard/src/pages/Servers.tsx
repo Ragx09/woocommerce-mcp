@@ -83,6 +83,12 @@ function ServerCard({ u, now, isAdmin }: { u: Upstream; now: number; isAdmin: bo
           <dd>{u.authType === 'none' ? 'none' : `${u.authType}${u.authHeader ? ` (${u.authHeader})` : ''}, ${u.hasCredential ? 'credential stored (encrypted, never shown)' : 'no credential'}`}</dd>
           <dt>Members</dt>
           <dd>{memberAccessText(u)}</dd>
+          {u.stats && (
+            <>
+              <dt>Last {u.stats.windowMinutes === 60 ? 'hour' : `${u.stats.windowMinutes} min`}</dt>
+              <dd>{statsText(u.stats)}</dd>
+            </>
+          )}
         </dl>
       )}
       <div className="row wrap">
@@ -160,4 +166,15 @@ function memberAccessText(u: Upstream): string {
     return t.length ? `only ${t.join(', ')}` : 'no tools selected (members see none)';
   }
   return 'all tools';
+}
+
+/** BON-03: "12 calls · 1 failed (8%) · p95 340 ms · 2 refused". */
+function statsText(s: NonNullable<Upstream['stats']>): string {
+  if (s.calls === 0) return 'no calls';
+  const ran = s.calls - s.rejected;
+  const parts = [`${s.calls} call${s.calls === 1 ? '' : 's'}`];
+  if (ran > 0) parts.push(`${s.failed} failed (${Math.round((100 * s.failed) / ran)}%)`);
+  if (s.p95Ms !== null) parts.push(`p95 ${s.p95Ms < 1000 ? `${s.p95Ms} ms` : `${(s.p95Ms / 1000).toFixed(1)} s`}`);
+  if (s.rejected) parts.push(`${s.rejected} refused`);
+  return parts.join(' · ');
 }

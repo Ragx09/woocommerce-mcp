@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { encryptCredential, type CredentialKey } from '../crypto/credentials.js';
 import type { Db } from '../db/index.js';
+import { callStatsByUpstream, STATS_WINDOW_MINUTES, type CallStats } from '../audit/stats.js';
 import { canSeeUpstream, canUseTool } from '../authz/tool-access.js';
 import { MEMBER_ACCESS, upstreams, type Upstream } from '../db/schema.js';
 import { MAX_DESCRIPTION, SLUG_RE, toPublicName } from '../mcp/naming.js';
@@ -121,7 +122,7 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     }
   }
 
-  async function view(row: Upstream, isAdmin: boolean) {
+  async function view(row: Upstream, isAdmin: boolean, stats?: Map<string, CallStats>) {
     const h = health.get(row);
     const t = row.enabled ? await tools(row) : undefined;
     const pub = toPublic(row);
@@ -135,6 +136,8 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     };
     return isAdmin ? { ...base, url: pub.url, authType: pub.authType, authHeader: pub.authHeader,
       hasCredential: pub.hasCredential, memberAccess: pub.memberAccess, memberTools: pub.memberTools,
+      // BON-03: team-wide numbers (all users, all replicas), so admins only.
+      stats: stats ? { windowMinutes: STATS_WINDOW_MINUTES, ...(stats.get(row.id) ?? { calls: 0, failed: 0, rejected: 0, p95Ms: null }) } : undefined,
       createdAt: pub.createdAt, updatedAt: pub.updatedAt } : base;
   }
 
@@ -163,7 +166,8 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     const rows = await listUpstreams(db);
     await pool.sync(rows); // a server added a moment ago can be listed before the next health round
     const role = req.user!.role;
-    return Promise.all(rows.filter((row) => canSeeUpstream(role, row)).map((row) => view(row, role === 'admin')));
+    const stats = role === 'admin' ? await callStatsByUpstream(db) : undefined;
+    return Promise.all(rows.filter((row) => canSeeUpstream(role, row)).map((row) => view(row, role === 'admin', stats)));
   });
 
   app.get<{ Params: { id: string } }>('/api/upstreams/:id/tools', {

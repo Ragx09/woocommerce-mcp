@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|metrics|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -164,12 +164,59 @@ killpod() {
   list_check "TC-GW-16-3c list after the new pod" yes
 }
 
+# --- BON-03: gateway /metrics — internal port only, scraper label only, counts follow real calls -----
+# scrape <namespace> <labels> <url> → the body (busybox wget, 5 s timeout), or nothing.
+scrape() {
+  kubectl -n "$1" run "scrape-$RANDOM$RANDOM" --rm -i --restart=Never --quiet --image=busybox:1.36 --labels="$2" \
+    --overrides='{"spec":{"automountServiceAccountToken":false,"securityContext":{"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"scrape","image":"busybox:1.36","command":["sh","-c","sleep 3; wget -q -T 5 -O- '"$3"' || echo SCRAPE-FAILED"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' \
+    2>/dev/null
+}
+metric() { # metric <body> <series> → value or 0
+  awk -v s="$2" '$1 == s { print $2; found=1 } END { if (!found) print 0 }' <<<"$1"
+}
+metrics() {
+  if [ -z "${MCP_KEY:-}" ]; then
+    local created; created="$(node "$(dirname "$0")/lib/gateway-key.mjs" create k8s-checks-metrics)" || { fail "could not create a temporary API key"; return; }
+    MCP_KEY="${created#* }"; TEMP_KEY_ID="${created%% *}"
+    trap 'node "$(dirname "$0")/lib/gateway-key.mjs" revoke "$TEMP_KEY_ID" >/dev/null 2>&1' EXIT
+  fi
+  local ip url before after body series='mcp_tool_calls_total{upstream="woo",outcome="ok",source="mcp"}'
+  ip="$(kubectl -n "$PLATFORM" get pod -l app=gateway -o jsonpath='{.items[0].status.podIP}')"
+  url="http://$ip:9464/metrics"
+  local pub; pub="$(curl -s -m 10 "http://app.$DOMAIN/metrics")"
+  grep -q 'mcp_tool_calls_total' <<<"$pub" && fail "TC-BON-03-2a /metrics through the Ingress exposes gateway metrics" \
+    || pass "TC-BON-03-2a /metrics through the Ingress → no gateway metrics (dashboard SPA)"
+  expect CLOSED "TC-BON-03-2b metrics port from an unlabelled pod in $PLATFORM" "$PLATFORM" app=intruder "$ip" 9464
+  expect CLOSED "TC-BON-03-2c metrics port from an unlabelled pod in $STORE" "$STORE" app=intruder "$ip" 9464
+  body="$(scrape "$PLATFORM" platform.io/metrics-scraper=true "$url")"
+  before="$(metric "$body" "$series")"
+  grep -q '^# TYPE mcp_tool_call_duration_seconds histogram' <<<"$body" && grep -q '^mcp_upstream_up{upstream="woo",status="connected"} 1' <<<"$body" \
+    && pass "TC-BON-03-2d labelled scraper gets /metrics (histogram + mcp_upstream_up woo=1; woo ok calls so far: $before)" \
+    || fail "TC-BON-03-2d labelled scraper → $(head -c 200 <<<"$body")"
+  local out; out="$(call_text woo__list_orders '{"per_page":1}')"; out="$(call_text woo__list_orders '{"per_page":1}')"
+  body="$(scrape "$PLATFORM" platform.io/metrics-scraper=true "$url")"
+  after="$(metric "$body" "$series")"
+  [ "$after" = "$((before + 2))" ] && pass "TC-BON-03-2e two woo__list_orders calls → counter $before → $after" \
+    || fail "TC-BON-03-2e counter $before → $after (want +2; last call: ${out:0:80})"
+  grep -qE 'mgw_|list_orders|@' <<<"$body" && fail "TC-BON-03-2f metrics contain a key, tool name or e-mail" \
+    || pass "TC-BON-03-2f no keys, tool names or e-mails in the metrics"
+  local stats; stats="$(node --input-type=module -e '
+    import { adminSession } from "./scripts/lib/gateway-key.mjs";
+    const origin = process.env.APP_ORIGIN ?? "http://app.127.0.0.1.nip.io";
+    const r = await fetch(`${origin}/api/upstreams`, { headers: { cookie: await adminSession() } });
+    const woo = (await r.json()).find((u) => u.slug === "woo");
+    console.log(JSON.stringify(woo.stats));' stats)"   # an argv[1], so gateway-key.mjs does not run as a CLI
+  node -e 'const s=JSON.parse(process.argv[1]); process.exit(s && s.calls >= 2 && s.p95Ms !== null ? 0 : 1)' "$stats" \
+    && pass "TC-BON-03-3b dashboard API woo stats (last hour, all replicas): $stats" || fail "TC-BON-03-3b dashboard stats: $stats"
+}
+
 case "${1:-all}" in
   netpol) netpol ;;
   ingress) ingress ;;
   killpod) killpod ;;
+  metrics) metrics ;;
   all) ingress; netpol ;;
-  *) echo "usage: $0 netpol|ingress|killpod|all" >&2; exit 2 ;;
+  *) echo "usage: $0 netpol|ingress|killpod|metrics|all" >&2; exit 2 ;;
 esac
 echo "failures: $fails"
 exit $((fails > 0))
