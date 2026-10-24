@@ -180,24 +180,25 @@ metrics() {
     MCP_KEY="${created#* }"; TEMP_KEY_ID="${created%% *}"
     trap 'node "$(dirname "$0")/lib/gateway-key.mjs" revoke "$TEMP_KEY_ID" >/dev/null 2>&1' EXIT
   fi
-  local ip url before after body series='mcp_tool_calls_total{upstream="woo",outcome="ok",source="mcp"}'
-  ip="$(kubectl -n "$PLATFORM" get pod -l app=gateway -o jsonpath='{.items[0].status.podIP}')"
-  url="http://$ip:9464/metrics"
+  local ip ips url before after body series='mcp_tool_calls_total{upstream="woo",outcome="ok",source="mcp"}'
+  # Metrics are per replica: scrape every gateway pod and add up.
+  read -r -a ips <<<"$(kubectl -n "$PLATFORM" get pods -l app=gateway -o jsonpath='{.items[*].status.podIP}')"
+  ip="${ips[0]}"; url="http://$ip:9464/metrics"
+  sum_all() { local t=0 i b; for i in "${ips[@]}"; do b="$(scrape "$PLATFORM" platform.io/metrics-scraper=true "http://$i:9464/metrics")"; t=$((t + $(metric "$b" "$series"))); done; echo "$t"; }
   local pub; pub="$(curl -s -m 10 "http://app.$DOMAIN/metrics")"
   grep -q 'mcp_tool_calls_total' <<<"$pub" && fail "TC-BON-03-2a /metrics through the Ingress exposes gateway metrics" \
     || pass "TC-BON-03-2a /metrics through the Ingress → no gateway metrics (dashboard SPA)"
   expect CLOSED "TC-BON-03-2b metrics port from an unlabelled pod in $PLATFORM" "$PLATFORM" app=intruder "$ip" 9464
   expect CLOSED "TC-BON-03-2c metrics port from an unlabelled pod in $STORE" "$STORE" app=intruder "$ip" 9464
   body="$(scrape "$PLATFORM" platform.io/metrics-scraper=true "$url")"
-  before="$(metric "$body" "$series")"
   grep -q '^# TYPE mcp_tool_call_duration_seconds histogram' <<<"$body" && grep -q '^mcp_upstream_up{upstream="woo",status="connected"} 1' <<<"$body" \
-    && pass "TC-BON-03-2d labelled scraper gets /metrics (histogram + mcp_upstream_up woo=1; woo ok calls so far: $before)" \
+    && pass "TC-BON-03-2d labelled scraper gets /metrics (histogram + mcp_upstream_up woo=1)" \
     || fail "TC-BON-03-2d labelled scraper → $(head -c 200 <<<"$body")"
+  before="$(sum_all)"
   local out; out="$(call_text woo__list_orders '{"per_page":1}')"; out="$(call_text woo__list_orders '{"per_page":1}')"
-  body="$(scrape "$PLATFORM" platform.io/metrics-scraper=true "$url")"
-  after="$(metric "$body" "$series")"
-  [ "$after" = "$((before + 2))" ] && pass "TC-BON-03-2e two woo__list_orders calls → counter $before → $after" \
-    || fail "TC-BON-03-2e counter $before → $after (want +2; last call: ${out:0:80})"
+  after="$(sum_all)"
+  [ "$after" = "$((before + 2))" ] && pass "TC-BON-03-2e two woo__list_orders calls → counter summed over ${#ips[@]} replica(s) $before → $after" \
+    || fail "TC-BON-03-2e counter $before → $after over ${#ips[@]} replica(s) (want +2; last call: ${out:0:80})"
   grep -qE 'mgw_|list_orders|@' <<<"$body" && fail "TC-BON-03-2f metrics contain a key, tool name or e-mail" \
     || pass "TC-BON-03-2f no keys, tool names or e-mails in the metrics"
   local stats; stats="$(node --input-type=module -e '

@@ -16,7 +16,7 @@ npm run tracker            # regenerate tracker/data.js from the Markdown docs
 Prerequisites: Docker (Desktop) running, `kubectl`, `helm` v3, `k3d` v5, Node 24, and a `.env` copied from `.env.example` (gitignored; see the comments in it). From the repository root:
 
 ```bash
-scripts/up.sh            # create/start the k3d cluster, Secrets, build + import images, helm install, wait (~5–6 min first time, ~1 min after)
+scripts/up.sh            # create/start the k3d cluster, Secrets, build + import images, helm install, wait (~6–12 min the first time, depending on image builds; ~1 min after)
 k3d cluster stop mcp     # pause (keeps all data); `k3d cluster start mcp` or `scripts/up.sh` to resume
 scripts/down.sh          # remove the release, keep cluster, Secrets and data
 scripts/down.sh --all    # delete the cluster and ALL data
@@ -90,7 +90,10 @@ npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp
 Without a key, or with a revoked key, `/mcp` answers 401. Disabled servers' tools are not listed. Every call is in the dashboard → **Audit log** under your name.
 
 ### Chat agent
-Dashboard → **Chat** (signed in as any user). Try "Create a product called Demo Mug priced 499" and "What orders came in today?". The chat uses the same gateway `/mcp` with your identity; its calls are audited with source `chat`.
+Dashboard → **Chat** (signed in as any user). Try "What orders came in today?", and as an admin "Create a product called Demo Mug priced 499". The chat uses the same gateway `/mcp` with your identity, so it has exactly your tools; its calls are audited with source `chat`.
+
+### Tool permissions
+Admins choose per server what members may use: dashboard → **Servers** → **Edit** → **Member access** (all tools, selected tools, or no access). A fresh install lets members only read the store (`woo__list_products`, `woo__list_orders`, `woo__get_order`; Helm `gateway.seed.woo.memberTools`); creating products and changing order status stay with admins. Hidden tools are not listed and are refused if called directly — through an API key or the chat alike.
 
 ### Acceptance checks
 `scripts/e2e.sh all` runs every automatable Definition-of-Done check (chat flow with the real LLM, A/B users, external key, revoke, disable, kill pod, audit attribution) and prints PASS/FAIL lines; `GITHUB_REPO=owner/repo` adds the cross-server GitHub issue. Manual steps: [docs/DEMO_RUNBOOK.md](docs/DEMO_RUNBOOK.md).

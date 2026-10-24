@@ -1940,7 +1940,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-12 — README
 - **Priority:** P0
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** E2E-14
 - **Requirements:** REQ-DEL-01, REQ-DEL-02, REQ-DEL-03, REQ-DEL-08
@@ -1949,7 +1949,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** A fresh reader can follow it (dry run on a clean cluster).
 - **Tests:** TC-REL-12-1: `scripts/down.sh && follow README` → works.
 - **Command:** manual
-- **Evidence:** 2026-10-18: README complete in content: status, local setup (`scripts/up.sh`, URLs, passwords from Secrets), VPS setup (commands; marked not yet run on a real VPS), place an order, demo users, Claude Code / Cursor / Inspector (verified in E2E-02), chat, acceptance script, stand-out table with where to find each item (4 many tools, 6 hardening, 7 rate limits, 8 failure reporting, 9 upgrade/rollback; 1 VPS prepared only; not attempted: multi-store, 2, 3, 5). All linked files exist (checked). **Open:** TC-REL-12-1 clean-cluster dry run (`scripts/down.sh --all` deletes all local data — waiting for the user's go-ahead) and running the VPS section on a real VPS (REL-01/03).
+- **Evidence:** 2026-10-24 TC-REL-12-1 clean-cluster dry run (user go-ahead): `scripts/down.sh --all` (cluster and all data deleted) → `scripts/up.sh` exit 0 in 737 s (all images rebuilt; README timing corrected to 6–12 min), every pod Running, woo seeded members-read-only. Then only README steps: `node scripts/seed-demo-users.mjs` (B created through the invite flow), `scripts/e2e.sh all` → chat flow 13/13 (product 118, guest COD order #119 confirmed in wp-admin) + `e2e all: 26 passed, 0 failed, 1 skipped` (log `docs/evidence/e2e-all-k3d-2026-10-24-clean.txt`); `k8s-checks.sh all` failures 0, `metrics` 7/7 (check fixed to sum both replicas' counters — it read one pod), `replicas` failures 0, `dashboard-screens.sh permissions` 17/17. README: chat section corrected for the members-read-only default + new "Tool permissions" section. The README's VPS section can only be run with a VPS (REL-01/03, BON-07). Earlier: 2026-10-18 README content complete.
 - **Regression risk:** —
 
 ### REL-13 — System design and trade-offs note
