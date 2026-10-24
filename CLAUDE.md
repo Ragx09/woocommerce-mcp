@@ -32,7 +32,7 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 - Every workload has probes, requests and limits. Internal services stay internal (NetworkPolicy).
 
 ## Conventions
-- Monorepo: `services/woo-mcp`, `services/gateway`, `apps/dashboard`, `charts/`, `scripts/`, `tests/e2e/`. TypeScript, Node 24, npm workspaces, vitest.
+- Monorepo: `services/woo-mcp`, `services/gateway`, `apps/dashboard`, `charts/`, `scripts/`, `vps-setup/`, `tests/e2e/`. TypeScript, Node 24, npm workspaces, vitest.
 - MCP: `@modelcontextprotocol/sdk` v1.x, Streamable HTTP, stateless. Gateway tool names are `<server_slug>__<tool>` (see `docs/MCP_DESIGN.md`).
 - Requirement IDs `REQ-*`, task IDs (`P0-`, `ARC-`, `INF-`, `WC-`, `GW-`, `AUTH-`, `UI-`, `E2E-`, `REL-`, `BRD-` storefront brand, `SEC-` security testing, `BON-` bonus and stand-out), test IDs `TC-<task>-<n>`.
 - Keep the Markdown formats the tracker parses: task headings `### ID — Title` + `- **Field:** value` bullets, traceability as one table, decisions as `## D-NNN — Title`.
@@ -50,7 +50,7 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 | `brand/` | Storefront brand material (Phase 9; current working concept TATVA, may change) |
 | `docs/PROGRESS.md` | latest handover summary |
 | `docs/REQUIREMENTS_TRACEABILITY.md` | requirement → task → test → evidence |
-| `docs/VPS.md` | VPS specs, facts, setup plan and running log (append on every VPS change) |
+| `vps-setup/VPS.md` | VPS specs, costs, facts, setup plan and running log (append on every VPS change); scripts in `vps-setup/` |
 | `docs/API_CONTRACTS.md`, `docs/MCP_DESIGN.md`, `docs/DEPLOYMENT.md`, `docs/DEMO_RUNBOOK.md` | engineering details |
 | `knowledge/` | learning notes (`CONCEPTS_INDEX.md` first) |
 | `tracker/index.html` | visual project tracker (`npm run tracker` to refresh) |

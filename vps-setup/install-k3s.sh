@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs k3s on the VPS, pinned to the same version k3d runs locally (REL-01).
-# Run ON the VPS: sudo bash vps-install-k3s.sh
+# Run ON the VPS: sudo bash install-k3s.sh   (vps-setup/up.sh copies and runs it for you)
 # The API server (6443) stays closed to the internet; kubectl reaches it through an SSH tunnel.
 set -euo pipefail
 K3S_VERSION="${K3S_VERSION:-v1.35.5+k3s1}"   # keep in sync with `k3d version` (local k3s)

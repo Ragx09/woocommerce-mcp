@@ -33,18 +33,16 @@ scripts/down.sh --all    # delete the cluster and ALL data
 More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## VPS (k3s) setup
-> Prepared and checked with `helm template`/policy checks; **not yet run on a real VPS** (waiting for one). Details: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §5.
+> Scripted in [`vps-setup/`](vps-setup/); **not yet run on a real VPS** (JarvisLabs CPU VM chosen, waiting for credits). Specs, costs, setup log: [`vps-setup/VPS.md`](vps-setup/VPS.md).
 
-Needs Ubuntu LTS, x86_64, ≥ 4 GB RAM, ≥ 2 vCPU, ≥ 20 GB disk; TCP 22/80/443 open (keep 6443 closed).
+Needs Ubuntu LTS, x86_64, 4 vCPU / 16 GB (bonus items), ≥ 100 GB disk; TCP 22/80/443 open (keep 6443 closed).
 ```bash
-ssh <vps> 'bash -s' < scripts/vps-preflight.sh                        # read-only checks, must exit 0
-scp scripts/vps-install-k3s.sh <vps>: && ssh <vps> sudo bash vps-install-k3s.sh   # k3s pinned to the k3d version, Traefik real client IPs
-# kubeconfig over an SSH tunnel (the script prints the commands) → ~/.kube/vps.yaml (never committed)
-scripts/build-images.sh                                               # then push the same tags to ghcr.io/ragx09/<service>
-scripts/make-secrets.sh --context vps                                 # K8s Secrets from your .env
-scripts/deploy.sh prod --kube-context vps --set global.domain=<ip>.sslip.io
+jl setup                     # once: JarvisLabs CLI sign-in (uv tool install jarvislabs)
+vps-setup/up.sh              # VM → preflight → k3s → SSH tunnel → images → cert-manager → Secrets → Helm (values-prod) → TLS → demo users
+vps-setup/ssh.sh status      # VM, tunnel and node
+vps-setup/down.sh            # destroy the VM (stop billing)   ·   --pause to keep the disk
 ```
-What differs from local is only Helm values (`charts/platform/values-prod.yaml`): domain, https + cert-manager issuer (Secure cookies follow), GHCR images (+ optional `global.imagePullSecrets`), storage sizes and resources. Upgrade and rollback: `helm history platform` / `helm rollback platform <rev>` ([DEPLOYMENT.md](docs/DEPLOYMENT.md) §6).
+What differs from local is only Helm values (`charts/platform/values-prod.yaml`): domain, https + cert-manager issuer (Secure cookies follow), registry prefix, storage sizes and resources. Images are the same content-addressed tags as local, streamed into k3s's containerd over SSH (D-023), so no registry is needed. Upgrade and rollback: `helm history platform` / `helm rollback platform <rev>` ([DEPLOYMENT.md](docs/DEPLOYMENT.md) §6).
 
 ## Using the system
 

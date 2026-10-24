@@ -56,12 +56,12 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Day:** 4
 - **Depends on:** —
 - **Requirements:** REQ-K8S-02
-- **Description:** User provisions a VPS / free tier (≥4 GB RAM, Ubuntu LTS, ports 80/443 open). Record provider, size and SSH alias (not secrets). Preparation done: `scripts/vps-preflight.sh` (read-only capability check) and `scripts/vps-install-k3s.sh` (k3s pinned to the local k3d version, API via SSH tunnel).
+- **Description:** User provisions a VPS / free tier (≥4 GB RAM, Ubuntu LTS, ports 80/443 open). Record provider, size and SSH alias (not secrets). Preparation done: `vps-setup/preflight.sh` (read-only capability check, moved from `scripts/vps-preflight.sh` 2026-10-24) and `vps-setup/install-k3s.sh` (k3s pinned to the local k3d version, API via SSH tunnel).
 - **Output:** SSH access confirmed; facts recorded in `docs/DEPLOYMENT.md`.
-- **Acceptance:** `scripts/vps-preflight.sh` run on the VPS exits 0 (RAM ≥3.8 GB, ≥2 CPU, ≥20 GB disk, amd64/arm64, systemd, 80/443 free, outbound HTTPS).
+- **Acceptance:** `vps-setup/preflight.sh` run on the VPS exits 0 (RAM ≥3.8 GB, ≥2 CPU, ≥20 GB disk, amd64/arm64, systemd, 80/443 free, outbound HTTPS).
 - **Tests:** TC-P0-03-1: VPS exists → ssh command → prints specs.
-- **Command:** `ssh <alias> 'bash -s' < scripts/vps-preflight.sh`
-- **Evidence:** Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
+- **Command:** `vps-setup/up.sh` (runs the preflight) or `ssh <alias> 'bash -s' < vps-setup/preflight.sh`
+- **Evidence:** 2026-10-24: provider chosen — JarvisLabs CPU VM 4 vCPU / 16 GB / 100 GB, on-demand, destroyed between sessions (`vps-setup/VPS.md` §2). `jl` 0.2.17 installed, key `~/.ssh/jarvis_vps` created; waiting for account credits. Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
 - **Regression risk:** High schedule risk if it slips past Day 5.
 
 ### P0-04 — Obtain LLM and GitHub credentials
@@ -1828,7 +1828,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-04 — TLS with cert-manager
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 7
 - **Depends on:** REL-03
 - **Requirements:** —
@@ -1837,7 +1837,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** `curl -I https://app.<domain>` valid cert.
 - **Tests:** TC-REL-04-1.
 - **Command:** `curl -sI https://app.<domain>`
-- **Evidence:** —
+- **Evidence:** 2026-10-24 (prep, no VPS yet): `vps-setup/up.sh` installs cert-manager chart v1.19.1 (requests/limits from `vps-setup/cert-manager-values.yaml`, verified with `helm template`: 3 Deployments + startupapicheck Job all with resources) and ClusterIssuers `letsencrypt-staging`/`letsencrypt-prod` (HTTP-01, ingressClassName traefik); `TLS_ISSUER=letsencrypt-staging` for the first try. Found and fixed: the chart's default-deny ingress would drop Let's Encrypt's HTTP-01 request to the solver pod → new NetworkPolicy `acme-solver-from-ingress` (Traefik → `acme.cert-manager.io/http01-solver=true`:8089) in `store` and `platform`. `scripts/check-chart.sh` → lint PASS ×2, kubeconform `Valid: 35, Invalid: 0` ×2, `policy: 35 objects, 0 violations` ×2, `PASS only expected keys differ`; k3d rev 2 shows both policies, `scripts/k8s-checks.sh netpol` → `failures: 0`. Found: sslip.io is not on the Public Suffix List (shared Let's Encrypt limit) → DuckDNS option in `up.sh`. Open: real issuance on the VPS.
 - **Regression risk:** Rate limits → use staging first.
 
 ### REL-05 — Persistence on the VPS

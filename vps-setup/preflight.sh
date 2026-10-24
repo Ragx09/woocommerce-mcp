@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks that a VPS can run the full stack (P0-03). Read-only: prints facts, changes nothing.
-# Usage: ssh <alias> 'bash -s' < scripts/vps-preflight.sh
+# Usage: ssh <alias> 'bash -s' < vps-setup/preflight.sh   (vps-setup/up.sh runs it for you)
 set -u
 fail=0
 check() { if eval "$2"; then echo "PASS  $1"; else echo "FAIL  $1"; fail=1; fi; }

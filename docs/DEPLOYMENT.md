@@ -60,23 +60,18 @@ Never in git or values files. `scripts/make-secrets.sh` creates:
 - `store/mariadb-secrets` (root and user passwords), `store/wordpress-admin`, `store/woo-api` (consumer key/secret; the wp-init Job registers its hash in WooCommerce), `store/woo-mcp-auth` (token the gateway presents to woo-mcp)
 - `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (`admin-email`, default `admin@example.invalid` or `GATEWAY_ADMIN_EMAIL`; random `admin-password` — the first dashboard admin, created only while the DB has no admin), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
 
-## 5. VPS (k3s) — planned
-Sizing, our VPS's facts and the running setup log: [`VPS.md`](VPS.md).
+## 5. VPS (k3s) — scripted, not yet run
+Everything VPS-specific lives in [`vps-setup/`](../vps-setup/): sizing, costs, the provider (JarvisLabs CPU VM), our VM's facts and the running log are in [`vps-setup/VPS.md`](../vps-setup/VPS.md).
 
-**Choosing a VPS (P0-03).** Needs ≥4 GB RAM, ≥2 vCPU, ≥20 GB disk, Ubuntu LTS.
-- Free option: Oracle Cloud *Always Free* Ampere A1 is the only common free tier with enough RAM. It is **arm64**, so images must be built multi-arch (R6), and A1 capacity is often unavailable in busy regions.
-- AWS, GCP and Azure free tiers give about 1 GB of RAM, which is too small for WordPress + MariaDB + Postgres + 4 services.
-- Otherwise use any small paid 4 GB amd64 VPS.
+`vps-setup/up.sh` runs the whole path idempotently:
+1. Create (or resume) the VM with the `jl` CLI.
+2. Run `preflight.sh` (read-only) and `install-k3s.sh` (k3s pinned to the local k3d version; Traefik `externalTrafficPolicy: Local` so the gateway sees real client IPs).
+3. Fetch the kubeconfig to `~/.kube/vps.yaml` (context `vps`, never committed) and reach the API over an SSH tunnel; 6443 stays closed.
+4. Images: `NO_K3D=1 scripts/build-images.sh`, then each tag is streamed into k3s's containerd as `ghcr.io/ragx09/<svc>:<tag>` (`IfNotPresent`, no registry login; D-023).
+5. cert-manager (pinned, with requests/limits) + ClusterIssuers `letsencrypt-staging` / `letsencrypt-prod` (HTTP-01 via Traefik). The chart's `acme-solver-from-ingress` NetworkPolicy lets Traefik reach the solver pods despite default-deny.
+6. `scripts/make-secrets.sh --context vps`, then `scripts/deploy.sh prod --kube-context vps --set global.domain=<domain>`, wait for certificates, seed the demo users.
 
-Steps:
-1. Open TCP 22/80/443 in the provider firewall. Keep 6443 closed.
-2. Preflight (read-only): `ssh <alias> 'bash -s' < scripts/vps-preflight.sh` must exit 0.
-3. Install k3s, pinned to the local k3d version (the script also sets Traefik `externalTrafficPolicy: Local`, so the gateway sees real client IPs for its login rate limit): `scp scripts/vps-install-k3s.sh <alias>: && ssh <alias> sudo bash vps-install-k3s.sh` (Traefik + local-path included).
-4. Kubeconfig over an SSH tunnel (the script prints the exact commands) → `~/.kube/vps.yaml`, never committed.
-5. Images: `ghcr.io/ragx09/{woo-mcp,gateway,dashboard,store-assets,everything-mcp}:<tag>` (multi-arch if the VPS is arm64). GHCR packages are private by default: make them public, or create a pull Secret in both namespaces (`kubectl -n store create secret docker-registry ghcr-pull --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT with read:packages>`, same for `platform`) and set `global.imagePullSecrets: [ghcr-pull]`.
-   `values-prod.yaml` refuses to render while `global.domain` is the `CHANGE-ME` placeholder; pass `--set global.domain=<ip>.sslip.io`.
-6. `scripts/make-secrets.sh --context vps`, then `helm upgrade --install platform charts/platform -f values-prod.yaml --kube-context vps`.
-7. Optional TLS: cert-manager + Let's Encrypt (REL-04).
+Domain: `<ip>.sslip.io` by default, or `<name>.duckdns.org` when `DUCKDNS_DOMAIN`/`DUCKDNS_TOKEN` are in `.env` (see VPS.md: sslip.io is not on the Public Suffix List, so its Let's Encrypt limit is shared by all users). Stop billing with `vps-setup/down.sh` (destroy) or `--pause`.
 
 ## 6. Upgrade and rollback
 Every `scripts/deploy.sh` run is one Helm revision. Images are tagged by content (`sha-<image id>`), so an unchanged service keeps its tag and its pods are not restarted.

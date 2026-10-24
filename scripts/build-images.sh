@@ -10,8 +10,9 @@ for svc in ${SERVICES:-woo-mcp gateway store-assets everything-mcp dashboard}; d
   docker build -q --provenance=false --sbom=false -t "$svc:build" -f "$(ls -d services/$svc apps/$svc 2>/dev/null | head -1)/Dockerfile" . >/dev/null
   tag="sha-$(docker image inspect --format '{{.Id}}' "$svc:build" | cut -d: -f2 | cut -c1-12)"
   docker tag "$svc:build" "$svc:$tag"
-  k3d image import "$svc:$tag" -c mcp >/dev/null 2>&1
+  # NO_K3D=1: build and tag only (vps-setup/up.sh ships the images to the VPS itself).
+  if [ -z "${NO_K3D:-}" ]; then k3d image import "$svc:$tag" -c mcp >/dev/null 2>&1; fi
   var="${svc//-/_}_tag"
   { grep -v "^$var=" .images.env || true; echo "$var=$tag"; } > .images.env.tmp && mv .images.env.tmp .images.env
-  echo "image $svc:$tag imported"
+  echo "image $svc:$tag $([ -n "${NO_K3D:-}" ] && echo built || echo imported)"
 done

@@ -22,3 +22,6 @@ checkpoint.md
 
 # Company brief (kept out of the public repo; problem-statement.md is the source)
 *.docx
+
+# VPS state (machine id, IP, domain) written by vps-setup/up.sh
+vps-setup/.state
