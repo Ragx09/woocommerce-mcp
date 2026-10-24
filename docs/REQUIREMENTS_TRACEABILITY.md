@@ -70,3 +70,20 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DEL-08 | Deliverables | List of bonus items attempted | docs | REL-12 | checklist | Verified | 2026-10-18 REL-12: README § Bonus / stand-out items attempted (table with locations; not-attempted items listed) |
 | REQ-DEL-09 | Submission | Demo video (6 topics) | video | REL-15, REL-16 | checklist | Not Started | — |
 | REQ-DEL-10 | Submission | Submit form with video + repo | user | P0-01, REL-17 | user confirmation | Not Started | — |
+| REQ-BON-01 | Bonus multi-store | Create/delete stores from the dashboard with status; concurrent | provisioner + dashboard | BON-12 | TC-BON-12-1, TC-BON-12-2 | Not Started | — |
+| REQ-BON-02 | Bonus multi-store | Per-store namespace, DB, Secrets, PVs, Ingress via Helm/K8s API | provisioner + chart | BON-09, BON-11 | TC-BON-11-1 | Not Started | — |
+| REQ-BON-03 | Bonus multi-store | Per-store MCP server auto-registered; store-clear tool names | provisioner + gateway | BON-13 | TC-BON-13-1 | Not Started | — |
+| REQ-BON-04 | Bonus multi-store | Clean teardown (namespace, volumes, Secrets, registration) | provisioner | BON-13 | TC-BON-13-1 | Not Started | — |
+| REQ-BON-05 | Bonus multi-store | Store isolation by NetworkPolicy | chart | BON-14 | TC-BON-14-1 | Not Started | — |
+| REQ-BON-06 | Bonus multi-store | Quota, LimitRange, max stores per user, timeout | provisioner + chart | BON-14 | TC-BON-14-2 | Not Started | — |
+| REQ-BON-07 | Bonus multi-store | Retry-safe create; restart completes or fails cleanly | provisioner | BON-09, BON-12, BON-14 | TC-BON-09-1, TC-BON-14-3 | Not Started | — |
+| REQ-BON-08 | Bonus multi-store | Chat compares orders across two stores; delete removes tools | e2e | BON-15 | TC-BON-15-1 | Not Started | — |
+| REQ-SO-01 | Stand-out 1 | VPS deployment + Helm-values doc + TLS | charts + VPS | BON-07, REL-01..REL-06 | TC-E2E-14 (VPS) | Blocked | No VPS yet (P0-03) |
+| REQ-SO-02 | Stand-out 2 | Per-role/per-user tool permissions, hidden + rejected | gateway | BON-01 | TC-BON-01-1..4 | Not Started | — |
+| REQ-SO-03 | Stand-out 3 | OAuth (MCP authorization spec) on the gateway | gateway | BON-08 | TC-BON-08-1..3 | Not Started | — |
+| REQ-SO-04 | Stand-out 4 | Many tools: search then call | gateway chat | BON-02, UI-14 | TC-UI-14-API, TC-INT-07 | Verified | 2026-10-15 UI-14: `find_tools` → `github__get_me` with real Groq on k3d (TASKS.md BON-02) |
+| REQ-SO-05 | Stand-out 5 | Hosted MCP servers by container image | provisioner + gateway | BON-09, BON-10 | TC-BON-10-1..3 | Not Started | — |
+| REQ-SO-06 | Stand-out 6 | SSRF, least-privilege RBAC, deny-by-default NetPol, non-root, encrypted creds | gateway + charts | BON-05, SEC-01..SEC-09, BON-09 | TC-SEC-01, netpol checks, TC-BON-09-2 | In Progress | SSRF/NetPol/non-root/encryption done (README stand-out table); open red-team findings, provisioner RBAC pending |
+| REQ-SO-07 | Stand-out 7 | Multiple replicas; rate limits per user/key | gateway | BON-04 | TC-INT-05, TC-BON-04-1, TC-BON-04-2 | In Progress | Per-user chat + login limits; TC-INT-05 with two instances; live 2 replicas + per-key /mcp limit pending |
+| REQ-SO-08 | Stand-out 8 | Metrics per server + clear failure reasons | gateway + dashboard | BON-03, UI-04, UI-18 | TC-BON-03-1, TC-BON-03-2, TC-UI-04-1 | In Progress | Failure reasons done (UI-04, UI-18); metrics pending |
+| REQ-SO-09 | Stand-out 9 | Helm upgrade and rollback | charts | BON-06, REL-11 | REL-11 | Verified | 2026-10-18 REL-11: upgrade → rollback on k3d, data intact |

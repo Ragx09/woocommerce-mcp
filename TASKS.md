@@ -15,7 +15,7 @@ Field format (parsed by `tracker/build.mjs`; keep it): `### ID — Title` follow
 | 6 | 2026-10-16 | Phase 7 E2E + Phase 8 VPS deploy + security fixes + Phase 10 scans (SEC-01..06) | All DoD checks pass locally (+ VPS) |
 | 7 | 2026-10-17 | Phase 8: docs, regression, rehearsal, video, submission + Phase 10 attacker-LLM loop (SEC-07..09, continues after submission) | Submitted |
 
-Cut order if behind: brand polish (Phase 9) → UI polish → TLS → bonus → depth of docs. Mandatory items are never cut.
+Cut order if behind: brand polish (Phase 9) → UI polish → depth of docs. Mandatory items are never cut. Since 2026-10-24 the bonus and stand-out items (Phase 11) and TLS are required too (SPEC A-10); Days 15–20 continue past this table.
 
 ---
 
@@ -1827,7 +1827,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Regression risk:** Image architecture (arm64 VPS) → multi-arch build.
 
 ### REL-04 — TLS with cert-manager
-- **Priority:** P2
+- **Priority:** P1
 - **Status:** Not Started
 - **Day:** 7
 - **Depends on:** REL-03
@@ -1998,7 +1998,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Priority:** P0
 - **Status:** Not Started
 - **Day:** 7
-- **Depends on:** REL-15
+- **Depends on:** REL-15, BON-16
 - **Requirements:** REQ-DEL-09
 - **Description:** Record covering all 6 required topics.
 - **Output:** Video link.
@@ -2271,11 +2271,231 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 
 ---
 
-## Bonus and stand-out backlog (P3, only after E2E-14 is Done)
-- **BON-01** Per-role tool permissions (members read-only on orders; admins can create products or change status). Hidden from the list and rejected on call.
-- **BON-02** TLS on the VPS (REL-04 if time allows).
-- **BON-03** Prometheus metrics (calls, errors, latency per upstream).
-- **BON-04** Multiple gateway replicas + per-key rate limits.
-- **BON-05** Many-tools handling (search_tools / call_tool meta-tools).
-- **BON-06** Multi-store provisioning (namespaced stores, auto-registration, quotas, teardown).
-- **BON-07** OAuth on the gateway (MCP authorization spec).
+## Phase 11 — Bonus and stand-out items (required)
+Exit criterion: the multi-store bonus and all nine "Other ways to stand out" items of the problem statement are Done with evidence, the multi-store test passes (chat compares today's orders across two stores; one store deleted → its tools and resources gone), and the README stand-out table lists each one. **Required since 2026-10-24 by user decision** (SPEC A-10); these were P3 backlog bullets before. They come after the P0 release tasks except REL-16/REL-17, which wait for this phase. Items 4 and 9 were already built; items 1 and 6 are tracked in Phase 8 and Phase 10 and summarised here.
+
+### BON-01 — Per-role tool permissions
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 15
+- **Depends on:** AUTH-10, GW-08
+- **Requirements:** REQ-SO-02
+- **Description:** Admin-managed rules per role (and optionally per user) over servers and tools: allow/deny by `server` and by `server__tool` pattern; default for members configurable per server (e.g. woo: read tools only). `tools/list` hides denied tools; `tools/call` to a denied tool is refused server-side (`tool_forbidden`) and audited as `denied`, also when the name is guessed and also for the chat (internal token carries the user, the same rules apply). Dashboard page to edit the rules; members see only their allowed tools.
+- **Output:** migration (`tool_rules`), `services/gateway/src/authz/tool-rules.ts`, `/api/tool-rules` (admin), dashboard Permissions page, MCP_DESIGN + API_CONTRACTS sections, DECISIONS entry.
+- **Acceptance:** With the rule "members: woo read-only", member B's `tools/list` has no `woo__create_product`/`woo__update_order_status`, a direct call to either is refused and audited, admin A still sees and calls them; the chat for B cannot create a product.
+- **Tests:** TC-BON-01-1 (int): list filtered per role; TC-BON-01-2 (int): direct call refused + audit row `denied`; TC-BON-01-3 (int): chat token obeys the rules; TC-BON-01-4 (browser): rule edited in the dashboard takes effect on the next request.
+- **Command:** `npm test -w services/gateway && scripts/gateway-db-int.sh && scripts/dashboard-screens.sh permissions`
+- **Evidence:** —
+- **Regression risk:** A wrong default hides tools from admins; find_tools (D-019) must search only allowed tools.
+
+### BON-02 — Many tools (search, then call)
+- **Priority:** P1
+- **Status:** Done
+- **Day:** 5
+- **Depends on:** UI-14
+- **Requirements:** REQ-SO-04
+- **Description:** The chat offers the most relevant tools within a size budget plus a local `find_tools` meta-tool that searches the full list and makes matches callable (D-019).
+- **Output:** `services/gateway/src/chat/agent.ts`, D-019, MCP_DESIGN §10.
+- **Acceptance:** 64 tools from 3 servers work with an 8k TPM free-tier model; a tool outside the first selection is found and called.
+- **Tests:** TC-UI-14-API, TC-INT-07.
+- **Command:** `node scripts/chat-smoke.mjs`
+- **Evidence:** 2026-10-15 (UI-14): real Groq on k3d rev 52 — GitHub account question answered via `find_tools` → `github__get_me`; without the budget every request was 413. Unit 95/95, int 114/114.
+- **Regression risk:** BON-01 must filter what find_tools can return.
+
+### BON-03 — Metrics per server
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 15
+- **Depends on:** GW-08, GW-10
+- **Requirements:** REQ-SO-08
+- **Description:** Prometheus `/metrics` on a separate internal port of the gateway (not routed by the Ingress): `mcp_tool_calls_total{upstream,tool,outcome,source}`, `mcp_tool_call_duration_seconds` histogram per upstream, `mcp_upstream_up{upstream}`, list latency, chat rounds; bounded label sets (tool names only from the registry). Dashboard Servers page shows calls, error rate and p95 latency per server for the last hour (from the gateway's own counters). Failure reasons already exist (UI-04, UI-18).
+- **Output:** `services/gateway/src/metrics.ts`, chart port + NetworkPolicy (scrape only from the namespace), Servers page columns, MCP_DESIGN section.
+- **Acceptance:** After calls that succeed, fail and time out, `/metrics` shows matching counters and the Servers page matches them; `/metrics` is not reachable through the Ingress.
+- **Tests:** TC-BON-03-1 (unit): counters and histogram per outcome; TC-BON-03-2 (k3d): `curl app.<domain>/metrics` → 404, in-cluster scrape → 200.
+- **Command:** `npm test -w services/gateway && scripts/k8s-checks.sh metrics`
+- **Evidence:** —
+- **Regression risk:** Label cardinality; no user ids or arguments in labels.
+
+### BON-04 — Scaling: replicas and per-key rate limits
+- **Priority:** P1
+- **Status:** In Progress
+- **Day:** 15
+- **Depends on:** GW-11, AUTH-08
+- **Requirements:** REQ-SO-07
+- **Description:** Run the gateway with 2 replicas on k3d and show MCP (`tools/list`, `tools/call`), dashboard sessions, chat and disable/enable working across replicas. Add a per-key (and per-user) rate limit on `/mcp` shared across replicas (Postgres-backed) with `429` + `Retry-After`, values in Helm. Note: the health monitor and the chat's one-request-per-user lock must hold across replicas.
+- **Output:** gateway rate limiter, `gateway.replicas` + limits in values, `scripts/k8s-checks.sh replicas`, DECISIONS entry.
+- **Acceptance:** With 2 replicas every E2E check passes; a key exceeding its limit gets 429 on whichever replica it hits; killing one replica does not break clients.
+- **Tests:** TC-INT-05 (exists, 2 replicas); TC-BON-04-1 (int): limit shared by two instances; TC-BON-04-2 (k3d): `e2e.sh all` with `replicas: 2`.
+- **Command:** `scripts/gateway-db-int.sh && scripts/k8s-checks.sh replicas && scripts/e2e.sh all`
+- **Evidence:** 2026-10-15/16: per-user chat limit (1 at a time, 30/10 min) and login limits exist (THREAT_MODEL T-13/T-23); TC-INT-05 runs disable/enable against two gateway instances on one Postgres. Not yet: live 2-replica run, per-key `/mcp` limit.
+- **Regression risk:** In-memory chat lock is per process.
+
+### BON-05 — Security hardening complete
+- **Priority:** P1
+- **Status:** In Progress
+- **Day:** 16
+- **Depends on:** SEC-09
+- **Requirements:** REQ-SO-06
+- **Description:** Summary task for stand-out item 6: SSRF guard, least-privilege RBAC for every component that talks to the Kubernetes API (new with BON-09), deny-by-default NetworkPolicies (incl. egress, finding F-INF-2), non-root containers, encrypted upstream credentials; all open findings in `docs/SECURITY_FINDINGS.md` fixed or accepted (SEC-09).
+- **Output:** see SEC-01..09, BON-09.
+- **Acceptance:** SEC-09 Done; the provisioner's RBAC passes a `kubectl auth can-i` matrix (only its own verbs, only store/hosted namespaces).
+- **Tests:** TC-SEC-01, `scripts/k8s-checks.sh netpol`, chart policy, TC-BON-09-2.
+- **Command:** `scripts/k8s-checks.sh all && scripts/check-chart.sh`
+- **Evidence:** 2026-10-14..18: SSRF guard (TC-SEC-01), default-deny ingress NetworkPolicies, non-root + read-only + Pod Security `restricted`, AES-256-GCM credentials (README stand-out table). Open: 13 red-team findings of 2026-10-21 (1 High, 4 Medium), RBAC for the provisioner.
+- **Regression risk:** Egress default-deny can break WordPress updates and the GitHub/Groq calls; allow by destination explicitly.
+
+### BON-06 — Upgrades and rollback
+- **Priority:** P1
+- **Status:** Done
+- **Day:** 8
+- **Depends on:** REL-11
+- **Requirements:** REQ-SO-09
+- **Description:** Upgrade the store, the MCP server and the gateway with Helm and roll back safely.
+- **Output:** `docs/DEPLOYMENT.md` §6.
+- **Acceptance:** Upgrade → rollback with data intact.
+- **Tests:** REL-11.
+- **Command:** see REL-11.
+- **Evidence:** 2026-10-18 (REL-11): upgrade → `helm rollback` verified on k3d, orders and gateway data intact. Re-run on the VPS with BON-07.
+- **Regression risk:** Multi-store adds per-store releases: BON-11 must document their upgrade path too.
+
+### BON-07 — VPS deployment with TLS
+- **Priority:** P0
+- **Status:** Blocked
+- **Day:** 15
+- **Depends on:** P0-03, REL-01, REL-03, REL-04, REL-05, REL-06
+- **Requirements:** REQ-SO-01, REQ-K8S-02
+- **Description:** Summary task for stand-out item 1: the same charts on a k3s VPS, shown working, with what changed through Helm values (domain, ingress, storage, secrets) documented, and TLS with cert-manager (REL-04, now required). Includes the E2E-14 re-run on the VPS and, once built, the multi-store and hosted-server flows on the VPS.
+- **Output:** see REL-01..06.
+- **Acceptance:** `scripts/e2e.sh all` passes against the VPS over https.
+- **Tests:** TC-E2E-14 on the VPS.
+- **Command:** `BASE=https://app.<domain> scripts/e2e.sh all`
+- **Evidence:** Blocked: no VPS yet (P0-03).
+- **Regression risk:** —
+
+### BON-08 — OAuth on the gateway
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 16
+- **Depends on:** AUTH-08, AUTH-03
+- **Requirements:** REQ-SO-03
+- **Description:** MCP authorization spec (OAuth 2.1): `/.well-known/oauth-protected-resource` + `WWW-Authenticate` on 401 from `/mcp`; the gateway as its own authorization server (`/.well-known/oauth-authorization-server`, authorization code + PKCE S256 only, dynamic client registration with redirect URI rules, consent page using the dashboard session, short-lived access tokens bound to the user and the `/mcp` resource (RFC 8707), refresh tokens rotated, all stored as hashes, revocable by the user and admins). API keys keep working. Check the spec version against the SDK before building.
+- **Output:** `services/gateway/src/oauth/*`, migration, consent page, DECISIONS + THREAT_MODEL entries, README "connect with browser login".
+- **Acceptance:** Claude Code (or MCP Inspector) connects to `/mcp` with no key, opens the browser login, and lists the user's tools; calls are audited under that user with `source=oauth`; revoking the grant or disabling the user → next call 401.
+- **Tests:** TC-BON-08-1 (int): full code+PKCE flow, wrong verifier/redirect refused; TC-BON-08-2 (int): token for another resource refused; TC-BON-08-3 (manual): real client login.
+- **Command:** `scripts/gateway-db-int.sh && scripts/e2e.sh oauth`
+- **Evidence:** —
+- **Regression risk:** Open redirect and CSRF on the consent page; must not weaken API-key auth.
+
+### BON-09 — Provisioner foundation and RBAC
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 16
+- **Depends on:** REL-09
+- **Requirements:** REQ-SO-05, REQ-SO-06, REQ-BON-02, REQ-BON-07
+- **Description:** One component that creates and deletes workloads in the cluster for BON-10 and BON-11..15: a separate `provisioner` service (the gateway itself keeps no Kubernetes access) with its own ServiceAccount and least-privilege RBAC (namespaces with a fixed prefix and label; Deployments, Services, Secrets, PVCs, NetworkPolicies, ResourceQuota, LimitRange, Ingress only there), driven by the gateway over an internal authenticated API; desired state in Postgres, reconcile loop so a restart mid-provisioning completes or fails cleanly (idempotent create, timeout). Choose Helm SDK vs Kubernetes API (DECISIONS).
+- **Output:** `services/provisioner`, chart templates (SA, ClusterRole/Role, NetworkPolicy), D-0xx, THREAT_MODEL entries (a compromised provisioner, namespace escape).
+- **Acceptance:** Provisioner can create/delete only labelled namespaces and the listed kinds in them; restart during a create resumes; the gateway pod still mounts no token.
+- **Tests:** TC-BON-09-1 (int, k3d): reconcile after kill; TC-BON-09-2 (k3d): `kubectl auth can-i --as=system:serviceaccount:platform:provisioner` matrix (allowed and refused verbs).
+- **Command:** `scripts/k8s-checks.sh rbac`
+- **Evidence:** —
+- **Regression risk:** Pod Security `restricted` and default-deny must apply to every created namespace.
+
+### BON-10 — Hosted MCP servers by container image
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 17
+- **Depends on:** BON-09, UI-05
+- **Requirements:** REQ-SO-05
+- **Description:** Admin adds a server by image (+ port, path, env, Secret values) instead of URL. The provisioner deploys it into a `hosted-<slug>` namespace with its own Secret, requests/limits, probes, non-root, gateway-only ingress NetworkPolicy and no egress unless allowed; the gateway registers it (no SSRF exception needed: internal Service host recorded by the provisioner) and removes everything on delete. Image allowlist by registry in Helm values.
+- **Output:** dashboard "Add by image" form, `/api/upstreams` kind `hosted`, provisioner templates.
+- **Acceptance:** Adding `everything-mcp` by image from the dashboard → Ready, tools listed and callable through `/mcp`; delete → namespace, Secret, Service and registration gone; a disallowed registry is refused.
+- **Tests:** TC-BON-10-1 (k3d): add → list → call → delete → gone; TC-BON-10-2 (int): registry allowlist; TC-BON-10-3 (k3d): hosted pod cannot reach store or platform.
+- **Command:** `scripts/e2e.sh hosted`
+- **Evidence:** —
+- **Regression risk:** Hostile image: limits, no token, no egress.
+
+### BON-11 — Multi-store: per-store install
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 17
+- **Depends on:** BON-09
+- **Requirements:** REQ-BON-02
+- **Description:** Make the store part of the chart installable many times: a `store-<slug>` namespace with its own MariaDB, WordPress, wp-init, Secrets, PVCs, Ingress host (`<slug>.store.<domain>`) and its own woo-mcp. The original store stays the default store.
+- **Output:** chart/templates or a `store` subchart used by the provisioner; DEPLOYMENT upgrade path per store.
+- **Acceptance:** Two extra stores install side by side, each with a working shop and COD checkout.
+- **Tests:** TC-BON-11-1 (k3d): two stores Ready, `e2e-checkout.sh` against each.
+- **Command:** `scripts/e2e.sh stores`
+- **Evidence:** —
+- **Regression risk:** RAM: each store ≈ 0.4–0.5 GB; VPS size (8 GB).
+
+### BON-12 — Multi-store: create/delete API and dashboard
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 18
+- **Depends on:** BON-11
+- **Requirements:** REQ-BON-01, REQ-BON-07
+- **Description:** `/api/stores` (create, list, delete; caller-owned, admins see all) and a Stores page listing status (Provisioning / Ready / Failed with reason), URL and created time, refreshed live. Several creates at once; create is idempotent by request id.
+- **Output:** gateway routes, dashboard page, API_CONTRACTS.
+- **Acceptance:** Three stores created at once from the dashboard all reach Ready; a failed one shows a clear reason.
+- **Tests:** TC-BON-12-1 (int): concurrency + idempotent retry; TC-BON-12-2 (browser).
+- **Command:** `scripts/dashboard-screens.sh stores`
+- **Evidence:** —
+- **Regression risk:** —
+
+### BON-13 — Multi-store: automatic MCP registration and teardown
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 18
+- **Depends on:** BON-12
+- **Requirements:** REQ-BON-03, REQ-BON-04
+- **Description:** When a store is Ready its woo-mcp is registered in the gateway with slug `woo-<store>` (tools `woo-<store>__list_orders`, description names the store); on delete the registration, namespace, PVCs and Secrets are removed and the tools vanish from `tools/list`.
+- **Output:** registration hook, naming note in MCP_DESIGN.
+- **Acceptance:** New store's tools appear without manual steps; after delete no trace remains (`kubectl get ns`, PVs, `/api/upstreams`, `tools/list`).
+- **Tests:** TC-BON-13-1 (k3d): create → tools listed; delete → tools, ns, PVCs gone.
+- **Command:** `scripts/e2e.sh stores`
+- **Evidence:** —
+- **Regression risk:** local-path PVs must be reclaimed (reclaim policy Delete).
+
+### BON-14 — Multi-store: isolation, guardrails, recovery
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 19
+- **Depends on:** BON-13
+- **Requirements:** REQ-BON-05, REQ-BON-06, REQ-BON-07
+- **Description:** NetworkPolicies so one store's woo-mcp cannot reach another store's database or WordPress; ResourceQuota + LimitRange per store namespace; max stores per user (Helm value); provisioning timeout → Failed with reason; provisioner restart mid-create → completes or fails cleanly.
+- **Output:** templates, `scripts/k8s-checks.sh stores`.
+- **Acceptance:** Probe pods prove cross-store access is blocked; limit and timeout enforced server-side; kill test passes.
+- **Tests:** TC-BON-14-1 (k3d): cross-store probes blocked; TC-BON-14-2 (int): limit per user; TC-BON-14-3 (k3d): kill provisioner during create.
+- **Command:** `scripts/k8s-checks.sh stores`
+- **Evidence:** —
+- **Regression risk:** —
+
+### BON-15 — Multi-store acceptance test
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 19
+- **Depends on:** BON-14, BON-01
+- **Requirements:** REQ-BON-08
+- **Description:** The problem statement's test: ask the chat to compare today's orders across two stores (orders placed in each first), then delete one store and show its tools and resources are gone. Scripted in `scripts/e2e.sh stores`, then added to the demo runbook.
+- **Output:** script, runbook section, evidence log.
+- **Acceptance:** Chat answer names both stores' order counts matching each MariaDB; after delete `tools/list` and `kubectl` show nothing of that store.
+- **Tests:** TC-BON-15-1.
+- **Command:** `scripts/e2e.sh stores`
+- **Evidence:** —
+- **Regression risk:** Free-tier LLM budget with two stores' tools.
+
+### BON-16 — Stand-out documentation and demo
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 20
+- **Depends on:** BON-01..BON-15
+- **Requirements:** REQ-DEL-08
+- **Description:** README stand-out table updated to every item with locations; DEMO_RUNBOOK and video plan include permissions, OAuth login, metrics, hosted server, multi-store; SYSTEM_DESIGN and THREAT_MODEL updated.
+- **Output:** README, `docs/DEMO_RUNBOOK.md`, `docs/SYSTEM_DESIGN.md`, `THREAT_MODEL.md`.
+- **Acceptance:** Every stand-out item and the bonus listed with where to find it; rehearsal (REL-15) covers them.
+- **Tests:** checklist.
+- **Command:** —
+- **Evidence:** —
+- **Regression risk:** —
+
+---

@@ -99,8 +99,29 @@ A team wants to use many MCP servers (starting with their WooCommerce store) fro
 - **REQ-DEL-09** Demo video covering: system design and DoD flow live with two users; Kubernetes (namespaces, Secrets, volumes, Ingress, requests/limits, probes, public vs internal and how it is enforced); MCP internals (connections, call path, collisions, timeouts, dead upstream); security posture (key and credential storage, member limits, malicious MCP server); chat tool loop and user attribution; local → VPS story (values, ingress, domains, storage, secrets, upgrade and rollback).
 - **REQ-DEL-10** Submission through the form (demo video + GitHub repo): https://forms.gle/nftwgyNeenSDmiRb6
 
-## 8. Optional (only after all mandatory acceptance tests pass)
-Bonus multi-store provisioning; stand-out items: VPS deployment with TLS, per-role tool permissions, OAuth, many-tools handling, hosted MCP servers, security hardening (SSRF, RBAC, deny-by-default NetworkPolicies, non-root, encrypted credentials), scaling (replicas, rate limits), observability, upgrade/rollback. Several hardening items (SSRF guard, encrypted credentials, non-root, NetworkPolicy for internal services) are cheap and are built into the core design. They are tracked as P1, not P3.
+## 8. Bonus and stand-out requirements (required since 2026-10-24, A-10)
+The problem statement marks these optional; the user made them required. Built after the core passes (Phase 11, BON-*).
+
+Bonus: multi-store provisioning
+- **REQ-BON-01** Dashboard creates and deletes stores and lists them with status (Provisioning / Ready / Failed), URL and created time; several stores can be provisioned at once.
+- **REQ-BON-02** Each store is provisioned through Helm or the Kubernetes API in its own namespace, with its own database, Secrets, persistent volumes and Ingress host.
+- **REQ-BON-03** Each new store gets its own WooCommerce MCP server, registered in the gateway without manual steps; tool names show which store a tool acts on.
+- **REQ-BON-04** Deleting a store removes its namespace, volumes, Secrets and MCP registration.
+- **REQ-BON-05** One store's MCP server cannot reach another store's database or WordPress (NetworkPolicies).
+- **REQ-BON-06** ResourceQuota and LimitRange per store namespace, a maximum number of stores per user, and a provisioning timeout.
+- **REQ-BON-07** Creating a store is safe to retry; if the provisioning component restarts mid-provisioning the store completes or fails cleanly with a clear reason.
+- **REQ-BON-08** Test: the chat compares today's orders across two stores; one store is deleted and its tools and resources are gone.
+
+Other ways to stand out
+- **REQ-SO-01** Same charts deployed on a VPS (k3s) and shown working; changes through Helm values documented (domain, ingress, storage, secrets); TLS with cert-manager.
+- **REQ-SO-02** Per-role or per-user control over allowed servers and tools; restricted tools hidden from the list and rejected if called directly.
+- **REQ-SO-03** OAuth flow from the MCP authorization specification on the gateway, so clients can connect with a browser login (API keys stay).
+- **REQ-SO-04** Many-tools handling: tools that search for and then execute other tools.
+- **REQ-SO-05** Hosted MCP servers: an admin adds a server by container image; the platform deploys it with its own Secret, limits and NetworkPolicy and removes it cleanly.
+- **REQ-SO-06** Security hardening: SSRF protection on admin-added URLs, least-privilege RBAC for components that talk to the Kubernetes API, deny-by-default NetworkPolicies, non-root containers, upstream credentials encrypted at rest.
+- **REQ-SO-07** Scaling: more than one gateway replica with MCP and upstream connections working; rate limits per user or per key.
+- **REQ-SO-08** Observability: metrics (tool calls, error rate, latency per server) and clear reasons why an upstream is unreachable or a call failed.
+- **REQ-SO-09** Upgrades and rollback of the store, the MCP server and the gateway with Helm.
 
 ## 9. Assumptions
 - **A-01** The chat agent's LLM is Groq (free tier) by default; OpenRouter free models are also supported. Both use the OpenAI-compatible chat-completions API with tool calling.
@@ -112,6 +133,7 @@ Bonus multi-store provisioning; stand-out items: VPS deployment with TLS, per-ro
 - **A-07** Storefront brand (Phase 9, not part of the problem statement's requirements): the current working concept is TATVA (D-015). Where `docs/PRODUCT_IMAGES.md` says "16 products", the catalogue in `docs/tatva-brand-and-products.md` (50 products) is authoritative, so images were sourced for all 50.
 - **A-08** Storefront photos are used as the mock products' own images without on-site credits (user decision 2026-10-12); therefore only CC0 / Public Domain images are used. Source and licence records stay in `services/store-assets/images/manifest.json`.
 - **A-09** Prices are never rounded: the store keeps two decimals (`woocommerce_price_num_decimals` = 2), so a product priced 12.50 is shown and charged ₹12.50; the tatva theme hides a zero fraction, so whole prices read ₹1,299 (not ₹1,299.00). (Before 2026-10-18 the brand import set 0 decimals and 12.50 became ₹13.)
+- **A-10** The bonus (multi-store provisioning) and all nine "Other ways to stand out" items, including TLS, are required for this project (user decision 2026-10-24), although the problem statement marks them optional. They are REQ-BON-* and REQ-SO-* (§8) and Phase 11 in TASKS.md. The problem statement itself is unchanged.
 
 ## 10. Open questions
 - **Q-01** VPS provider and size (needs ≥4 GB RAM). Tracked as a blocker for REL-01.
