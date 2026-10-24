@@ -41,9 +41,10 @@ if [ "${BRAND_ENABLED:-false}" = "true" ]; then
   [ "$($WP option get stylesheet)" = "tatva" ] || q theme activate tatva
   q option update blogname "$TITLE"
   # BRD-08: TATVA admin colour scheme for the admin user, only while it is still the default
-  # (a scheme the user picked under Users → Profile is kept).
+  # (a scheme the user picked under Users → Profile is kept). WordPress 7 creates users with "modern",
+  # older versions with "fresh" (found by the 2026-10-24 clean install).
   case "$($WP user meta get "$ADMIN_USER" admin_color 2>/dev/null || true)" in
-    ''|fresh) q user meta update "$ADMIN_USER" admin_color tatva && echo "admin colour scheme: tatva" ;;
+    ''|fresh|modern) q user meta update "$ADMIN_USER" admin_color tatva && echo "admin colour scheme: tatva" ;;
   esac
   ASSETS_DIR=/assets $WP eval-file /assets/import/import-catalogue.php
 elif [ "$($WP post list --post_type=product --post_status=any --format=count)" = "0" ]; then
