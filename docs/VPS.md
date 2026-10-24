@@ -66,6 +66,13 @@ These are not in the table:
 - **Free:** Oracle Cloud *Always Free* Ampere A1 (arm64, up to 4 OCPU / 24 GB). This is the only free tier big enough, but capacity is often unavailable in busy regions, and it needs multi-arch images plus the OCI security list *and* the instance's iptables opened for 80/443.
 - AWS, GCP and Azure free tiers (~1 GB RAM) are too small.
 
+### Candidates checked (2026-10-24, list prices excl. GST — re-check before buying)
+| Provider / plan | vCPU / RAM / disk | Price | Notes |
+|---|---|---|---|
+| **E2E Networks C3.8GB** (pick) | 4 / 8 GB / 100 GB NVMe | $0.049/h ≈ **$35.64/mo** | Normal Linux VPS, India DCs, amd64. Reserved IP $3/mo (optional). Matches the recommended tier. |
+| JarvisLabs CPU VM 2 vCPU · 8 GB | 2 / 8 GB / storage extra | $0.05/h ≈ $36/mo + disk $0.10/GB-mo + reserved IP $5/mo ≈ $49/mo | GPU-focused cloud. **All ports open by default** → Security Group/ufw needed. IP changes on resume unless reserved. |
+| JarvisLabs CPU VM 4 vCPU · 16 GB | 4 / 16 GB / storage extra | $0.10/h ≈ $73/mo + disk + IP ≈ $86/mo | Same caveats. |
+
 ## 3. Facts (fill in once the VPS exists)
 | Field | Value |
 |---|---|
@@ -125,3 +132,4 @@ Work through it top to bottom. After each step, tick it in §1, add evidence to 
 Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidence`.
 
 - 2026-10-24 — Created this file. Specs computed from the prod render: 0.63 CPU / 1.3 GiB requested, 3.2 GiB at the limits, 11 GiB PVC. Recommended tier 4 vCPU / 8 GB / 80 GB because of the required bonus items. VPS not yet obtained (P0-03 Blocked).
+- 2026-10-24 — Compared E2E Networks and JarvisLabs (table in §2). E2E C3.8GB recommended.
