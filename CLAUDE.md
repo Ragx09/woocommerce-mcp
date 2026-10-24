@@ -50,6 +50,7 @@ Deliver the system in [`problem-statement.md`](problem-statement.md): WooCommerc
 | `brand/` | Storefront brand material (Phase 9; current working concept TATVA, may change) |
 | `docs/PROGRESS.md` | latest handover summary |
 | `docs/REQUIREMENTS_TRACEABILITY.md` | requirement → task → test → evidence |
+| `docs/VPS.md` | VPS specs, facts, setup plan and running log (append on every VPS change) |
 | `docs/API_CONTRACTS.md`, `docs/MCP_DESIGN.md`, `docs/DEPLOYMENT.md`, `docs/DEMO_RUNBOOK.md` | engineering details |
 | `knowledge/` | learning notes (`CONCEPTS_INDEX.md` first) |
 | `tracker/index.html` | visual project tracker (`npm run tracker` to refresh) |

@@ -61,6 +61,8 @@ Never in git or values files. `scripts/make-secrets.sh` creates:
 - `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (`admin-email`, default `admin@example.invalid` or `GATEWAY_ADMIN_EMAIL`; random `admin-password` — the first dashboard admin, created only while the DB has no admin), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
 
 ## 5. VPS (k3s) — planned
+Sizing, our VPS's facts and the running setup log: [`VPS.md`](VPS.md).
+
 **Choosing a VPS (P0-03).** Needs ≥4 GB RAM, ≥2 vCPU, ≥20 GB disk, Ubuntu LTS.
 - Free option: Oracle Cloud *Always Free* Ampere A1 is the only common free tier with enough RAM. It is **arm64**, so images must be built multi-arch (R6), and A1 capacity is often unavailable in busy regions.
 - AWS, GCP and Azure free tiers give about 1 GB of RAM, which is too small for WordPress + MariaDB + Postgres + 4 services.
