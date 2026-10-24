@@ -120,12 +120,12 @@ One-time (no cost):
 1. ✓ CLI installed: `uv tool install jarvislabs` (jl 0.2.17, 2026-10-24).
 2. ✓ SSH key `~/.ssh/jarvis_vps` created and added to JarvisLabs as `woo-mcp-vps` (id `AKQronIl`, 2026-10-24; `jl ssh-key list`).
 3. ✓ `jl setup` done (2026-10-24; `jl status` shows the account). **To do (user):** add credits (balance ₹0.00).
-4. **To do:** Security Group in IN2 (dashboard → Security Groups; see §5). Attach it to the VM right after creation.
+4. ✓ Security Group `woo-mcp-vps` created in IN2 (2026-10-24; rules in §5). `jl` has no security-group option, so **attach it in the dashboard right after each VM is created** (VM → Networking / Security Groups).
 5. Optional: DuckDNS name (free, on the Public Suffix List → own Let's Encrypt limit): `DUCKDNS_DOMAIN`, `DUCKDNS_TOKEN` in `.env`.
 
 Each session (billing runs from step 1 to `down.sh`):
 1. `vps-setup/up.sh` — first run ~20–30 min (image upload depends on the laptop's upload speed). Use `TLS_ISSUER=letsencrypt-staging` the very first time, then re-run without it.
-2. Attach the Security Group if the script warns that 6443 is reachable.
+2. Attach the Security Group `woo-mcp-vps` in the dashboard as soon as the VM exists (the script warns if 6443 is still reachable).
 3. Checks: `kubectl --context vps get pods -A`, `curl -sI https://app.<domain>`, then
    `APP_ORIGIN=https://app.<domain> STORE_ORIGIN=https://store.<domain> KUBECTL_CONTEXT=vps KUBECONFIG=~/.kube/vps.yaml scripts/e2e.sh all` (BON-07),
    persistence (REL-05: delete the MariaDB/WordPress/Postgres pods, data still there).
@@ -133,7 +133,7 @@ Each session (billing runs from step 1 to `down.sh`):
 5. `vps-setup/down.sh` (destroy) or `vps-setup/down.sh --pause`. Add a line to §7.
 
 ## 5. Hardening checklist
-- [ ] **Security Group** (JarvisLabs VMs are open on every port by default): inbound SSH 22 from my current IP, TCP 80 and 443 from Anywhere, Ping from my IP; outbound all. Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
+- [x] **Security Group `woo-mcp-vps` (IN2) created** (JarvisLabs VMs are open on every port by default): inbound SSH 22 and Ping from my IP (`103.86.107.161/32` on 2026-10-24; update the rule if the home IP changes), TCP 80 and 443 from Anywhere; outbound all. Still to do per VM: attach it. Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
 - [ ] No ufw on the VM: the Security Group filters at the network port, and ufw needs extra k3s CIDR rules (`10.42.0.0/16`, `10.43.0.0/16`) to avoid breaking pod networking.
 - [ ] SSH key login only (JarvisLabs default: user `cloud`, no password).
 - [ ] VM lifetime is hours, so `unattended-upgrades` and fail2ban are not needed; for a long-lived VM, enable both.
@@ -157,3 +157,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — Moved everything VPS-related into `vps-setup/` (this file, `preflight.sh`, `install-k3s.sh`) and wrote `up.sh`/`down.sh`/`ssh.sh`. Installed `jl` 0.2.17, created `~/.ssh/jarvis_vps`. Chart: `acme-solver-from-ingress` NetworkPolicy. Found sslip.io is not on the PSL (Let's Encrypt limit shared). Not run yet: no credits.
 - 2026-10-24 — Signed in the `jl` CLI with `jl setup` (token in `~/.config/jl/config.toml`) → `jl status`: account OK, balance ₹0.00, 0 running, 0 paused. `jl ssh-key list`: no keys yet.
 - 2026-10-24 — `jl ssh-key add ~/.ssh/jarvis_vps.pub --name woo-mcp-vps` → "SSH key 'woo-mcp-vps' added"; `jl ssh-key list` shows id `AKQronIl`, ssh-ed25519 …INbX.
+- 2026-10-24 — Created Security Group `woo-mcp-vps` in IN2 via the dashboard → after reload shows "4 inbound · 1 outbound · 0 instances": TCP 22 ← 103.86.107.161/32, ICMP ← 103.86.107.161/32, TCP 80 ← Anywhere, TCP 443 ← Anywhere, ANY → Anywhere. `jl create --help` has no security-group option → attach manually per VM.
