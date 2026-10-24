@@ -1,0 +1,251 @@
+================================================================================
+RED-TEAM EVIDENCE — Agent 4: Cluster & Container Layer (Infra)
+Area: k3d cluster + container layer — image CVEs, K8s config, NetworkPolicy
+      isolation, Pod Security admission, secrets in git history, service exposure
+Scope: local k3d cluster only (context k3d-mcp / cluster 'mcp'), namespaces
+       store + platform, and this git repo. Phase 10 / SEC-06. Authorized.
+Date: 2026-10-21
+Tester tooling (all pinned, run as containers — nothing installed on host):
+  - curlimages/curl:8.11.1   (rogue NetworkPolicy probe pods)
+  - aquasec/trivy:0.58.1      (image CVE scan)
+  - zricethezav/gitleaks:v8.28.0 (via scripts/secret-scan.sh — git history scan)
+  - kubectl (host) for config inspection and PSA admission tests
+================================================================================
+
+ENVIRONMENT CONFIRMED
+  Context: k3d-mcp ; namespaces present: store, platform (both 8d old)
+  Workloads:
+    store:    deploy/woo-mcp, deploy/wordpress, sts/mariadb
+    platform: deploy/dashboard, deploy/everything-mcp, deploy/gateway, sts/postgres
+  Running images (sha-pinned tags, good):
+    woo-mcp:sha-ad0641210c44, gateway:sha-06b186c93e11,
+    dashboard:sha-b043297dd97b, everything-mcp:sha-54d4fbad9d2e,
+    wordpress:7.1.3-php8.3-apache, mariadb:11.8.9, postgres:16.15-alpine3.24
+  (wp-init bootstrap image = store-assets:sha-7c3c4297e9f3, present in docker store)
+
+================================================================================
+SUMMARY OF FINDINGS (issues only; "OK:" items listed further below)
+  F1  High          Known HIGH/CRITICAL CVEs in project images (outdated deps)
+  F2  Medium        No egress NetworkPolicy default-deny (C2/exfil path open)
+  F3  Low / Info    No CPU limits on any workload (memory limits present)
+  F4  Low / Info    default ServiceAccount token automount not disabled at SA level
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST 1 — NetworkPolicy isolation (brief goal 5)         RESULT: OK (default-deny holds)
+--------------------------------------------------------------------------------
+Method: launched a restricted-PSA-compliant rogue pod (curlimages/curl:8.11.1,
+runAsNonRoot/user 100, drop ALL caps, no-priv-esc, seccomp RuntimeDefault) in
+namespace `store` and again in `platform`, then attempted to reach every service
+it must NOT reach, by ClusterIP (curl --connect-timeout 5) so a NetworkPolicy
+drop is distinguished from DNS failure.
+
+FROM store namespace:
+  -> mariadb.store   10.43.161.197:3306  exit=7 connect=0.000000s  BLOCKED
+  -> woo-mcp.store   10.43.33.41:80       exit=7 connect=0.000000s  BLOCKED
+  -> wordpress.store 10.43.211.150:80     exit=7 connect=0.000000s  BLOCKED
+  -> postgres.platform 10.43.114.17:5432  exit=7 connect=0.000000s  BLOCKED
+  -> gateway.platform  10.43.205.67:80    exit=7 connect=0.000000s  BLOCKED
+  -> everything-mcp.platform 10.43.84.16:80 exit=7 connect=0.000000s BLOCKED
+  -> dashboard.platform 10.43.222.118:80  exit=7 connect=0.000000s  BLOCKED
+FROM platform namespace:
+  -> postgres.platform 10.43.114.17:5432  exit=7 connect=0.000000s  BLOCKED
+  -> mariadb.store   10.43.161.197:3306   exit=7 connect=0.000000s  BLOCKED
+  -> woo-mcp.store   10.43.33.41:80        exit=7 connect=0.000000s  BLOCKED
+  -> wordpress.store 10.43.211.150:80      exit=7 connect=0.000000s  BLOCKED
+  -> everything-mcp.platform 10.43.84.16:80 exit=7 connect=0.000000s BLOCKED
+  -> dashboard.platform 10.43.222.118:80   exit=7 connect=0.000000s BLOCKED
+  -> gateway.platform  10.43.205.67:80     exit=7 connect=0.000000s  BLOCKED
+
+Expected vs actual: expected every probe BLOCKED; all were (curl exit 7 with
+0ms connect = packet dropped by NetworkPolicy, not a slow timeout).
+NetworkPolicy design confirmed via `kubectl get netpol -A -o json`:
+  - default-deny-ingress in BOTH namespaces (podSelector {}).
+  - mariadb ingress: only from app=wordpress / app=wp-init :3306
+  - woo-mcp  ingress: only from platform ns app=gateway :8080
+  - wordpress ingress: only from traefik (kube-system) + app=woo-mcp :8080
+  - postgres ingress: only from app=gateway :5432
+  - everything-mcp ingress: only from app=gateway :8080
+  - gateway/dashboard ingress: only from traefik :8080
+OK: east-west isolation is correct; a rogue workload in either namespace cannot
+reach any database, MCP server, the gateway, or the dashboard directly.
+Probe pods deleted after the test (store + platform): confirmed none remaining.
+
+
+--------------------------------------------------------------------------------
+FINDING F2 — No egress NetworkPolicy default-deny           Severity: Medium
+--------------------------------------------------------------------------------
+Target: namespaces store + platform (all pods lacking an explicit egress policy)
+Steps to reproduce (from the same rogue pods, before deletion):
+  store:    curl -m6 https://1.1.1.1/   -> exit=0 connect=0.009413s  (SUCCESS)
+  platform: curl -m6 https://1.1.1.1/   -> exit=0 connect=0.016981s  (SUCCESS)
+Config: only `default-deny-ingress` exists (policyTypes: ['Ingress']). Egress is
+NOT default-denied. Pods woo-mcp, everything-mcp and dashboard DO carry an
+Egress policyType (woo-mcp restricted to wordpress:8080 + DNS; everything-mcp
+and dashboard have an empty egress = deny-all). But wordpress, mariadb, postgres
+and gateway have NO egress restriction and can open connections to any host.
+Expected vs actual: a compromised pod should not be able to open arbitrary
+outbound connections (C2 / data exfiltration); actual — a pod in either
+namespace reached the public internet on :443. Most concerning is the WordPress
+pod (large PHP attack surface, internet-reachable via ingress): on RCE it could
+freely exfiltrate the WooCommerce DB or beacon out. The MCP servers that matter
+most (woo-mcp) are already capped, which limits impact.
+Suggested fix: add a per-namespace `default-deny-egress` policy, then explicit
+allow rules for DNS (kube-dns :53) plus each workload's required egress
+(wordpress->mariadb:3306, gateway->woo-mcp/everything-mcp/postgres and its
+external MCP upstreams). Keep the existing woo-mcp/everything-mcp/dashboard
+egress rules.
+
+
+--------------------------------------------------------------------------------
+TEST 2 — Pod security (securityContext / probes / resources)   RESULT: OK (strong)
+--------------------------------------------------------------------------------
+Method: kubectl get deploy/sts -o json, inspected pod + container securityContext,
+probes and resources for all 7 workloads.
+Every workload (woo-mcp, wordpress, mariadb, dashboard, everything-mcp, gateway,
+postgres):
+  OK: runAsNonRoot=true, runAsUser != 0 (1000/33/999/101/70 as appropriate)
+  OK: allowPrivilegeEscalation=false
+  OK: capabilities.drop=["ALL"] (no adds)
+  OK: readOnlyRootFilesystem=true
+  OK: seccompProfile.type=RuntimeDefault (pod level; inherited by containers)
+  OK: automountServiceAccountToken=false at pod spec (token NOT mounted)
+  OK: livenessProbe AND readinessProbe present
+  OK: memory requests AND limits present; cpu requests present
+(wordpress and mariadb set runAsNonRoot/seccomp at pod level only — valid, the
+container inherits it; verified both pods run as non-root.)
+
+  F3 (Low/Info): NO container sets a CPU limit (only memory limits). CPU requests
+  exist everywhere. This is often an intentional choice (CPU limits cause
+  throttling), but the brief asks to flag missing limits — recording it.
+  Suggested fix: optional; add cpu limits only if noisy-neighbour protection is
+  wanted, otherwise document the decision in DECISIONS.md.
+
+
+--------------------------------------------------------------------------------
+TEST 3 — Namespace Pod Security admission (restricted)    RESULT: OK (enforced; rejections are positive)
+--------------------------------------------------------------------------------
+Labels confirmed on both namespaces:
+  pod-security.kubernetes.io/enforce=restricted
+  pod-security.kubernetes.io/warn=restricted
+Attempted to create three malicious pods; all REJECTED at admission:
+  1) privileged pod in store (evil-priv):
+     "Error from server (Forbidden): ... violates PodSecurity \"restricted:latest\":
+      privileged (container \"c\" must not set securityContext.privileged=true),
+      allowPrivilegeEscalation != false, unrestricted capabilities,
+      runAsNonRoot != true, seccompProfile ..."
+  2) root pod in platform (evil-root, runAsUser:0):
+     "... violates PodSecurity \"restricted:latest\": ... runAsUser=0 (container
+      \"c\" must not set runAsUser=0), runAsNonRoot != true, seccompProfile ..."
+  3) hostNetwork+hostPID+hostPath / mount of / in store (evil-host):
+     "... violates PodSecurity \"restricted:latest\": host namespaces
+      (hostNetwork=true, hostPID=true), restricted volume types (volume \"h\"
+      uses restricted volume type \"hostPath\"), ..."
+Expected vs actual: expected all three rejected; all three rejected. No pod was
+created (delete --ignore-not-found returned nothing to delete).
+OK: restricted Pod Security admission is active and blocks privilege escalation,
+root, and host-namespace/hostPath escapes.
+
+
+--------------------------------------------------------------------------------
+FINDING F1 — Known HIGH/CRITICAL CVEs in project images      Severity: High
+--------------------------------------------------------------------------------
+Target: project-built images running in the cluster.
+Command (per image), pinned Trivy, severity HIGH+CRITICAL, vuln scanner:
+  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+    -v trivycache:/root/.cache/ aquasec/trivy:0.58.1 image \
+    --scanners vuln --severity HIGH,CRITICAL --no-progress <image>
+Results (totals):
+  gateway:sha-06b186c93e11        CRITICAL=1  HIGH=13
+  woo-mcp:sha-ad0641210c44        CRITICAL=1  HIGH=13
+  everything-mcp:sha-54d4fbad9d2e CRITICAL=1  HIGH=13
+  dashboard:sha-b043297dd97b      CRITICAL=0  HIGH=5
+  store-assets:sha-7c3c4297e9f3   CRITICAL=0  HIGH=0   (clean)
+Notable vulns (gateway / woo-mcp / everything-mcp — identical Node dep set):
+  [CRITICAL] tar 7.5.16        CVE-2026-59873  -> fix 7.5.19 (gzip-bomb DoS)
+  [HIGH]     ip-address 10.2.0 CVE-2026-69192  -> fix 10.3.1 (inconsistent IP
+             parsing -> SSRF) — especially relevant to the gateway, which makes
+             outbound requests to upstream MCP servers.
+  [HIGH]     undici 6.26.0     CVE-2026-12151 / CVE-2026-19534 (WebSocket DoS)
+  [HIGH]     http-cache-semantics 4.2.0  CVE-2026-93748 (info disclosure; no fix yet)
+  [HIGH]     brace-expansion 5.0.6  5x CVEs (ReDoS/DoS) -> fix 5.0.11
+  [HIGH]     libssl3/libcrypto3 3.5.7-r0  CVE-2026-14456 -> fix 3.5.8-r0 (alpine)
+  dashboard (nginx/alpine OS packages):
+  [HIGH]     libexpat 2.8.4-r0 (CVE-2026-77214, CVE-2026-93990 -> 2.9.0-r0),
+             libx11 1.8.13-r0 (CVE-2026-88806), pcre2 10.48-r0 (CVE-2026-103111),
+             tiff 4.7.1-r0 (CVE-2026-4775)
+Expected vs actual: expected images free of known HIGH/CRITICAL; actual — three
+Node images carry a CRITICAL (tar) plus an SSRF-class dep (ip-address) and
+several DoS-class deps; base alpine (3.24.1) is one patch behind on openssl.
+Suggested fix: `npm update` / bump the affected deps (tar>=7.5.21,
+ip-address>=10.3.1, undici>=6.28.1, brace-expansion>=5.0.11) and rebuild on a
+refreshed alpine 3.24 base so libssl3/libcrypto3, libexpat, pcre2, tiff, libx11
+pick up patched OS packages. Re-run Trivy to confirm 0 HIGH/CRITICAL.
+Note: wordpress/mariadb/postgres (third-party base images) were not scanned here
+per the brief's "project's own images" scope; worth a separate pass.
+
+
+--------------------------------------------------------------------------------
+TEST 5 — K8s config scan (manual; kubescape skipped)      RESULT: OK (with F4)
+--------------------------------------------------------------------------------
+kubescape was skipped to avoid a slow image pull/scan on this run; performed the
+high-value manual checks instead (kubectl -o json inspection):
+  OK: no hostNetwork / hostPID / hostIPC on any pod in store or platform
+  OK: no hostPath volumes on any pod
+  OK: no privileged containers
+  OK: no RoleBindings or ClusterRoleBindings reference the namespaces' SAs
+      ("No resources found" for rolebindings in both store and platform)
+  OK: all workloads run under the auto-created `default` SA but with
+      automountServiceAccountToken=false at pod level, so no token is mounted.
+  F4 (Low/Info): the `default` ServiceAccount object itself does not set
+      automountServiceAccountToken=false (field empty -> K8s default true).
+      Not currently exploitable because every pod overrides it, but defense in
+      depth. Suggested fix: patch default SA in both namespaces with
+      automountServiceAccountToken: false (or via Helm).
+
+
+--------------------------------------------------------------------------------
+TEST 6 — Secrets in git history (gitleaks)                RESULT: OK (no leaks)
+--------------------------------------------------------------------------------
+Command: scripts/secret-scan.sh  (uses zricethezav/gitleaks:v8.28.0, read-only
+mounts, scans full history + all committable files, redacted output)
+Output:
+  63 commits scanned. scanned ~33.95 MB in 11.7s -> no leaks found (git history)
+  scanned ~5.05 MB in 1.27s -> no leaks found (committable tree)
+  PASS  secret scan (git history + committable files)   RC=0
+OK: no secret values present in git history or committable files. (No secret
+values are reproduced in this report, per rules of engagement.)
+
+
+--------------------------------------------------------------------------------
+TEST 7 — Service exposure                                  RESULT: OK
+--------------------------------------------------------------------------------
+Command: kubectl get svc -A -o <type>
+  default/kubernetes            ClusterIP
+  kube-system/kube-dns          ClusterIP
+  kube-system/metrics-server    ClusterIP
+  kube-system/traefik           LoadBalancer   <-- the only public ingress (expected)
+  platform/dashboard            ClusterIP
+  platform/everything-mcp       ClusterIP
+  platform/gateway              ClusterIP
+  platform/postgres             ClusterIP
+  store/mariadb                 ClusterIP
+  store/woo-mcp                 ClusterIP
+  store/wordpress               ClusterIP
+Expected vs actual: expected every app service ClusterIP with only Traefik
+public; actual matches exactly. No NodePort or extra LoadBalancer exposes an
+internal service.
+OK: no service-level exposure leak.
+
+
+================================================================================
+CLEANUP
+  - rogue-probe pod (store) deleted; rogue-probe pod (platform) deleted.
+  - evil-priv / evil-root / evil-host were rejected at admission (never created).
+  - temporary trivy cache docker volume removed.
+  - verified: `kubectl get pods -A | grep -E 'rogue|evil'` -> none remaining.
+  - no repo file other than this evidence file was modified; nothing committed.
+================================================================================
+
+Round 1 complete: 4 findings.

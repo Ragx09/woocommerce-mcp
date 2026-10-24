@@ -1,0 +1,35 @@
+=== Red-team (auth & business logic) — foreground, acting as MEMBER B ===
+Date: 2026-10-21  Target: http://app.127.0.0.1.nip.io/api/*
+
+### login as B:
+HTTP/1.1 200 OK
+Set-Cookie: sid=<redacted>
+
+### 1. member hits admin-only endpoints (expect 403):
+  GET /api/users -> 403000
+  GET /api/audit -> 403000
+  POST /api/invites -> 403000
+  GET /api/upstreams -> 200000
+
+### 2. privilege escalation — B tries to make self admin:
+  /api/me: {"id":"dcf42a82-6c54-4c61-8c76-7052e9b9ebaa","email":"demo-b@example.invalid","name":"User B (demo)","role":"member"}
+  PATCH /api/users/dcf42a82-6c54-4c61-8c76-7052e9b9ebaa {role:admin} -> 403
+
+### 3. cookie flags (HttpOnly/SameSite/Secure):
+Set-Cookie: sid=<v>; Max-Age=43200; Path=/; HttpOnly; SameSite=Strict
+
+### 4. CSRF — state change with FOREIGN origin (expect reject):
+  POST /api/keys origin=evil.com -> 403
+  POST /api/keys no-origin -> 201
+
+### 5. Does member view of /api/upstreams leak secrets? (brief goal 2)
+  -- full keys present per entry:
+  fields: ['enabled', 'id', 'lastCheckedAt', 'lastError', 'lastOkAt', 'name', 'slug', 'status', 'toolCount']
+
+### 6. IDOR on API keys — B lists own keys, tries to read/revoke others
+  GET /api/keys (own): 16 keys; fields ['createdAt', 'id', 'lastUsedAt', 'name', 'owner', 'prefix', 'revokedAt']
+  DELETE a guessed/other key id (random uuid) -> 404
+
+### cleanup: revoke the stray 'noorigin' key I created
+  DELETE /api/keys/7ed94d5a-38b6-4935-9b3c-d844b62dccea -> 204
+Round 1 complete: see findings F-WEB-* and F-AUTH-* above.

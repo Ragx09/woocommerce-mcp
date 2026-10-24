@@ -1,0 +1,37 @@
+=== Red-team (web/storefront) — foreground, driven by main session ===
+Date: 2026-10-21  Targets: http://store.127.0.0.1.nip.io , http://app.127.0.0.1.nip.io (static+headers only)
+
+### F-WEB-1: WordPress REST user enumeration (no auth)  [Severity: Medium]
+Target: GET http://store.127.0.0.1.nip.io/wp-json/wp/v2/users
+Repro + evidence:
+  id=1 name=admin slug=admin
+  id=2 name=mcp-service slug=mcp-service
+Expected: 401/empty. Actual: usernames+slugs disclosed (admin, mcp-service).
+Fix: disable REST users endpoint for anon (filter rest_endpoints / 'rest_user_query'), or restrict to authenticated.
+
+### 2. xmlrpc.php
+GET http://store.127.0.0.1.nip.io/xmlrpc.php -> 405
+POST system.listMethods:
+<?xml version="1.0" encoding="UTF-8"?>
+<methodResponse>
+  <params>
+    <param>
+      <value>
+      <array><data>
+  <value><string>system.multicall</string></value>
+  <value><string>system.listMethods</string></value>
+  <value><string>system.getCapabilities</string></value>
+  <value><string>demo.addT
+### 3. Author scan (?author=1 redirect leaks slug)
+author=1 -> 301 loc=http://store.127.0.0.1.nip.io/author/admin/
+### 4. Common exposures
+ /.git/HEAD -> 404
+ /.env -> 404
+ /wp-config.php.bak -> 404
+ /readme.html -> 200
+ /wp-content/debug.log -> 404
+ /license.txt -> 200
+### 5. WooCommerce REST without auth (expect 401)
+ /wp-json/wc/v3/orders -> 401
+ /wp-json/wc/v3/products -> 401
+ /wp-json/wc/store/v1/products -> 200
