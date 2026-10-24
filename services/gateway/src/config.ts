@@ -13,6 +13,8 @@ export interface Config {
   upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
   /** Largest upstream response body the gateway accepts, in bytes (T-08). */
   upstreamMaxResponseBytes: number;
+  /** BON-04: /mcp tools/call + tools/list per key and per user in each window (0 = off), shared by replicas. */
+  mcpRateLimit: { perKey: number; perUser: number; windowMs: number };
   /** Period of the upstream health loop in ms (GW-10). */
   healthIntervalMs: number;
   /** Session cookie gets the Secure flag (true when the public URL is https). */
@@ -88,6 +90,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
     },
     upstreamMaxResponseBytes: int('UPSTREAM_MAX_RESPONSE_BYTES', env.UPSTREAM_MAX_RESPONSE_BYTES, 4 * 1024 * 1024, 64 * 1024, 64 * 1024 * 1024),
+    mcpRateLimit: {
+      perKey: int('MCP_RATE_LIMIT_PER_APIKEY', env.MCP_RATE_LIMIT_PER_APIKEY, 120, 0, 1_000_000),
+      perUser: int('MCP_RATE_LIMIT_PER_USER', env.MCP_RATE_LIMIT_PER_USER, 240, 0, 1_000_000),
+      windowMs: int('MCP_RATE_LIMIT_WINDOW_MS', env.MCP_RATE_LIMIT_WINDOW_MS, 60_000, 1_000, 3_600_000),
+    },
     healthIntervalMs: int('HEALTH_INTERVAL_MS', env.HEALTH_INTERVAL_MS, 10_000, 1_000, 300_000),
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
     publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),

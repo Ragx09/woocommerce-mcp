@@ -2318,16 +2318,16 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-04 — Scaling: replicas and per-key rate limits
 - **Priority:** P1
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 15
 - **Depends on:** GW-11, AUTH-08
 - **Requirements:** REQ-SO-07
-- **Description:** Run the gateway with 2 replicas on k3d and show MCP (`tools/list`, `tools/call`), dashboard sessions, chat and disable/enable working across replicas. Add a per-key (and per-user) rate limit on `/mcp` shared across replicas (Postgres-backed) with `429` + `Retry-After`, values in Helm. Note: the health monitor and the chat's one-request-per-user lock must hold across replicas.
+- **Description:** Gateway at 2 replicas by default (rolling update maxUnavailable 0, PodDisruptionBudget minAvailable 1, preStop pause 5 s + graceful close so a deleted pod loses no request). Per-key and per-user budget on `/mcp` tools/call + tools/list (default 120 / 240 per minute; Helm `gateway.rateLimit`), shared by all replicas through Postgres (`rate_limits`, one atomic upsert per request; window starts at the first hit) → 429 + Retry-After, audited `rejected/rate_limited`. The chat's one-request-per-user lock and its 30/10 min window moved to Postgres too (`leases` self-expire if a pod dies). Chat requests (internal token) do not count against the /mcp budget (they have their own). D-022.
 - **Output:** gateway rate limiter, `gateway.replicas` + limits in values, `scripts/k8s-checks.sh replicas`, DECISIONS entry.
 - **Acceptance:** With 2 replicas every E2E check passes; a key exceeding its limit gets 429 on whichever replica it hits; killing one replica does not break clients.
 - **Tests:** TC-INT-05 (exists, 2 replicas); TC-BON-04-1 (int): limit shared by two instances; TC-BON-04-2 (k3d): `e2e.sh all` with `replicas: 2`.
 - **Command:** `scripts/gateway-db-int.sh && scripts/k8s-checks.sh replicas && scripts/e2e.sh all`
-- **Evidence:** 2026-10-15/16: per-user chat limit (1 at a time, 30/10 min) and login limits exist (THREAT_MODEL T-13/T-23); TC-INT-05 runs disable/enable against two gateway instances on one Postgres. Not yet: live 2-replica run, per-key `/mcp` limit.
+- **Evidence:** 2026-10-24: `src/ratelimit.ts` (PgRateLimiter + MemoryRateLimiter), migration 0004, `/mcp` + chat wired, chart replicas 2/PDB/strategy/preStop. Unit 106/106. Int `Tests 129 passed (129)`: TC-BON-04-1 (two gateway instances on one DB: key budget 3 → 4th request refused on the other replica, Retry-After > 50 s, initialize not counted, user budget across keys, other user unaffected, 3 audit rows), TC-BON-04-1a (chat works while its user is over the API budget), TC-BON-04-1b (chat busy across replicas, lease released after), TC-BON-04-1c (lease expiry, only the holder releases, window restart); mutation: a per-replica memory limiter → 3 tests fail. k3d rev 72 `scripts/k8s-checks.sh replicas` ×2 → 7/7 each: 2 ready replicas, PDB minAvailable=1, 20 tools/list spread 10 + 10, one dashboard session on both replicas 10/10, a pod deleted during 40 `woo__list_orders` calls → 0 failed, replacement Ready, 140 parallel requests → 60 × 200 + 80 × 429 (120/min incl. 60 earlier), Retry-After 14 s. (Before the preStop pause one run lost 1 of 40 calls with 502 → fixed.) Full acceptance with 2 replicas: `scripts/e2e.sh all` → chat flow 13/13 (real Groq, product 159, order #160) + `e2e all: 26 passed, 0 failed, 1 skipped` (log `docs/evidence/e2e-all-k3d-2026-10-24-2-replicas.txt`). Login limiter stays per replica (T-13).
 - **Regression risk:** In-memory chat lock is per process.
 
 ### BON-05 — Security hardening complete

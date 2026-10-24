@@ -3,13 +3,15 @@
 // authorized, routed and audited exactly like the user's external MCP client, with source=chat.
 //
 // Guard rails (one member must not be able to use up the team's LLM quota — THREAT_MODEL T-23):
-// one chat request per user at a time, and a sliding window of requests per user.
+// one chat request per user at a time, and a window of requests per user. Both are shared by all
+// replicas when the limiter is the Postgres one (BON-04, ratelimit.ts).
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { FastifyInstance } from 'fastify';
 import { VERSION } from '../app.js';
 import type { InternalTokenSigner } from '../auth/internal-token.js';
-import { runAgent, type McpSession } from './agent.js';
+import { MemoryRateLimiter, type RateLimiter, type Release } from '../ratelimit.js';
+import { DEFAULT_DEADLINE_MS, runAgent, type McpSession } from './agent.js';
 import { LlmError, type ChatCompletion } from './llm.js';
 
 export interface ChatDeps {
@@ -19,6 +21,8 @@ export interface ChatDeps {
   /** The gateway's own /mcp over loopback, e.g. http://127.0.0.1:8080/mcp. */
   mcpUrl: () => string;
   limits?: { windowMs?: number; perWindow?: number };
+  /** Shared limiter (PgRateLimiter in the gateway); defaults to one in this process's memory. */
+  limiter?: RateLimiter;
   /** UI-18: enabled servers the health monitor has as unreachable right now (none if not given). */
   unavailable?: () => Promise<UnavailableServer[]>;
   agent?: { maxSteps?: number; deadlineMs?: number };
@@ -44,24 +48,12 @@ const body = {
 
 const LLM_STATUS: Record<LlmError['code'], number> = { llm_rate_limited: 429, llm_timeout: 504, llm_unavailable: 502, llm_error: 502 };
 
-/** Per-user sliding window, in memory per replica (like the login limiter). */
-class UserWindow {
-  private readonly hits = new Map<string, number[]>();
-  constructor(private readonly windowMs: number, private readonly max: number) {}
-  /** Seconds to wait, or 0 and the hit is recorded. */
-  take(userId: string, t = Date.now()): number {
-    const recent = (this.hits.get(userId) ?? []).filter((x) => x > t - this.windowMs);
-    if (recent.length >= this.max) return Math.ceil((recent[0]! + this.windowMs - t) / 1000);
-    recent.push(t);
-    this.hits.set(userId, recent);
-    if (this.hits.size > 10_000) for (const [k, v] of this.hits) if (v.every((x) => x <= t - this.windowMs)) this.hits.delete(k);
-    return 0;
-  }
-}
-
 export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
-  const window = new UserWindow(deps.limits?.windowMs ?? 10 * 60_000, deps.limits?.perWindow ?? 30);
-  const busy = new Set<string>();
+  const limiter = deps.limiter ?? new MemoryRateLimiter();
+  const windowMs = deps.limits?.windowMs ?? 10 * 60_000;
+  const perWindow = deps.limits?.perWindow ?? 30;
+  // Longer than the agent's own deadline: a pod that dies mid-chat frees the user after this.
+  const holdMs = (deps.agent?.deadlineMs ?? DEFAULT_DEADLINE_MS) + 30_000;
 
   app.post<{ Body: ChatBody }>('/api/chat', { config: { access: 'session' }, schema: { body } }, async (req, reply) => {
     const user = req.user!;
@@ -70,14 +62,16 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
     if (msgs.at(-1)!.role !== 'user') {
       return reply.code(400).send({ error: 'validation_failed', message: 'the last message must be from the user' });
     }
-    if (busy.has(user.id)) return reply.code(429).send({ error: 'chat_busy', message: 'wait for your previous message to finish' });
-    const wait = window.take(user.id);
-    if (wait) {
+    const release: Release | null = await limiter.lease(`chat:busy:${user.id}`, holdMs);
+    if (!release) return reply.code(429).send({ error: 'chat_busy', message: 'wait for your previous message to finish' });
+    const quota = await limiter.hit(`chat:user:${user.id}`, perWindow, windowMs).catch(async (e) => { await release(); throw e; });
+    if (!quota.allowed) {
+      await release();
+      const wait = quota.retryAfterS;
       return reply.code(429).header('retry-after', String(wait))
         .send({ error: 'rate_limited', message: `too many chat messages; try again in ${wait} s`, retryAfter: wait });
     }
 
-    busy.add(user.id);
     const started = Date.now();
     const llm = deps.llm;
     const connect = async (): Promise<McpSession> => {
@@ -109,7 +103,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
       req.log.error({ err: (e as Error).message, ms: Date.now() - started }, 'chat: failed');
       return reply.code(502).send({ error: 'chat_failed', message: 'the chat agent could not reach the tools; try again' });
     } finally {
-      busy.delete(user.id);
+      await release().catch((e: Error) => req.log.warn({ err: e.message }, 'chat: releasing the busy lease failed (expires by itself)'));
     }
   });
 }

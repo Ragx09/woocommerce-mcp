@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|metrics|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|metrics|replicas|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -210,13 +210,75 @@ metrics() {
     && pass "TC-BON-03-3b dashboard API woo stats (last hour, all replicas): $stats" || fail "TC-BON-03-3b dashboard stats: $stats"
 }
 
+# --- BON-04: two gateway replicas — spread, sessions anywhere, a pod kill under load, shared per-key limit ---
+replicas() {
+  if [ -z "${MCP_KEY:-}" ]; then
+    local created; created="$(node "$(dirname "$0")/lib/gateway-key.mjs" create k8s-checks-replicas)" || { fail "could not create a temporary API key"; return; }
+    MCP_KEY="${created#* }"; TEMP_KEY_ID="${created%% *}"
+    trap 'node "$(dirname "$0")/lib/gateway-key.mjs" revoke "$TEMP_KEY_ID" >/dev/null 2>&1' EXIT
+  fi
+  local ready pods since i n0 n1
+  ready="$(kubectl -n "$PLATFORM" get deploy gateway -o jsonpath='{.status.readyReplicas}')"
+  [ "${ready:-0}" -ge 2 ] && pass "TC-BON-04-2a gateway has $ready ready replicas" || fail "TC-BON-04-2a gateway ready replicas: ${ready:-0} (want ≥ 2)"
+  [ "$(kubectl -n "$PLATFORM" get pdb gateway -o jsonpath='{.spec.minAvailable}' 2>/dev/null)" = 1 ] \
+    && pass "TC-BON-04-2b PodDisruptionBudget gateway minAvailable=1" || fail "TC-BON-04-2b no PodDisruptionBudget"
+
+  # Spread: Traefik balances over both pods; each pod logs the tools/list it served.
+  since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; sleep 1
+  for i in $(seq 20); do rpc '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' >/dev/null; done
+  read -r -a pods <<<"$(kubectl -n "$PLATFORM" get pods -l app=gateway -o jsonpath='{.items[*].metadata.name}')"
+  n0="$(kubectl -n "$PLATFORM" logs "${pods[0]}" --since-time="$since" | grep -c '"msg":"tools/list"')"
+  n1="$(kubectl -n "$PLATFORM" logs "${pods[1]}" --since-time="$since" | grep -c '"msg":"tools/list"')"
+  [ "$n0" -gt 0 ] && [ "$n1" -gt 0 ] && [ $((n0 + n1)) -eq 20 ] && pass "TC-BON-04-2c 20 tools/list spread over both pods ($n0 + $n1)" \
+    || fail "TC-BON-04-2c tools/list per pod: $n0 + $n1 (want both > 0, total 20)"
+
+  # Dashboard session created on one replica works on the other (sessions in Postgres).
+  local ok; ok="$(node --input-type=module -e '
+    import { adminSession } from "./scripts/lib/gateway-key.mjs";
+    const origin = process.env.APP_ORIGIN ?? "http://app.127.0.0.1.nip.io";
+    const cookie = await adminSession(); let ok = 0;
+    for (let i = 0; i < 10; i++) if ((await fetch(`${origin}/api/me`, { headers: { cookie } })).status === 200) ok++;
+    console.log(ok);' session)"
+  [ "$ok" = 10 ] && pass "TC-BON-04-2d one dashboard session, 10 × /api/me over both replicas → 10 × 200" || fail "TC-BON-04-2d /api/me ok $ok/10"
+
+  # Kill one pod while a client keeps calling: no failed request (graceful shutdown + endpoint removal).
+  local results="$(mktemp)" bad total
+  ( for i in $(seq 40); do
+      out="$(rpc '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"woo__list_orders","arguments":{"per_page":1}}}' | head -n -1)"
+      grep -q '"result"' <<<"$out" && grep -qv '"isError":true' <<<"$out" && echo ok >>"$results" || echo "bad ${out:0:100}" >>"$results"
+      sleep 0.25
+    done ) &
+  local loop=$!
+  sleep 2; kubectl -n "$PLATFORM" delete pod "${pods[0]}" --wait=false >/dev/null
+  wait $loop
+  total="$(wc -l <"$results")"; bad="$(grep -c '^bad' "$results")"
+  [ "$total" = 40 ] && [ "$bad" = 0 ] && pass "TC-BON-04-2e pod ${pods[0]} deleted during 40 woo__list_orders calls → 0 failed" \
+    || fail "TC-BON-04-2e $bad of $total calls failed while a pod was deleted: $(grep -m1 '^bad' "$results")"
+  rm -f "$results"
+  kubectl -n "$PLATFORM" rollout status deploy/gateway --timeout=120s >/dev/null && pass "TC-BON-04-2f replacement pod Ready" || fail "TC-BON-04-2f rollout"
+
+  # Shared per-key limit through the Ingress (both replicas): limit + 20 requests, 20 at a time, so they all
+  # land in one window (sequential calls can take longer than the window). At most `limit` may succeed.
+  local limit codes ok429 ok200 retry
+  limit="$(kubectl -n "$PLATFORM" get deploy gateway -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="MCP_RATE_LIMIT_PER_APIKEY")].value}')"
+  codes="$(seq $((limit + 20)) | xargs -P 20 -I{} curl -s -o /dev/null -w '%{http_code}\n' -m 20 -X POST "$GW_URL" -H "Authorization: Bearer $MCP_KEY" \
+    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')"
+  ok200="$(grep -c '^200$' <<<"$codes")"; ok429="$(grep -c '^429$' <<<"$codes")"
+  retry="$(curl -s -D - -o /dev/null -m 10 -X POST "$GW_URL" -H "Authorization: Bearer $MCP_KEY" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | tr -d '\r' | awk -F': ' 'tolower($1)=="retry-after"{print $2}')"
+  [ "$ok200" -le "$limit" ] && [ "$ok429" -ge 20 ] && [ $((ok200 + ok429)) -eq $((limit + 20)) ] && [ "${retry:-0}" -gt 0 ] \
+    && pass "TC-BON-04-2g per-key limit $limit/min across both replicas: $((limit + 20)) parallel requests → $ok200 × 200, $ok429 × 429, Retry-After ${retry} s" \
+    || fail "TC-BON-04-2g $((limit + 20)) requests → $ok200 × 200, $ok429 × 429 (want ≤ $limit and ≥ 20), Retry-After '${retry}'"
+}
+
 case "${1:-all}" in
   netpol) netpol ;;
   ingress) ingress ;;
   killpod) killpod ;;
   metrics) metrics ;;
+  replicas) replicas ;;
   all) ingress; netpol ;;
-  *) echo "usage: $0 netpol|ingress|killpod|metrics|all" >&2; exit 2 ;;
+  *) echo "usage: $0 netpol|ingress|killpod|metrics|replicas|all" >&2; exit 2 ;;
 esac
 echo "failures: $fails"
 exit $((fails > 0))

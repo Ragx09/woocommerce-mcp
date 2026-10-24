@@ -21,7 +21,7 @@ The repo lives on the Linux filesystem (`~/projects/woocommerce-mcp`), because b
 | store | wp-init-<revision> | Job (one per Helm revision, idempotent) | — | — |
 | store | woo-mcp | Deployment | — | internal (gateway only) |
 | platform | postgres | StatefulSet | PVC 1Gi | internal (gateway only) |
-| platform | gateway | Deployment | — | Ingress `app.<domain>/api`, `/mcp` |
+| platform | gateway | Deployment, 2 replicas (PDB `minAvailable: 1`, preStop 5 s; BON-04) | — | Ingress `app.<domain>/api`, `/mcp`; metrics port 9464 only to labelled scrapers (BON-03) |
 | platform | dashboard | Deployment | — (`/tmp` emptyDir) | Ingress `app.<domain>/` (nginx-unprivileged, Traefik-only NetworkPolicy, no egress) |
 | platform | everything-mcp | Deployment | — | internal (gateway only) |
 

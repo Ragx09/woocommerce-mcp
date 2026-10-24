@@ -11,6 +11,10 @@
 //   is only checked here; it is never forwarded upstream (T-04).
 // - Tool permissions (BON-01, authz/tool-access.ts): members get only the tools their role may use;
 //   tools/list leaves the others out, tools/call refuses them with `tool_forbidden` (audited as rejected).
+// - Rate limits (BON-04): tools/call and tools/list count against the caller's key and user, shared by
+//   all replicas (Postgres); over the limit → 429 + Retry-After, audited as rejected/rate_limited.
+//   The dashboard chat's own requests (internal token) are not counted: the chat route has its own
+//   per-user limits, and a member over their API budget must still get a readable chat answer.
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -25,6 +29,7 @@ import type { AuditEvent, AuditMethod, AuditSink, CallContext } from '../audit/a
 import type { AuditOutcome, Role } from '../db/schema.js';
 import type { Upstream } from '../db/schema.js';
 import type { ToolDiscovery } from '../upstreams/discovery.js';
+import type { RateLimiter } from '../ratelimit.js';
 import type { HealthMonitor } from '../upstreams/health.js';
 import {
   isSafeCallRetry, safeReason, UpstreamTimeoutError, UpstreamUnavailableError, withDeadline, type UpstreamPool,
@@ -50,6 +55,16 @@ export interface McpDeps {
   callTimeoutMs?: number;
   /** Audit log (AUTH-13): one event per tools/call, tools/list and refused request. Omitted → not audited. */
   audit?: AuditSink;
+  /** BON-04: per-key and per-user budgets for tools/call + tools/list (0 = no limit). Omitted → none. */
+  rateLimit?: { limiter: RateLimiter; perKey: number; perUser: number; windowMs: number };
+}
+
+/** Seconds to wait when this request is over the caller's budget, else 0. Both buckets count the hit. */
+async function overBudget(rl: NonNullable<McpDeps['rateLimit']>, p: Principal): Promise<number> {
+  const checks = [];
+  if (rl.perUser > 0) checks.push(rl.limiter.hit(`mcp:user:${p.userId}`, rl.perUser, rl.windowMs));
+  if (rl.perKey > 0 && p.keyId) checks.push(rl.limiter.hit(`mcp:key:${p.keyId}`, rl.perKey, rl.windowMs));
+  return Math.max(0, ...(await Promise.all(checks)).map((r) => r.retryAfterS));
 }
 
 /** The token of an `Authorization: Bearer <token>` header, or '' (scheme is case-insensitive per RFC 9110). */
@@ -241,6 +256,17 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
     if (principal) {
       req.principal = principal;
       req.log = req.log.child({ userId: principal.userId, keyId: principal.keyId }); // every line of this request
+      const method = rpcMethod(req.body);
+      if (deps.rateLimit && principal.source !== 'chat' && (method === 'tools/call' || method === 'tools/list')) {
+        const wait = await overBudget(deps.rateLimit, principal);
+        if (wait) {
+          req.log.warn({ method, retryAfter: wait }, 'rate limited /mcp request');
+          await deps.audit?.({ requestId: req.id, userId: principal.userId, apiKeyId: principal.keyId, source: principal.source ?? 'mcp',
+            method, upstreamId: null, upstreamSlug: null, tool: null, durationMs: reply.elapsedTime, outcome: 'rejected', errorCode: 'rate_limited' });
+          return reply.code(429).header('retry-after', String(wait))
+            .send({ error: 'rate_limited', message: `too many requests; try again in ${wait} s`, retryAfter: wait });
+        }
+      }
       return;
     }
     req.log.warn({ ip: req.ip, hadToken: token !== '' }, 'rejected /mcp request: missing or invalid API key');

@@ -212,3 +212,30 @@ export const auditLog = pgTable(
   ],
 );
 export type AuditRow = typeof auditLog.$inferSelect;
+
+// ---- Shared rate limits and leases (BON-04): the same budget on every gateway replica ----
+
+/** One counter per bucket (`mcp:key:<id>`, `chat:user:<id>` …); the window starts at its first hit. */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    bucket: text('bucket').primaryKey(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    hits: integer('hits').notNull(),
+  },
+  (t) => [
+    check('rate_limits_bucket', sql`char_length(${t.bucket}) between 1 and 200`),
+    check('rate_limits_hits', sql`${t.hits} >= 0`),
+  ],
+);
+
+/** Exclusive, self-expiring holds (e.g. "one chat request per user at a time" across replicas). */
+export const leases = pgTable(
+  'leases',
+  {
+    key: text('key').primaryKey(),
+    holder: uuid('holder').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('leases_key', sql`char_length(${t.key}) between 1 and 200`)],
+);

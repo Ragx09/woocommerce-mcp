@@ -93,7 +93,15 @@ gateway:
   image:
     repository: gateway
     tag: dev
-  replicas: 1
+  # BON-04: 2 replicas; sessions, rate limits and the chat's busy lock live in Postgres, so any replica
+  # can serve any request (stateless MCP). A PodDisruptionBudget keeps one up during node drains.
+  replicas: 2
+  # /mcp tools/call + tools/list per API key and per user (all keys) in each window, shared by all replicas
+  # (Postgres). 0 = no limit. The dashboard chat has its own limits (30 messages / 10 min per user).
+  rateLimit:
+    perKey: 120
+    perUser: 240
+    windowMs: 60000
   logLevel: info
   # BON-03: Prometheus GET /metrics on its own port (pod only: no Service port, no Ingress route). Only pods
   # labelled metrics.scraper allowed in (any namespace). 0 → off.

@@ -23,6 +23,9 @@ metadata:
   labels: {{- include "platform.labels" $ctx | nindent 4 }}
 spec:
   replicas: {{ $v.replicas }}
+  strategy:   # BON-04: a new pod is Ready before an old one goes, so capacity never drops
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   selector:
     matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
   template:
@@ -36,6 +39,8 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: false
+      # BON-04: preStop pause (5 s) + graceful close of in-flight requests (index.ts, ≤ 5 s) fit in 15 s.
+      terminationGracePeriodSeconds: 15
       {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 1000
@@ -53,6 +58,9 @@ spec:
             {{- end }}
           env:
             - { name: PORT, value: "8080" }
+            - { name: MCP_RATE_LIMIT_PER_APIKEY, value: {{ $v.rateLimit.perKey | quote }} }    # BON-04, shared by replicas
+            - { name: MCP_RATE_LIMIT_PER_USER, value: {{ $v.rateLimit.perUser | quote }} }
+            - { name: MCP_RATE_LIMIT_WINDOW_MS, value: {{ $v.rateLimit.windowMs | quote }} }
             - { name: METRICS_PORT, value: {{ $v.metrics.port | default 0 | quote }} }   # BON-03; not in the Service/Ingress
             - { name: LOG_LEVEL, value: {{ $v.logLevel | quote }} }
             - { name: TRUST_PROXY_HOPS, value: "1" }   # Traefik
@@ -104,6 +112,10 @@ spec:
             - name: SEED_GITHUB_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: github-pat, optional: true } }
             {{- end }}
+          lifecycle:
+            # BON-04: keep serving while Traefik drops this pod from its endpoints; without it a request can
+            # still be routed here after SIGTERM and fail with 502 (seen in k8s-checks replicas).
+            preStop: { sleep: { seconds: 5 } }
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
           # Migrations run before the server listens; give startup up to 3 min before liveness applies.
           startupProbe:
@@ -119,6 +131,20 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 3
           resources: {{- include "platform.resources" (dict "name" "gateway" "resources" $v.resources) | nindent 12 }}
+{{- if gt (int $v.replicas) 1 }}
+---
+# BON-04: voluntary disruptions (node drain, k3s upgrade) leave at least one gateway serving.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+{{- end }}
 ---
 # app.<domain>: /api and /mcp → gateway, everything else → dashboard. The gateway probes (/healthz,
 # /readyz) are not routed. /mcp is Prefix, not Exact: Traefik orders routers by the length of the rule

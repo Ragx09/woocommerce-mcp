@@ -17,6 +17,7 @@ import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 import { buildMetricsServer, Metrics } from './metrics.js';
+import { PgRateLimiter } from './ratelimit.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
@@ -61,7 +62,7 @@ app.log.info({ allowedHosts: [...ssrf.allowedHosts] }, 'ssrf allowlist');
 const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, ssrf, log: app.log,
   maxResponseBytes: cfg.upstreamMaxResponseBytes });
 await upstreamPool.sync(await listUpstreams(createDb(dbPool)));
-app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug), timeouts: cfg.upstreamTimeouts }, 'upstream pool ready');
+app.log.info({ upstreams: upstreamPool.upstreams().map((u) => u.slug), timeouts: cfg.upstreamTimeouts, mcpRateLimit: cfg.mcpRateLimit }, 'upstream pool ready');
 
 // Gateway MCP endpoint (GW-06). Upstreams are reloaded from the DB on each tools/list.
 const db = createDb(dbPool);
@@ -86,7 +87,10 @@ metrics.addGauge({ name: 'mcp_upstream_up', help: 'Upstream health as seen by th
     return { labels: { upstream: r.slug, status }, value: status === 'connected' ? 1 : 0 };
   }) });
 const auditToDb = dbAuditSink(db, app.log);
+// BON-04: limits in Postgres, so every replica enforces the same budget.
+const limiter = new PgRateLimiter(db);
 registerMcp(app, {
+  rateLimit: { limiter, ...cfg.mcpRateLimit },
   authenticate: mcpAuthenticator(db, internalTokens),
   audit: async (e) => { metrics.record(e); await auditToDb(e); },
   loadUpstreams: () => listUpstreams(db),
@@ -98,6 +102,7 @@ registerMcp(app, {
 // UI-14: dashboard chat agent → this process's own /mcp over loopback with the user's internal token.
 registerChatRoutes(app, {
   llm: cfg.llm.apiKey ? openAiCompatible(cfg.llm) : null,
+  limiter,
   signer: internalTokens,
   mcpUrl: () => `http://127.0.0.1:${cfg.port}/mcp`,
   unavailable: async () => (await listUpstreams(db)).filter((r) => r.enabled && health.isUnreachable(r.id))

@@ -18,6 +18,9 @@ import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { parsePublicName } from '../mcp/naming.js';
 import type { ChatCompletion, ChatMessage, LlmTool } from './llm.js';
 
+/** Budget for one chat request (all LLM rounds and tool calls). */
+export const DEFAULT_DEADLINE_MS = 150_000;
+
 /** The part of an MCP client the agent uses (the SDK `Client`, or a stub in tests). */
 export interface McpSession {
   listTools(): Promise<{ tools: Tool[] }>;
@@ -170,7 +173,7 @@ export async function runAgent(
   const maxToolCalls = opts.maxToolCalls ?? 16;
   const maxTools = opts.maxTools ?? 128;
   const now = opts.now ?? (() => new Date());
-  const deadline = now().getTime() + (opts.deadlineMs ?? 150_000);
+  const deadline = now().getTime() + (opts.deadlineMs ?? DEFAULT_DEADLINE_MS);
   const toolCalls: ToolCallRecord[] = [];
 
   const mcp = await opts.connect();
