@@ -82,6 +82,12 @@ These are not in the table:
 - **All ports open by default.** Attach a Security Group (dashboard → Security Groups, region-scoped, allow-only): inbound SSH 22 from my IP, TCP 80 + 443 from Anywhere, nothing else (6443 stays closed). Rules apply instantly and survive pause/resume.
 - **Pause is risky for us:** the public IP changes on resume (sslip.io domain + certificate break) unless a **Reserved IP** ($5/mo) is attached; the docs also say only the home directory is guaranteed to persist across pause. k3s keeps its state in `/var/lib/rancher` → **do not pause the VM**; keep it running or destroy it.
 
+### Usage plan: on only for evidence, recording and presenting (decided 2026-10-24)
+- **Size: 4 vCPU / 16 GB, 100 GB.** Billed per hour, so the bigger size costs only ~₹4/h more and leaves room for every bonus item: the default store + 2–3 extra stores (≈0.5 CPU / 0.9 GiB requested each, CPU-heavy wp-init on create), hosted servers, provisioner, cert-manager, k3s. 2 vCPU / 8 GB would run out of CPU requests at about 2 extra stores, and live store creation would be slow on camera.
+- **Between sessions: destroy, not pause** (default). Cost between sessions is ₹0, and nothing depends on whether a paused VM keeps `/var/lib/rancher`. A fresh bring-up is scripted (create VM → k3s → secrets → Helm → TLS → seed) and takes ~20–30 min, so start it well before a recording or a presentation.
+- **Pause only for a short gap** (e.g. recording today, presenting tomorrow): compute stops, the 100 GB disk keeps costing ₹1.30/h (≈₹31/day). Only after a test pause/resume showed that k3s and its data survive (first session), and with a Reserved IP (₹475/month) or a redeploy with the new `<ip>.sslip.io` domain.
+- **Sessions planned:** (1) bring-up + BON-07 evidence (`e2e.sh all` over https) + pause test, ~4–6 h; (2) video recording, ~3 h; (3) presentation, ~2 h. ≈ 10–12 h × ₹9.34/h ≈ **₹100–150 in total**, plus the Reserved IP if one is used.
+
 ## 3. Facts (fill in once the VPS exists)
 | Field | Value |
 |---|---|
@@ -143,3 +149,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — Created this file. Specs computed from the prod render: 0.63 CPU / 1.3 GiB requested, 3.2 GiB at the limits, 11 GiB PVC. Recommended tier 4 vCPU / 8 GB / 80 GB because of the required bonus items. VPS not yet obtained (P0-03 Blocked).
 - 2026-10-24 — Compared E2E Networks and JarvisLabs (table in §2). E2E C3.8GB recommended.
 - 2026-10-24 — Chose JarvisLabs. Explored its docs: no MCP, `jl` CLI supports CPU VMs, security groups, reserved IP (details in §2). Dashboard not yet viewed (Chrome site permission for jarvislabs.ai pending).
+- 2026-10-24 — Decided on-demand use (§2 Usage plan): 4 vCPU / 16 GB, destroy between sessions, pause only for short gaps after a pause test.
