@@ -119,7 +119,7 @@ These are not in the table:
 One-time (no cost):
 1. ✓ CLI installed: `uv tool install jarvislabs` (jl 0.2.17, 2026-10-24).
 2. ✓ SSH key `~/.ssh/jarvis_vps` created. **To do:** add the public key to JarvisLabs (`jl ssh-key add ~/.ssh/jarvis_vps.pub --name woo-mcp-vps` or dashboard → Settings).
-3. **To do (user):** `jl setup` (API token from jarvislabs.ai/settings/api-keys; skill install optional), add credits.
+3. ✓ `jl setup` done (2026-10-24; `jl status` shows the account). **To do (user):** add credits (balance ₹0.00).
 4. **To do:** Security Group in IN2 (dashboard → Security Groups; see §5). Attach it to the VM right after creation.
 5. Optional: DuckDNS name (free, on the Public Suffix List → own Let's Encrypt limit): `DUCKDNS_DOMAIN`, `DUCKDNS_TOKEN` in `.env`.
 
@@ -155,3 +155,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — Chose JarvisLabs. Explored its docs: no MCP, `jl` CLI supports CPU VMs, security groups, reserved IP (details in §2). Dashboard not yet viewed (Chrome site permission for jarvislabs.ai pending).
 - 2026-10-24 — Decided on-demand use (§2 Usage plan): 4 vCPU / 16 GB, destroy between sessions, pause only for short gaps after a pause test.
 - 2026-10-24 — Moved everything VPS-related into `vps-setup/` (this file, `preflight.sh`, `install-k3s.sh`) and wrote `up.sh`/`down.sh`/`ssh.sh`. Installed `jl` 0.2.17, created `~/.ssh/jarvis_vps`. Chart: `acme-solver-from-ingress` NetworkPolicy. Found sslip.io is not on the PSL (Let's Encrypt limit shared). Not run yet: no credits.
+- 2026-10-24 — Signed in the `jl` CLI with `jl setup` (token in `~/.config/jl/config.toml`) → `jl status`: account OK, balance ₹0.00, 0 running, 0 paused. `jl ssh-key list`: no keys yet.
