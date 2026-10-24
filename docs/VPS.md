@@ -73,6 +73,13 @@ These are not in the table:
 | JarvisLabs CPU VM 2 vCPU · 8 GB | 2 / 8 GB / storage extra | $0.05/h ≈ $36/mo + disk $0.10/GB-mo + reserved IP $5/mo ≈ $49/mo | GPU-focused cloud. **All ports open by default** → Security Group/ufw needed. IP changes on resume unless reserved. |
 | JarvisLabs CPU VM 4 vCPU · 16 GB | 4 / 16 GB / storage extra | $0.10/h ≈ $73/mo + disk + IP ≈ $86/mo | Same caveats. |
 
+### JarvisLabs specifics (chosen 2026-10-24, from docs.jarvislabs.ai)
+- **No MCP server**, but an official agent-friendly CLI `jl` (`uv tool install jarvislabs`, then `jl setup` with an API token from jarvislabs.ai/settings/api-keys; the token lives in `~/.config/jl/config.toml`, never in the repo).
+- **Create a CPU VM:** `jl ssh-key add ~/.ssh/<key>.pub --name laptop` then `jl create --vm --cpu --vcpus 4 --ram 8 --storage 100 --region IN2 --name woo-mcp-vps --yes --json`. A VM needs ≥1 SSH key and **≥100 GB storage** (auto-bumped). `jl get <id>` shows the public IP. SSH user is `cloud`.
+- **Rate formula:** $0.012/vCPU-h + $0.0032/GB-RAM-h, storage $0.10/GB-month. 4 vCPU / 8 GB ≈ $0.074/h ≈ $54/mo + 100 GB $10 + reserved IP $5 ≈ **$69/mo** if run 24/7 (to be confirmed in the dashboard).
+- **All ports open by default.** Attach a Security Group (dashboard → Security Groups, region-scoped, allow-only): inbound SSH 22 from my IP, TCP 80 + 443 from Anywhere, nothing else (6443 stays closed). Rules apply instantly and survive pause/resume.
+- **Pause is risky for us:** the public IP changes on resume (sslip.io domain + certificate break) unless a **Reserved IP** ($5/mo) is attached; the docs also say only the home directory is guaranteed to persist across pause. k3s keeps its state in `/var/lib/rancher` → **do not pause the VM**; keep it running or destroy it.
+
 ## 3. Facts (fill in once the VPS exists)
 | Field | Value |
 |---|---|
@@ -133,3 +140,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 
 - 2026-10-24 — Created this file. Specs computed from the prod render: 0.63 CPU / 1.3 GiB requested, 3.2 GiB at the limits, 11 GiB PVC. Recommended tier 4 vCPU / 8 GB / 80 GB because of the required bonus items. VPS not yet obtained (P0-03 Blocked).
 - 2026-10-24 — Compared E2E Networks and JarvisLabs (table in §2). E2E C3.8GB recommended.
+- 2026-10-24 — Chose JarvisLabs. Explored its docs: no MCP, `jl` CLI supports CPU VMs, security groups, reserved IP (details in §2). Dashboard not yet viewed (Chrome site permission for jarvislabs.ai pending).
