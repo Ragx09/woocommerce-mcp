@@ -6,7 +6,8 @@
 #   vps-setup/up.sh --no-vm    skip the jl step (VM already running, IP in vps-setup/.state)
 # Env / .env: VPS_VCPUS/VPS_RAM (4/16), VPS_REGION (IN2), VPS_DOMAIN (default <ip>.sslip.io),
 #   DUCKDNS_DOMAIN + DUCKDNS_TOKEN (optional: point <name>.duckdns.org at the VM and use it as the domain),
-#   TLS_ISSUER (letsencrypt-prod | letsencrypt-staging), ACME_EMAIL (optional).
+#   TLS_ISSUER (letsencrypt-prod | letsencrypt-staging), ACME_EMAIL (optional),
+#   SKIP_SG_CHECK=1 (skip the Security Group gate below; only if the check itself misfires).
 # Creating a VM starts billing (vps-setup/VPS.md §2). Stop it with vps-setup/down.sh.
 . "$(dirname "$0")/lib.sh"
 need jl jq ssh scp kubectl helm docker node curl
@@ -52,7 +53,29 @@ save_state
 echo "machine ${MACHINE_ID:-?}  ip $IP  domain $DOMAIN"
 
 log "waiting for SSH"
-for i in $(seq 1 30); do vssh true 2>/dev/null && break; [ "$i" = 30 ] && die "no SSH to $IP"; sleep 5; done
+for i in $(seq 1 30); do
+  vssh true 2>/dev/null && break
+  [ "$i" = 30 ] && die "no SSH to $IP (the Security Group allows SSH from one IP only: does it still match yours?)"
+  sleep 5
+done
+
+# A new VM is open on every port until the Security Group is attached, and jl cannot attach it.
+# Gate before k3s so 6443/10250 never face the internet. The group never allows 6443, so:
+# attached → the probe is dropped (timeout); not attached → the VM answers (connect or "refused").
+sg_attached() { local rc=0; timeout 5 bash -c "</dev/tcp/$IP/6443" 2>/dev/null || rc=$?; [ "$rc" = 124 ]; }
+log "Security Group $SECURITY_GROUP"
+if [ -n "${SKIP_SG_CHECK:-}" ]; then
+  echo "SKIP_SG_CHECK set: not checking"
+else
+  until sg_attached; do
+    msg="Dashboard → VM ${MACHINE_ID:-$IP} → attach Security Group '$SECURITY_GROUP' (region $VM_REGION)"
+    [ -t 0 ] || die "$IP:6443 is not filtered. $msg, then re-run"
+    echo "$IP:6443 is not filtered, so no Security Group is attached yet."
+    echo "$msg."
+    read -r -p "Press Enter to check again (Ctrl-C stops; the VM bills until vps-setup/down.sh): " _
+  done
+  echo "6443 filtered: Security Group attached"
+fi
 
 # 2. Preflight + k3s ---------------------------------------------------------------------------------
 ARCH="$(vssh uname -m)"
@@ -76,8 +99,8 @@ mkdir -p "$HOME/.kube"
     | sed "s#https://127.0.0.1:6443#https://127.0.0.1:$TUNNEL_PORT#; s#: default\$#: $CTX#" > "$KUBECONFIG" )
 tunnel_up
 kubectl --context "$CTX" get nodes -o wide
-if timeout 5 bash -c "</dev/tcp/$IP/6443" 2>/dev/null; then
-  echo "WARNING: $IP:6443 is reachable from here — attach the Security Group (vps-setup/VPS.md §5)"
+if [ -z "${SKIP_SG_CHECK:-}" ] && ! sg_attached; then
+  die "$IP:6443 is reachable from here: attach Security Group '$SECURITY_GROUP' (vps-setup/VPS.md §5)"
 fi
 
 # 3. Images: built locally, streamed into k3s's containerd (no registry; tags match values-prod) ----

@@ -9,6 +9,7 @@ STATE="$VPS_DIR/.state"
 [ -f "$REPO/.env" ] && set -a && . "$REPO/.env" && set +a
 VM_NAME="${VPS_VM_NAME:-woo-mcp-vps}"
 VM_VCPUS="${VPS_VCPUS:-4}" VM_RAM="${VPS_RAM:-16}" VM_STORAGE="${VPS_STORAGE:-100}" VM_REGION="${VPS_REGION:-IN2}"
+SECURITY_GROUP="${VPS_SECURITY_GROUP:-woo-mcp-vps}"   # dashboard-only; attached by hand (vps-setup/VPS.md §5)
 SSH_KEY="${VPS_SSH_KEY:-$HOME/.ssh/jarvis_vps}"
 SSH_USER="${VPS_SSH_USER:-cloud}"
 KNOWN_HOSTS="$HOME/.ssh/known_hosts_vps"

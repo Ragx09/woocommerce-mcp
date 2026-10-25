@@ -125,7 +125,7 @@ One-time (no cost):
 
 Each session (billing runs from step 1 to `down.sh`):
 1. `vps-setup/up.sh` — first run ~20–30 min (image upload depends on the laptop's upload speed). Use `TLS_ISSUER=letsencrypt-staging` the very first time, then re-run without it.
-2. Attach the Security Group `woo-mcp-vps` in the dashboard as soon as the VM exists (the script warns if 6443 is still reachable).
+2. When `up.sh` stops at "== Security Group woo-mcp-vps", attach the group in the dashboard and press Enter. The script probes 6443 and only installs k3s once it is filtered (non-interactive runs fail instead of waiting).
 3. Checks: `kubectl --context vps get pods -A`, `curl -sI https://app.<domain>`, then
    `APP_ORIGIN=https://app.<domain> STORE_ORIGIN=https://store.<domain> KUBECTL_CONTEXT=vps KUBECONFIG=~/.kube/vps.yaml scripts/e2e.sh all` (BON-07),
    persistence (REL-05: delete the MariaDB/WordPress/Postgres pods, data still there).
@@ -133,7 +133,7 @@ Each session (billing runs from step 1 to `down.sh`):
 5. `vps-setup/down.sh` (destroy) or `vps-setup/down.sh --pause`. Add a line to §7.
 
 ## 5. Hardening checklist
-- [x] **Security Group `woo-mcp-vps` (IN2) created** (JarvisLabs VMs are open on every port by default): inbound SSH 22 and Ping from my IP (`103.86.107.161/32` on 2026-10-24; update the rule if the home IP changes), TCP 80 and 443 from Anywhere; outbound all. Still to do per VM: attach it. Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
+- [x] **Security Group `woo-mcp-vps` (IN2) created** (JarvisLabs VMs are open on every port by default): inbound SSH 22 and Ping from my IP (`103.86.107.161/32` on 2026-10-24; update the rule if the home IP changes), TCP 80 and 443 from Anywhere; outbound all. Still to do per VM: attach it; `up.sh` gates on it before installing k3s (probe of 6443: timeout = filtered = attached; connect or "refused" = not attached; `SKIP_SG_CHECK=1` bypasses it if the probe misfires, e.g. a laptop network that blocks outbound 6443 would read as attached). Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
 - [ ] No ufw on the VM: the Security Group filters at the network port, and ufw needs extra k3s CIDR rules (`10.42.0.0/16`, `10.43.0.0/16`) to avoid breaking pod networking.
 - [ ] SSH key login only (JarvisLabs default: user `cloud`, no password).
 - [ ] VM lifetime is hours, so `unattended-upgrades` and fail2ban are not needed; for a long-lived VM, enable both.
@@ -158,3 +158,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — Signed in the `jl` CLI with `jl setup` (token in `~/.config/jl/config.toml`) → `jl status`: account OK, balance ₹0.00, 0 running, 0 paused. `jl ssh-key list`: no keys yet.
 - 2026-10-24 — `jl ssh-key add ~/.ssh/jarvis_vps.pub --name woo-mcp-vps` → "SSH key 'woo-mcp-vps' added"; `jl ssh-key list` shows id `AKQronIl`, ssh-ed25519 …INbX.
 - 2026-10-24 — Created Security Group `woo-mcp-vps` in IN2 via the dashboard → after reload shows "4 inbound · 1 outbound · 0 instances": TCP 22 ← 103.86.107.161/32, ICMP ← 103.86.107.161/32, TCP 80 ← Anywhere, TCP 443 ← Anywhere, ANY → Anywhere. `jl create --help` has no security-group option → attach manually per VM.
+- 2026-10-24 — `up.sh`: Security Group gate after SSH is up and before k3s (pause + re-check loop), the late 6443 warning is now an error; `VPS_SECURITY_GROUP` in `lib.sh`. Probe tested locally: blackhole 10.255.255.1:6443 → attached (5 s timeout), 127.0.0.1:1 refused → not attached, listening 127.0.0.1:18999 → not attached. `bash -n` OK. Not yet run against a real VM.
