@@ -70,8 +70,8 @@ Every mandatory requirement (IDs from [`SPEC.md`](../SPEC.md)) has an implementa
 | REQ-DEL-08 | Deliverables | List of bonus items attempted | docs | REL-12 | checklist | Verified | 2026-10-18 REL-12: README § Bonus / stand-out items attempted (table with locations; not-attempted items listed) |
 | REQ-DEL-09 | Submission | Demo video (6 topics) | video | REL-15, REL-16 | checklist | Not Started | — |
 | REQ-DEL-10 | Submission | Submit form with video + repo | user | P0-01, REL-17 | user confirmation | Not Started | — |
-| REQ-BON-01 | Bonus multi-store | Create/delete stores from the dashboard with status; concurrent | provisioner + dashboard | BON-12 | TC-BON-12-1, TC-BON-12-2 | Not Started | — |
-| REQ-BON-02 | Bonus multi-store | Per-store namespace, DB, Secrets, PVs, Ingress via Helm/K8s API | provisioner + chart | BON-09, BON-11 | TC-BON-11-1 | Not Started | — |
+| REQ-BON-01 | Bonus multi-store | Create/delete stores from the dashboard with status; concurrent (design: D-026, A-11) | provisioner + dashboard | BON-12 | TC-BON-12-1, TC-BON-12-2 | Not Started | — |
+| REQ-BON-02 | Bonus multi-store | Per-store namespace, DB, Secrets, PVs, Ingress via Helm/K8s API | provisioner + chart | BON-09, BON-11, BON-17 | TC-BON-11-1 | Not Started | — |
 | REQ-BON-03 | Bonus multi-store | Per-store MCP server auto-registered; store-clear tool names | provisioner + gateway | BON-13 | TC-BON-13-1 | Not Started | — |
 | REQ-BON-04 | Bonus multi-store | Clean teardown (namespace, volumes, Secrets, registration) | provisioner | BON-13 | TC-BON-13-1 | Not Started | — |
 | REQ-BON-05 | Bonus multi-store | Store isolation by NetworkPolicy | chart | BON-14 | TC-BON-14-1 | Not Started | — |

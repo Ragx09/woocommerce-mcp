@@ -2389,16 +2389,16 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 ### BON-09 — Provisioner foundation and RBAC
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 16
-- **Depends on:** REL-09
+- **Day:** 18
+- **Depends on:** SEC-09, BON-08 (order: multi-store after all other tasks, user 2026-10-25)
 - **Requirements:** REQ-SO-05, REQ-SO-06, REQ-BON-02, REQ-BON-07
-- **Description:** One component that creates and deletes workloads in the cluster for BON-10 and BON-11..15: a separate `provisioner` service (the gateway itself keeps no Kubernetes access) with its own ServiceAccount and least-privilege RBAC (namespaces with a fixed prefix and label; Deployments, Services, Secrets, PVCs, NetworkPolicies, ResourceQuota, LimitRange, Ingress only there), driven by the gateway over an internal authenticated API; desired state in Postgres, reconcile loop so a restart mid-provisioning completes or fails cleanly (idempotent create, timeout). Choose Helm SDK vs Kubernetes API (DECISIONS).
-- **Output:** `services/provisioner`, chart templates (SA, ClusterRole/Role, NetworkPolicy), D-0xx, THREAT_MODEL entries (a compromised provisioner, namespace escape).
-- **Acceptance:** Provisioner can create/delete only labelled namespaces and the listed kinds in them; restart during a create resumes; the gateway pod still mounts no token.
-- **Tests:** TC-BON-09-1 (int, k3d): reconcile after kill; TC-BON-09-2 (k3d): `kubectl auth can-i --as=system:serviceaccount:platform:provisioner` matrix (allowed and refused verbs).
-- **Command:** `scripts/k8s-checks.sh rbac`
+- **Description:** Design D-026 / A-11. (1) Extract the store into its own chart `charts/store` (mariadb, wordpress + hardening ConfigMap, wp-init, woo-mcp, NetworkPolicies, ResourceQuota, LimitRange, Ingress, `workload` ServiceAccount); the platform chart installs the default TATVA store through it as a dependency (`file://../store`), no behaviour change. (2) `services/provisioner` (TypeScript, Node 24, single replica + Postgres lease): the only component with Kubernetes rights (the gateway keeps none); runs a pinned `helm upgrade --install` / `helm uninstall` of `charts/store` into `store-<slug>`. (3) RBAC: ClusterRole `provisioner` (namespaces create/delete/get/list, RoleBindings create, `bind` only on ClusterRole `store-manager`); `store-manager` = only the namespaced kinds the store chart renders, granted per store namespace by a RoleBinding; a ValidatingAdmissionPolicy refuses the provisioner any namespace or RoleBinding outside `store-*` without label `platform.io/store`. (4) Desired state in Postgres (`stores`, `store_members`; own DB role with grants only there): the gateway writes, the provisioner reconciles (idempotent by request id, provisioning timeout → Failed with reason, restart mid-create resumes from DB + Helm release state). (5) Internal endpoint `POST /internal/stores/:id/ready|deleted` on the gateway, HMAC-signed with an internal Secret, NetworkPolicy gateway ← provisioner only.
+- **Output:** `charts/store`, `services/provisioner`, chart templates (SA, ClusterRoles, VAP, NetworkPolicies), migration, D-026, THREAT_MODEL entries (compromised provisioner, namespace escape, forged ready call).
+- **Acceptance:** The default store renders and runs unchanged through `charts/store` (e2e all, storefront/admin screens green); the provisioner can create/delete only labelled `store-*` namespaces and the listed kinds in them (VAP refuses the rest); killing it mid-create resumes; the gateway pod still mounts no token.
+- **Tests:** TC-BON-09-1 (k3d): reconcile after kill; TC-BON-09-2 (k3d): `kubectl auth can-i --as=system:serviceaccount:platform:provisioner` matrix (allowed and refused verbs) + VAP refusals (namespace `kube-system`/unlabelled, RoleBinding to `cluster-admin`); TC-BON-09-3 (int): forged/unsigned ready call refused.
+- **Command:** `scripts/k8s-checks.sh rbac && scripts/check-chart.sh`
 - **Evidence:** —
-- **Regression risk:** Pod Security `restricted` and default-deny must apply to every created namespace.
+- **Regression risk:** Moving the store templates can break the default store and the VPS path; Pod Security `restricted` and default-deny must apply to every created namespace.
 
 ### BON-10 — Hosted MCP servers by container image
 - **Priority:** P1
@@ -2414,75 +2414,89 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Evidence:** —
 - **Regression risk:** Hostile image: limits, no token, no egress.
 
-### BON-11 — Multi-store: per-store install
+### BON-11 — Multi-store: per-store install and niche templates
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 17
+- **Day:** 19
 - **Depends on:** BON-09
 - **Requirements:** REQ-BON-02
-- **Description:** Make the store part of the chart installable many times: a `store-<slug>` namespace with its own MariaDB, WordPress, wp-init, Secrets, PVCs, Ingress host (`<slug>.store.<domain>`) and its own woo-mcp. The original store stays the default store.
-- **Output:** chart/templates or a `store` subchart used by the provisioner; DEPLOYMENT upgrade path per store.
-- **Acceptance:** Two extra stores install side by side, each with a working shop and COD checkout.
-- **Tests:** TC-BON-11-1 (k3d): two stores Ready, `e2e-checkout.sh` against each.
+- **Description:** `charts/store` values per store: name, tagline, niche, accent colour, host `<slug>.store.<domain>`, generated Secrets (DB passwords, WooCommerce keys, woo-mcp token, one-time wp-admin password). Every store uses the TATVA theme with its own name/tagline (no TATVA name on new stores, A-11) and a per-niche accent within the TATVA palette, set by wp-init. Niche catalogues in `services/store-assets/catalogue/<niche>.json`: Stationery & desk, Tea & coffee, Home & ceramics, Bags & accessories (from the existing 50-product catalogue), Custom (owner's niche text as the only category, no products). Bike accessories is BON-17. The default store stays as it is.
+- **Output:** `charts/store` values/templates, wp-init theme parameters, niche catalogue files, DEPLOYMENT notes (per-store upgrade path).
+- **Acceptance:** Two extra stores of different niches install side by side, each with its own name, tagline, accent, products and a working COD checkout.
+- **Tests:** TC-BON-11-1 (k3d): two stores Ready, `e2e-checkout.sh` against each; TC-BON-11-2: storefront screens per store (name in header, no TATVA name, niche products).
 - **Command:** `scripts/e2e.sh stores`
 - **Evidence:** —
-- **Regression risk:** RAM: each store ≈ 0.4–0.5 GB; VPS size (8 GB).
+- **Regression risk:** RAM: each store ≈ 0.3 CPU / 0.7 GB requested; 5 stores on the 16 GB VPS, 2–3 on the laptop.
 
 ### BON-12 — Multi-store: create/delete API and dashboard
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 18
+- **Day:** 20
 - **Depends on:** BON-11
-- **Requirements:** REQ-BON-01, REQ-BON-07
-- **Description:** `/api/stores` (create, list, delete; caller-owned, admins see all) and a Stores page listing status (Provisioning / Ready / Failed with reason), URL and created time, refreshed live. Several creates at once; create is idempotent by request id.
-- **Output:** gateway routes, dashboard page, API_CONTRACTS.
-- **Acceptance:** Three stores created at once from the dashboard all reach Ready; a failed one shows a clear reason.
-- **Tests:** TC-BON-12-1 (int): concurrency + idempotent retry; TC-BON-12-2 (browser).
-- **Command:** `scripts/dashboard-screens.sh stores`
+- **Requirements:** REQ-BON-01, REQ-BON-06, REQ-BON-07
+- **Description:** `/api/stores`: create (`{name, niche, tagline, nicheText?}`, idempotency key; slug derived from the name, unique, shown before creating, not editable), list (own + shared; admins all; the default store shown as "default", not deletable), get, delete (owner or admin; typed slug confirmation). Caps server-side: 3 stores per member, 5 in total (Helm values; admins count toward the total only). Members and admins may create (A-11). Store page: status Provisioning / Ready / Failed with reason, URL, wp-admin link, created time, access list (owner/admin add or remove members), tool rule for shared members (default read-only, widen to all/selected like BON-01), one-time view of the wp-admin password (wiped after viewing; admin reset shows a new one once), delete; admins also see namespace, pod readiness and quota usage. Stores page refreshed live.
+- **Output:** gateway routes + migration, dashboard Stores pages, API_CONTRACTS.
+- **Acceptance:** Three stores created at once from the dashboard all reach Ready; a forced failure shows a clear reason; caps, ownership and access-list changes are enforced on the server (member 403/404 on others' stores); the wp-admin password can be viewed exactly once.
+- **Tests:** TC-BON-12-1 (int): API rules (caps, ownership, idempotency, slug); TC-BON-12-2 (browser): create three, see Ready/Failed, view password once, share with a member, delete.
+- **Command:** `scripts/gateway-db-int.sh && scripts/dashboard-screens.sh stores`
 - **Evidence:** —
-- **Regression risk:** —
+- **Regression risk:** Concurrent creates racing the caps (check under a row lock); a stuck store must not block others.
 
 ### BON-13 — Multi-store: automatic MCP registration and teardown
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 18
+- **Day:** 21
 - **Depends on:** BON-12
 - **Requirements:** REQ-BON-03, REQ-BON-04
-- **Description:** When a store is Ready its woo-mcp is registered in the gateway with slug `woo-<store>` (tools `woo-<store>__list_orders`, description names the store); on delete the registration, namespace, PVCs and Secrets are removed and the tools vanish from `tools/list`.
-- **Output:** registration hook, naming note in MCP_DESIGN.
-- **Acceptance:** New store's tools appear without manual steps; after delete no trace remains (`kubectl get ns`, PVs, `/api/upstreams`, `tools/list`).
-- **Tests:** TC-BON-13-1 (k3d): create → tools listed; delete → tools, ns, PVCs gone.
+- **Description:** When a store's pods are Ready the provisioner calls the gateway's signed ready endpoint; the gateway encrypts the woo-mcp token like any upstream credential and registers upstream `woo-<slug>` (owner-scoped; description names the store, tools `woo-<slug>__list_orders` …). Gateway egress allows woo-mcp pods in namespaces labelled `platform.io/store`. Delete: unregister first (tools gone on the next request), then `helm uninstall` and namespace deletion (PVCs, PVs, Secrets with it); audit rows stay.
+- **Output:** provisioner + gateway registration code, NetworkPolicy change, MCP_DESIGN section.
+- **Acceptance:** A new store's tools appear for its owner without manual steps; after delete nothing remains (`kubectl get ns,pv`, `/api/upstreams`, `tools/list`, Helm release).
+- **Tests:** TC-BON-13-1 (k3d): create → tools listed and callable → delete → no trace; TC-BON-13-2 (int): registration only through the signed endpoint.
 - **Command:** `scripts/e2e.sh stores`
 - **Evidence:** —
-- **Regression risk:** local-path PVs must be reclaimed (reclaim policy Delete).
+- **Regression risk:** A delete that fails half-way must be retried by the reconcile loop, not leave orphans.
 
-### BON-14 — Multi-store: isolation, guardrails, recovery
+### BON-14 — Multi-store: isolation, access, guardrails, recovery
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 19
+- **Day:** 22
 - **Depends on:** BON-13
 - **Requirements:** REQ-BON-05, REQ-BON-06, REQ-BON-07
-- **Description:** NetworkPolicies so one store's woo-mcp cannot reach another store's database or WordPress; ResourceQuota + LimitRange per store namespace; max stores per user (Helm value); provisioning timeout → Failed with reason; provisioner restart mid-create → completes or fails cleanly.
-- **Output:** templates, `scripts/k8s-checks.sh stores`.
-- **Acceptance:** Probe pods prove cross-store access is blocked; limit and timeout enforced server-side; kill test passes.
-- **Tests:** TC-BON-14-1 (k3d): cross-store probes blocked; TC-BON-14-2 (int): limit per user; TC-BON-14-3 (k3d): kill provisioner during create.
-- **Command:** `scripts/k8s-checks.sh stores`
+- **Description:** Per store namespace: default-deny ingress + egress; wordpress ← Traefik + its own woo-mcp; mariadb ← its own wordpress; woo-mcp ← the gateway only; wp-init → its own mariadb + internet :443. ResourceQuota (≈ 1 CPU / 1.5 GiB limits / 4 GiB storage) + LimitRange. Access in `/mcp` and the chat (extend `authz/tool-access.ts`): owner and admins all tools, members on the store's access list its tool rule (default read-only), everyone else nothing (hidden in tools/list, refused in tools/call, audited). Guardrails: caps, provisioning timeout → Failed with reason. Recovery: kill the provisioner mid-create → completes or fails cleanly.
+- **Output:** store chart NetworkPolicies/quota, gateway authz, `scripts/k8s-checks.sh stores` probes, THREAT_MODEL.
+- **Acceptance:** Probe pods prove one store's woo-mcp/wordpress cannot reach another store's database or WordPress; quota, caps and timeout enforced server-side; access rules hold for API keys and the chat; the kill test passes.
+- **Tests:** TC-BON-14-1 (k3d): cross-store probe matrix; TC-BON-14-2: quota/cap/timeout; TC-BON-14-3: provisioner killed mid-create; TC-BON-14-4 (int): store access rules (owner, shared member, other member, admin).
+- **Command:** `scripts/k8s-checks.sh stores && scripts/gateway-db-int.sh`
 - **Evidence:** —
-- **Regression risk:** —
+- **Regression risk:** The gateway egress change must not widen access to anything but labelled store woo-mcp pods.
 
 ### BON-15 — Multi-store acceptance test
 - **Priority:** P1
 - **Status:** Not Started
-- **Day:** 19
-- **Depends on:** BON-14, BON-01
+- **Day:** 23
+- **Depends on:** BON-14
 - **Requirements:** REQ-BON-08
-- **Description:** The problem statement's test: ask the chat to compare today's orders across two stores (orders placed in each first), then delete one store and show its tools and resources are gone. Scripted in `scripts/e2e.sh stores`, then added to the demo runbook.
-- **Output:** script, runbook section, evidence log.
-- **Acceptance:** Chat answer names both stores' order counts matching each MariaDB; after delete `tools/list` and `kubectl` show nothing of that store.
-- **Tests:** TC-BON-15-1.
+- **Description:** The problem statement's test, scripted: create two stores of different niches, place orders in each, ask the chat to compare today's orders across the two stores (counts must match each MariaDB), then delete one store and show its tools and resources are gone. Added to the demo runbook.
+- **Output:** `scripts/e2e.sh stores`, DEMO_RUNBOOK section.
+- **Acceptance:** Chat answer names both stores' order counts matching each database; after delete `tools/list`, `/api/upstreams` and `kubectl` show nothing of that store.
+- **Tests:** TC-BON-15-1 (k3d, then VPS).
 - **Command:** `scripts/e2e.sh stores`
 - **Evidence:** —
-- **Regression risk:** Free-tier LLM budget with two stores' tools.
+- **Regression risk:** Groq free-tier limits: retry on 429 like the security suite.
+
+### BON-17 — Bike accessories niche
+- **Priority:** P1
+- **Status:** Not Started
+- **Day:** 23
+- **Depends on:** BON-11; the user's catalogue md files in `docs/`
+- **Requirements:** REQ-BON-02
+- **Description:** Bike accessories catalogue from the md files the user will add to `docs/` (product names, prices, descriptions); product images curated from open-license sources following `docs/PRODUCT_IMAGES.md` (commercial-use licences only, credits in the image manifest), baked into the store-assets image as `catalogue/bike.json`.
+- **Output:** `services/store-assets/catalogue/bike.json`, images + manifest entries.
+- **Acceptance:** A store created with the Bike accessories niche shows the catalogue with images and credits; licences recorded.
+- **Tests:** TC-BON-17-1: storefront screens for a bike store (no broken images, prices).
+- **Command:** `scripts/storefront-screens.sh`
+- **Evidence:** —
+- **Regression risk:** Image licences: no image without a recorded commercial-use licence.
 
 ### BON-16 — Stand-out documentation and demo
 - **Priority:** P1
