@@ -25,11 +25,19 @@ export class SsrfError extends Error {
 export interface SsrfPolicy {
   /** Lower-case host names (or IP literals) that may resolve to internal addresses. */
   allowedHosts: ReadonlySet<string>;
+  /** Anchored patterns for internal hosts that are created at runtime (BON-13: each store's woo-mcp). */
+  allowedHostPatterns?: readonly RegExp[];
 }
 
-export function ssrfPolicy(allowedHosts: Iterable<string> = []): SsrfPolicy {
-  return { allowedHosts: new Set([...allowedHosts].map((h) => h.trim().toLowerCase().replace(/\.$/, '')).filter(Boolean)) };
+export function ssrfPolicy(allowedHosts: Iterable<string> = [], allowedHostPatterns: readonly RegExp[] = []): SsrfPolicy {
+  return { allowedHosts: new Set([...allowedHosts].map((h) => h.trim().toLowerCase().replace(/\.$/, '')).filter(Boolean)), allowedHostPatterns };
 }
+
+/** A created store's woo-mcp Service (namespace store-<slug>, D-026). Nothing else in those namespaces is allowed. */
+export const STORE_WOO_MCP_HOST = /^woo-mcp\.store-[a-z][a-z0-9-]{1,14}[a-z0-9]\.svc\.cluster\.local$/;
+
+const hostAllowed = (host: string, policy: SsrfPolicy) =>
+  policy.allowedHosts.has(host) || (policy.allowedHostPatterns ?? []).some((re) => re.test(host));
 
 const always = new BlockList(); // never reachable, allowlisted or not
 always.addSubnet('169.254.0.0', 16, 'ipv4'); // link-local incl. cloud metadata
@@ -69,7 +77,7 @@ export function addressClass(address: string): 'metadata/link-local' | 'internal
 function checkAddress(host: string, address: string, policy: SsrfPolicy): void {
   const cls = addressClass(address);
   if (!cls) return;
-  if (cls === 'internal' && policy.allowedHosts.has(host)) return;
+  if (cls === 'internal' && hostAllowed(host, policy)) return;
   throw new SsrfError(cls === 'internal'
     ? `${host} resolves to an internal address; only allowlisted internal hosts may be used`
     : `${host} resolves to a link-local/metadata address`);

@@ -4,3 +4,10 @@ description: WooCommerce store, WooCommerce MCP server and the team MCP gateway
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
+# D-026: the store is its own chart (charts/store, linked as charts/platform/charts/store so no
+# `helm dependency build` step is needed); the provisioner installs the same chart for created stores.
+dependencies:
+  - name: store
+    version: 0.1.0
+    repository: file://../store
+    condition: store.enabled

@@ -24,7 +24,7 @@ afterEach(async () => { while (cleanup.length) await cleanup.pop()!(); });
 function row(id: string, slug: string, url: string, enabled = true): Upstream {
   const now = new Date('2026-10-13T00:00:00Z');
   return { id, slug, name: slug, url, enabled, authType: 'none', authHeader: null,
-    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], storeId: null, createdBy: null, createdAt: now, updatedAt: now };
 }
 
 async function fake(opts?: Parameters<typeof startFakeUpstream>[0]): Promise<FakeUpstream> {

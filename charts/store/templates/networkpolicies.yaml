@@ -1,6 +1,5 @@
-{{- if .Values.store.enabled }}
-{{- $ns := .Values.global.namespaces.store }}
-{{- $pns := .Values.global.namespaces.platform }}
+{{- $ns := include "store.namespace" . }}
+{{- $pns := .Values.gatewayNamespace }}
 {{- $ctx := dict "root" . "app" "netpol" }}
 # Default deny, both directions (F-INF-2): nothing in the store namespace accepts or opens a
 # connection unless a policy below allows it.
@@ -9,7 +8,7 @@ kind: NetworkPolicy
 metadata:
   name: default-deny
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: {}
   policyTypes: [Ingress, Egress]
@@ -21,7 +20,7 @@ kind: NetworkPolicy
 metadata:
   name: wordpress-egress
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { app: wordpress } }
   policyTypes: [Egress]
@@ -41,7 +40,7 @@ kind: NetworkPolicy
 metadata:
   name: wp-init-egress
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { app: wp-init } }
   policyTypes: [Egress]
@@ -66,7 +65,7 @@ kind: NetworkPolicy
 metadata:
   name: mariadb-from-wordpress
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { app: mariadb } }
   policyTypes: [Ingress]
@@ -82,7 +81,7 @@ kind: NetworkPolicy
 metadata:
   name: wordpress-from-ingress-and-woo-mcp
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { app: wordpress } }
   policyTypes: [Ingress]
@@ -99,7 +98,7 @@ kind: NetworkPolicy
 metadata:
   name: woo-mcp-from-gateway
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { app: woo-mcp } }
   policyTypes: [Ingress, Egress]
@@ -126,7 +125,7 @@ kind: NetworkPolicy
 metadata:
   name: acme-solver-from-ingress
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   podSelector: { matchLabels: { acme.cert-manager.io/http01-solver: "true" } }
   policyTypes: [Ingress]
@@ -135,4 +134,3 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
       ports: [{ port: 8089 }]
-{{- end }}

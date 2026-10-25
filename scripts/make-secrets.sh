@@ -74,6 +74,12 @@ secret "$PLATFORM_NS" gateway-secrets <<EOF
 credentials-key=$(hex 64)
 EOF
 
+# D-026: provisioner -> gateway request signing, and the provisioner's read-only Postgres role.
+secret "$PLATFORM_NS" provisioner-secrets <<EOF
+signing-key=$(hex 64)
+db-password=$(rand 32)
+EOF
+
 # First dashboard admin (AUTH-02): seeded only while the gateway DB has no admin; never overwritten.
 secret "$PLATFORM_NS" gateway-admin <<EOF
 admin-email=${GATEWAY_ADMIN_EMAIL:-admin@example.invalid}

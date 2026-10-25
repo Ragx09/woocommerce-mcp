@@ -37,6 +37,9 @@ spec:
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.global.namespaces.store }} } }
           podSelector: { matchLabels: { app: woo-mcp } }
+        # BON-13: created stores' woo-mcp — only that pod, only in namespaces the provisioner labelled.
+        - namespaceSelector: { matchExpressions: [{ key: platform.io/store, operator: Exists }] }
+          podSelector: { matchLabels: { app: woo-mcp } }
         - podSelector: { matchLabels: { app: everything-mcp } }
         {{- if .Values.hostileMcp.enabled }}
         - podSelector: { matchLabels: { app: hostile-mcp } }   # SEC-05 tests only
@@ -62,6 +65,9 @@ spec:
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+        {{- if .Values.provisioner.enabled }}
+        - podSelector: { matchLabels: { app: provisioner } }   # D-026: signed /internal calls (not routed by the Ingress)
+        {{- end }}
       ports: [{ port: 8080 }]
 {{- if .Values.gateway.metrics.port }}
 ---
@@ -132,5 +138,46 @@ spec:
   ingress:
     - from:
         - podSelector: { matchLabels: { app: gateway } }
+        {{- if .Values.provisioner.enabled }}
+        - podSelector: { matchLabels: { app: provisioner } }   # read-only DB role (D-026)
+        {{- end }}
       ports: [{ port: 5432 }]
+{{- end }}
+{{- if and .Values.provisioner.enabled .Values.gateway.enabled }}
+---
+# D-026: provisioner → the Kubernetes API server, Postgres, the gateway's internal API and DNS. Nothing else
+# (no internet: the store chart and Helm are in its image). The API server's endpoint addresses are read at
+# install time; `helm template` (no cluster) renders the port-only fallback.
+{{- $api := (lookup "v1" "Endpoints" "default" "kubernetes") }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: provisioner-egress
+  namespace: {{ .Values.global.namespaces.platform }}
+  labels: {{- include "platform.labels" (dict "root" . "app" "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: provisioner } }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        {{- $ips := list }}
+        {{- range ($api.subsets | default list) }}{{ range (.addresses | default list) }}{{ $ips = append $ips .ip }}{{ end }}{{ end }}
+        {{- if $ips }}
+        {{- range $ips }}
+        - ipBlock: { cidr: {{ . }}/32 }
+        {{- end }}
+        {{- else }}
+        - ipBlock: { cidr: 0.0.0.0/0 }
+        {{- end }}
+      ports: [{ port: 6443 }, { port: 443 }]
+    - to:
+        - podSelector: { matchLabels: { app: postgres } }
+      ports: [{ port: 5432 }]
+    - to:
+        - podSelector: { matchLabels: { app: gateway } }
+      ports: [{ port: 8080 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
 {{- end }}

@@ -82,6 +82,13 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $v.postgres.existingSecret }}, key: password } }
             - { name: COOKIE_SECURE, value: {{ eq .Values.global.scheme "https" | quote }} }
             - { name: PUBLIC_ORIGIN, value: {{ include "platform.url" (dict "root" . "host" $v.host) | quote }} }   # Origin check (AUTH-03)
+            {{- if .Values.provisioner.enabled }}
+            # D-026: signed provisioner calls and the provisioner's read-only DB role (optional: multi-store off without).
+            - name: PROVISIONER_SIGNING_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.provisioner.secret }}, key: signing-key, optional: true } }
+            - name: PROVISIONER_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.provisioner.secret }}, key: db-password, optional: true } }
+            {{- end }}
             {{- if $v.adminSecret }}
             # AUTH-02: first admin, created only while the DB has no admin.
             - name: ADMIN_EMAIL
@@ -98,7 +105,7 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $v.llm.existingSecret }}, key: api-key, optional: true } }
             - name: CREDENTIALS_KEY   # AES-256-GCM key for upstream credentials at rest (D-009)
               valueFrom: { secretKeyRef: { name: {{ $v.secrets }}, key: credentials-key } }
-            {{- if and $v.seed.woo.enabled .Values.wooMcp.enabled }}
+            {{- if and $v.seed.woo.enabled .Values.store.enabled (dig "wooMcp" "enabled" true .Values.store) }}
             # GW-03: register woo-mcp on first start (admin edits are never overwritten).
             - { name: SEED_WOO_URL, value: "http://woo-mcp.{{ .Values.global.namespaces.store }}.svc.cluster.local/mcp" }
             - { name: SEED_WOO_NAME, value: {{ $v.seed.woo.name | quote }} }

@@ -1,13 +1,12 @@
-{{- if .Values.store.enabled }}
-{{- $ns := .Values.global.namespaces.store }}
-{{- $i := .Values.store.init }}
+{{- $ns := include "store.namespace" . }}
+{{- $i := .Values.init }}
 {{- $ctx := dict "root" . "app" "wp-init" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: wp-init-script
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 data:
   wp-init.sh: |
 {{ .Files.Get "files/wp-init.sh" | indent 4 }}
@@ -20,19 +19,19 @@ metadata:
   # revision because Job specs are immutable; the script is idempotent, and Helm removes the old one.
   name: wp-init-{{ .Release.Revision }}
   namespace: {{ $ns }}
-  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
 spec:
   ttlSecondsAfterFinished: 86400
   backoffLimit: 3
   activeDeadlineSeconds: 900
   template:
     metadata:
-      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+      labels: {{- include "store.labels" $ctx | nindent 8 }}
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
       serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
-      {{- include "platform.pullSecrets" . | nindent 6 }}
+      {{- include "store.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 33       # www-data of the Debian-based Apache image, which owns the files
         runAsGroup: 33
@@ -41,7 +40,7 @@ spec:
       {{- if $i.brand.enabled }}
       initContainers:
         - name: store-assets   # copies theme, catalogue and images into the shared volume
-          image: {{ include "platform.image" (dict "root" . "image" $i.brand.image) }}   # our image: registry prefix in prod
+          image: {{ include "store.image" (dict "root" . "image" $i.brand.image) }}   # our image: registry prefix in prod
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
@@ -49,7 +48,7 @@ spec:
             capabilities: { drop: [ALL] }
           volumeMounts:
             - { name: assets, mountPath: /out }
-          resources: {{- include "platform.resources" (dict "name" "store-assets" "resources" $i.brand.resources) | nindent 12 }}
+          resources: {{- include "store.resources" (dict "name" "store-assets" "resources" $i.brand.resources) | nindent 12 }}
       {{- end }}
       containers:
         - name: wp-cli
@@ -62,8 +61,8 @@ spec:
             - { name: WORDPRESS_DB_NAME, value: wordpress }
             - { name: WORDPRESS_DB_USER, value: wordpress }
             - name: WORDPRESS_DB_PASSWORD
-              valueFrom: { secretKeyRef: { name: {{ .Values.store.mariadb.existingSecret }}, key: mariadb-password } }
-            - { name: SITE_URL, value: {{ include "platform.url" (dict "root" . "host" .Values.store.host) | quote }} }
+              valueFrom: { secretKeyRef: { name: {{ .Values.mariadb.existingSecret }}, key: mariadb-password } }
+            - { name: SITE_URL, value: {{ include "store.url" (dict "root" . "host" .Values.host) | quote }} }
             - { name: TITLE, value: {{ $i.title | quote }} }
             - { name: WC_VERSION, value: {{ $i.woocommerceVersion | quote }} }
             - { name: STORE_CURRENCY, value: {{ $i.currency | quote }} }
@@ -91,7 +90,7 @@ spec:
             {{- if $i.brand.enabled }}
             - { name: assets, mountPath: /assets, readOnly: true }
             {{- end }}
-          resources: {{- include "platform.resources" (dict "name" "wp-init" "resources" $i.resources) | nindent 12 }}
+          resources: {{- include "store.resources" (dict "name" "wp-init" "resources" $i.resources) | nindent 12 }}
       volumes:
         - name: data
           persistentVolumeClaim: { claimName: wordpress-data }
@@ -102,4 +101,3 @@ spec:
         - name: assets
           emptyDir: { sizeLimit: 200Mi }
         {{- end }}
-{{- end }}

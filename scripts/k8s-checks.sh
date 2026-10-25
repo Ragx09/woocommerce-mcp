@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rogue|ingress|killpod|metrics|replicas|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rbac|rogue|ingress|killpod|metrics|replicas|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -22,6 +22,62 @@ expect() { # expect <OPEN|CLOSED> <description> <probe args...>
   local want="$1" desc="$2"; shift 2
   local got; got="$(probe "$@")"
   [ "$got" = "$want" ] && pass "$desc → $got" || fail "$desc → ${got:-no result} (want $want)"
+}
+
+# TC-BON-09-2 (D-026): what the provisioner's account may and may not do. RBAC via `kubectl auth can-i --as`,
+# the admission policy via real requests (server-side dry run where possible) as that account.
+rbac() {
+  local sa="system:serviceaccount:$PLATFORM:provisioner" t="store-rbactest"
+  local as=(--as="$sa")
+  can() { # can <yes|no> <description> <can-i args...>
+    local want="$1" desc="$2"; shift 2
+    local got; got="$(kubectl auth can-i "${as[@]}" "$@" 2>/dev/null)"
+    [ "$got" = "$want" ] && pass "$desc → $got" || fail "$desc → $got (want $want)"
+  }
+  denied() { # denied <description> <kubectl args...>: must be refused by RBAC or the admission policy
+    local desc="$1"; shift
+    local out; out="$(kubectl "${as[@]}" "$@" 2>&1)"
+    if echo "$out" | grep -qiE 'forbidden|denied|ValidatingAdmissionPolicy'; then pass "$desc → refused ($(echo "$out" | grep -oiE 'ValidatingAdmissionPolicy|forbidden' | head -1))"; else fail "$desc → not refused: $(echo "$out" | head -1)"; fi
+  }
+  allowed() { local desc="$1"; shift; if kubectl "${as[@]}" "$@" >/dev/null 2>&1; then pass "$desc → allowed"; else fail "$desc → refused: $(kubectl "${as[@]}" "$@" 2>&1 | head -1)"; fi; }
+  # Cluster scope: namespaces and bind store-manager only.
+  can yes "TC-BON-09-2a create namespaces" create namespaces
+  can yes "TC-BON-09-2b bind clusterrole/store-manager" bind clusterrole/store-manager
+  can no  "TC-BON-09-2c bind clusterrole/cluster-admin" bind clusterrole/cluster-admin
+  can no  "TC-BON-09-2d create clusterrolebindings" create clusterrolebindings
+  can no  "TC-BON-09-2e create clusterroles" create clusterroles
+  can no  "TC-BON-09-2f escalate roles" escalate roles -n "$t"
+  can no  "TC-BON-09-2g impersonate users" impersonate users
+  can no  "TC-BON-09-2h read secrets in $PLATFORM" get secrets -n "$PLATFORM"
+  can no  "TC-BON-09-2i read secrets in the default store ($STORE)" get secrets -n "$STORE"
+  can no  "TC-BON-09-2j create deployments in $PLATFORM" create deployments -n "$PLATFORM"
+  can no  "TC-BON-09-2k create pods/exec anywhere" create pods/exec -n "$STORE"
+  can no  "TC-BON-09-2l list nodes" list nodes
+  # Admission policy: names, labels, Pod Security and role bindings.
+  denied "TC-BON-09-2m namespace kube-evil" create namespace kube-evil --dry-run=server
+  denied "TC-BON-09-2n namespace store-nolabel (no platform.io/store)" create namespace store-nolabel --dry-run=server
+  denied "TC-BON-09-2o delete the default store namespace ($STORE)" delete namespace "$STORE" --dry-run=server
+  denied "TC-BON-09-2p delete namespace kube-system" delete namespace kube-system --dry-run=server
+  local nsjson='{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"NAME","labels":{"platform.io/store":"SLUG"PSS}}}'
+  echo "${nsjson/NAME/store-nopss}" | sed 's/SLUG/nopss/; s/PSS//' | denied "TC-BON-09-2q store namespace without Pod Security restricted" create -f - --dry-run=server
+  echo "${nsjson/NAME/store-mismatch}" | sed 's/SLUG/other/; s/PSS/,"pod-security.kubernetes.io\/enforce":"restricted"/' | denied "TC-BON-09-2r label not matching the name" create -f - --dry-run=server
+  echo "${nsjson/NAME/$t}" | sed 's/SLUG/rbactest/; s/PSS/,"pod-security.kubernetes.io\/enforce":"restricted"/' | allowed "TC-BON-09-2s labelled store namespace $t" create -f -
+  local rb='{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"name":"NAME","namespace":"NS"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"ClusterRole","name":"ROLE"},"subjects":[{"kind":"ServiceAccount","name":"SUBJ","namespace":"'"$PLATFORM"'"}]}'
+  echo "$rb" | sed "s/NAME/x/; s/NS/$t/; s/ROLE/cluster-admin/; s/SUBJ/provisioner/" | denied "TC-BON-09-2t RoleBinding to cluster-admin in $t" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/x/; s/NS/$t/; s/ROLE/store-manager/; s/SUBJ/gateway/" | denied "TC-BON-09-2u store-manager bound to another account" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/x/; s/NS/kube-system/; s/ROLE/store-manager/; s/SUBJ/provisioner/" | denied "TC-BON-09-2v store-manager RoleBinding in kube-system" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/provisioner-store-manager/; s/NS/$t/; s/ROLE/store-manager/; s/SUBJ/provisioner/" | allowed "TC-BON-09-2w store-manager RoleBinding in $t" create -f -
+  # Inside a store namespace: the chart's kinds, nothing more.
+  can yes "TC-BON-09-2x create deployments in $t" create deployments -n "$t"
+  can yes "TC-BON-09-2y create networkpolicies in $t" create networkpolicies -n "$t"
+  can no  "TC-BON-09-2z create roles in $t" create roles -n "$t"
+  can no  "TC-BON-09-2aa create pods/exec in $t" create pods/exec -n "$t"
+  can no  "TC-BON-09-2ab create daemonsets in $t" create daemonsets -n "$t"
+  allowed "TC-BON-09-2ac delete $t" delete namespace "$t" --wait=false
+  # The gateway still mounts no token and has no RBAC account.
+  local gw; gw="$(kubectl -n "$PLATFORM" get deploy gateway -o jsonpath='{.spec.template.spec.automountServiceAccountToken}/{.spec.template.spec.serviceAccountName}/{.spec.template.spec.volumes[*].projected}')"
+  [ "$gw" = "false/workload/" ] && pass "TC-BON-09-2ad gateway: no token, account workload ($gw)" || fail "TC-BON-09-2ad gateway token/account: $gw"
+  can no "TC-BON-09-2ae workload account in $PLATFORM has no rights" --as="system:serviceaccount:$PLATFORM:workload" get pods -n "$PLATFORM"
 }
 
 netpol() {
@@ -312,6 +368,7 @@ replicas() {
 
 case "${1:-all}" in
   netpol) netpol ;;
+  rbac) rbac ;;
   rogue) rogue ;;
   ingress) ingress ;;
   killpod) killpod ;;

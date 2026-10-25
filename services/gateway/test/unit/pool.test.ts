@@ -22,7 +22,7 @@ function pool(maxResponseBytes?: number): UpstreamPool {
 function row(over: Partial<Upstream> & { url: string }): Upstream {
   const now = new Date('2026-10-12T00:00:00Z');
   return { id: 'u1', slug: 'woo', name: 'Woo', enabled: true, authType: 'none', authHeader: null,
-    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now, ...over };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], storeId: null, createdBy: null, createdAt: now, updatedAt: now, ...over };
 }
 const toolNames = (p: UpstreamPool, id = 'u1') => p.withClient(id, async (c) => (await c.listTools()).tools.map((t) => t.name));
 

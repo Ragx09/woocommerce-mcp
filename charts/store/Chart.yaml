@@ -1,0 +1,6 @@
+apiVersion: v2
+name: store
+description: One WooCommerce store (MariaDB, WordPress + hardening, wp-init, woo-mcp, NetworkPolicies). Installed by the platform chart for the default store and by the provisioner for every created store (D-026).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

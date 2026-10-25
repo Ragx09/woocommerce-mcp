@@ -23,7 +23,8 @@ for d in docs:
     psc = pod.get("securityContext") or {}
     if pod.get("automountServiceAccountToken") is not False:
         errors.append(f"{ref}: automountServiceAccountToken must be false")
-    if pod.get("serviceAccountName") != "workload":
+    # D-026: the provisioner is the one workload with an RBAC account; its token is projected, never automounted.
+    if pod.get("serviceAccountName") != "workload" and not (kind == "Deployment" and name == "provisioner" and pod.get("serviceAccountName") == "provisioner"):
         errors.append(f"{ref}: serviceAccountName must be 'workload' (no token, F-INF-4), not the namespace default")
     for c in pod.get("containers", []) + pod.get("initContainers", []):
         cref = f"{ref}[{c['name']}]"

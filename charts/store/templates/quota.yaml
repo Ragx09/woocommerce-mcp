@@ -1,0 +1,37 @@
+{{- if .Values.quota.enabled }}
+{{- $ns := include "store.namespace" . }}
+{{- $ctx := dict "root" . "app" "quota" }}
+# BON-14 guardrail for created stores: one store cannot take more of the node than this, whatever is deployed
+# into its namespace. The LimitRange gives every container defaults so nothing runs unbounded.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: store
+  namespace: {{ $ns }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
+spec:
+  hard:
+    limits.cpu: {{ .Values.quota.limits.cpu | quote }}
+    limits.memory: {{ .Values.quota.limits.memory | quote }}
+    requests.cpu: {{ .Values.quota.requests.cpu | quote }}
+    requests.memory: {{ .Values.quota.requests.memory | quote }}
+    requests.storage: {{ .Values.quota.storage | quote }}
+    persistentvolumeclaims: "3"
+    pods: "8"
+    services: "5"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: store
+  namespace: {{ $ns }}
+  labels: {{- include "store.labels" $ctx | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default: { cpu: 250m, memory: 256Mi }
+      defaultRequest: { cpu: 50m, memory: 64Mi }
+      max: { cpu: "1", memory: 1Gi }
+{{- end }}

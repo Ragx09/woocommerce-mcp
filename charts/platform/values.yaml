@@ -16,56 +16,11 @@ global:
     platform: platform
 
 store:
-  enabled: true
-  host: store                     # → store.<domain>
-  mariadb:
-    # SEC-06: third-party images pinned by digest (the upstream rebuilds a tag for OS patches; the digest is
-    # the build Trivy scanned, docs/evidence/sec-06). Rebuilds younger than 2 weeks: security exception, D-024.
-    image: mariadb:11.8.9@sha256:f16d7a344413e519dff518f27bdb221388f84b0d274c97c4fb5f2cb0dc1b34fa
-    storage: 2Gi
-    existingSecret: mariadb-secrets          # keys: mariadb-password, mariadb-root-password
-    resources:
-      requests: { cpu: 100m, memory: 256Mi }
-      limits: { cpu: 1000m, memory: 512Mi }
-  wordpress:
-    image: wordpress:7.1.3-php8.3-apache@sha256:d42f63cb89ad0eab272c4b393164e63830d0df270009907919f7dcce52b1a20b   # 2026-10-21 rebuild: 78 → 1 fixable HIGH
-    storage: 2Gi
-    resources:
-      requests: { cpu: 100m, memory: 256Mi }
-      limits: { cpu: 1000m, memory: 512Mi }
-  init:
-    image: wordpress:cli-2.12.0-php8.3@sha256:661db880e953da051abcac6c0a769767b995a82cd52101c003ca7438dd427d7d
-    woocommerceVersion: 11.2.1
-    title: TATVA                             # current working brand concept (D-015, may change)
-    currency: INR
-    timezone: Asia/Kolkata
-    country: "IN:KA"
-    # BRD-06: TATVA theme + catalogue + images, shipped as an image and imported by wp-init.
-    # Disabled → the plain store with three sample products (used before Phase 9).
-    brand:
-      enabled: true
-      image:
-        repository: store-assets
-        tag: dev
-      resources:
-        requests: { cpu: 10m, memory: 16Mi }
-        limits: { cpu: 200m, memory: 64Mi }
-    adminSecret: wordpress-admin             # keys: admin-user, admin-password, admin-email
-    apiSecret: woo-api                       # keys: consumer-key, consumer-secret
-    resources:
-      requests: { cpu: 100m, memory: 128Mi }
-      limits: { cpu: 500m, memory: 512Mi }
-
-wooMcp:
-  enabled: true
-  image:
-    repository: woo-mcp
-    tag: dev
-  replicas: 1
-  authSecret: woo-mcp-auth                   # key: token (the gateway holds the same value)
-  resources:
-    requests: { cpu: 50m, memory: 96Mi }
-    limits: { cpu: 500m, memory: 256Mi }
+  enabled: true                   # the default TATVA store, rendered by the store chart (charts/store, D-026)
+  namespace: store                # = global.namespaces.store
+  labels:                         # labels as before the move (StatefulSet volumeClaimTemplates are immutable)
+    partOf: platform
+    chart: platform-0.1.0
 
 # GW-13: reference upstream server-everything (in the platform namespace, gateway-only).
 everythingMcp:
@@ -99,6 +54,29 @@ dashboard:
   resources:
     requests: { cpu: 10m, memory: 16Mi }
     limits: { cpu: 250m, memory: 64Mi }
+
+# D-026 / A-11: creates and deletes stores (charts/store in namespace store-<slug>). The only workload with
+# Kubernetes rights (templates/rbac-provisioner.yaml). Secret keys: signing-key (64 hex), db-password.
+provisioner:
+  enabled: true
+  image:
+    repository: provisioner
+    tag: dev
+  secret: provisioner-secrets
+  timeoutMinutes: 15                         # provisioning budget; past it the store is Failed with a reason
+  maxConcurrent: 3                           # stores installed in parallel
+  # A-11 caps, enforced by the gateway API (BON-12): stores per member, and in total (admins count toward the total).
+  maxPerMember: 3
+  maxTotal: 5
+  # BON-14: per created store namespace (the default store has none).
+  storeQuota:
+    enabled: true
+    limits: { cpu: "4", memory: 3Gi }   # sum of the chart's container limits (~3 CPU, ~1.9 GiB) + headroom
+    requests: { cpu: "1", memory: 1536Mi }
+    storage: 6Gi
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 256Mi }
 
 gateway:
   enabled: true

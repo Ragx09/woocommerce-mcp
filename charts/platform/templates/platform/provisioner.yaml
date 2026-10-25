@@ -1,0 +1,86 @@
+{{- if and .Values.provisioner.enabled .Values.gateway.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $v := .Values.provisioner }}
+{{- $ctx := dict "root" . "app" "provisioner" }}
+{{- /* What every created store gets (charts/store values); the provisioner adds slug, name, tagline, niche. */ -}}
+{{- $base := dict
+  "global" (omit .Values.global "namespaces")
+  "gatewayNamespace" $ns
+  "wooMcp" (dict "image" (dict "repository" "woo-mcp" "tag" (dig "wooMcp" "image" "tag" "dev" .Values.store)))
+  "init" (dict "brand" (dict "enabled" true "image" (dict "repository" "store-assets" "tag" (dig "init" "brand" "image" "tag" "dev" .Values.store))))
+  "quota" $v.storeQuota }}
+# D-026: the provisioner is the only workload with Kubernetes rights. Its token is projected explicitly (1 h,
+# rotated by the kubelet) instead of automounted, and the account can only do what rbac-provisioner.yaml grants.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: provisioner
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provisioner
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # one reconciler (a Postgres advisory lock guards it as well)
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: provisioner   # D-026 exception to F-INF-4: the one account with RBAC (scripts/lib/chart-policy.py)
+      {{- include "platform.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: provisioner
+          image: {{ include "platform.image" (dict "root" . "image" $v.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: POD_NAMESPACE, value: {{ $ns | quote }} }
+            - { name: SERVICE_ACCOUNT, value: provisioner }
+            - { name: GATEWAY_INTERNAL_URL, value: "http://gateway.{{ $ns }}.svc.cluster.local" }
+            - { name: PGHOST, value: postgres }
+            - { name: PGUSER, value: provisioner }
+            - { name: PGDATABASE, value: gateway }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $v.secret }}, key: db-password } }
+            - name: PROVISIONER_SIGNING_KEY
+              valueFrom: { secretKeyRef: { name: {{ $v.secret }}, key: signing-key } }
+            - { name: PROVISION_TIMEOUT_MS, value: {{ mul $v.timeoutMinutes 60000 | quote }} }
+            - { name: MAX_CONCURRENT, value: {{ $v.maxConcurrent | quote }} }
+            - { name: STORE_BASE_VALUES, value: {{ toJson $base | quote }} }
+            - { name: LOG_LEVEL, value: {{ .Values.gateway.logLevel | quote }} }
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: kube-api-access, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources: {{- include "platform.resources" (dict "name" "provisioner" "resources" $v.resources) | nindent 12 }}
+      volumes:
+        - name: kube-api-access
+          projected:
+            sources:
+              - serviceAccountToken: { path: token, expirationSeconds: 3600 }
+              - configMap: { name: kube-root-ca.crt, items: [{ key: ca.crt, path: ca.crt }] }
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+{{- end }}

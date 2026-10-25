@@ -101,13 +101,16 @@ async function connectWithOAuth(cookie: string): Promise<Provider> {
 const mcpList = (bearer: string) => fetch(`${origin}/mcp`, { method: 'POST',
   headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${bearer}` },
   body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
+/** Response JSON, untyped (each test reads the fields it checks). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const j = async (r: Response | Promise<Response>): Promise<any> => (await r).json();
 const form = (body: Record<string, string>) => fetch(`${origin}/oauth/token`, { method: 'POST',
   headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body) });
 
 /** Registers a client and returns an authorization code for alice, by hand (no SDK), with a known verifier. */
 async function manualCode(cookie: string, extra: Record<string, string> = {}) {
-  const reg = await (await fetch(`${origin}/oauth/register`, { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ client_name: 'Test MCP client', redirect_uris: [REDIRECT] }) })).json() as { client_id: string };
+  const reg = await j(fetch(`${origin}/oauth/register`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ client_name: 'Test MCP client', redirect_uris: [REDIRECT] }) })) as { client_id: string };
   const verifier = randomBytes(32).toString('base64url');
   const u = new URL(`${origin}/oauth/authorize`);
   for (const [k, v] of Object.entries({ response_type: 'code', client_id: reg.client_id, redirect_uri: REDIRECT, code_challenge: s256(verifier),
@@ -157,9 +160,9 @@ describe('discovery', () => {
     const res = await mcpList('');
     expect(res.status).toBe(401);
     expect(res.headers.get('www-authenticate')).toBe(`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="mcp"`);
-    const prm = await (await fetch(`${origin}/.well-known/oauth-protected-resource/mcp`)).json();
+    const prm = await j(fetch(`${origin}/.well-known/oauth-protected-resource/mcp`));
     expect(prm).toMatchObject({ resource: `${origin}/mcp`, authorization_servers: [origin] });
-    const as = await (await fetch(`${origin}/.well-known/oauth-authorization-server`)).json();
+    const as = await j(fetch(`${origin}/.well-known/oauth-authorization-server`));
     expect(as).toMatchObject({ issuer: origin, code_challenge_methods_supported: ['S256'], token_endpoint_auth_methods_supported: ['none'] });
   });
 });
@@ -184,14 +187,14 @@ describe('TC-BON-08-1 code + PKCE flow', () => {
     const cookie = await login('alice@example.test');
     const m = await manualCode(cookie);
     expect(m.state).toBe('st-1');
-    const t1 = await (await form({ grant_type: 'authorization_code', client_id: m.clientId, code: m.code, redirect_uri: REDIRECT, code_verifier: m.verifier })).json();
+    const t1 = await j(form({ grant_type: 'authorization_code', client_id: m.clientId, code: m.code, redirect_uri: REDIRECT, code_verifier: m.verifier }));
     const t2res = await form({ grant_type: 'refresh_token', client_id: m.clientId, refresh_token: t1.refresh_token });
     expect(t2res.status).toBe(200);
-    const t2 = await t2res.json();
+    const t2 = await j(t2res);
     expect(t2.refresh_token).not.toBe(t1.refresh_token);
     expect((await mcpList(t2.access_token)).status).toBe(200);
     const replay = await form({ grant_type: 'refresh_token', client_id: m.clientId, refresh_token: t1.refresh_token });
-    expect([replay.status, (await replay.json()).error]).toEqual([400, 'invalid_grant']);
+    expect([replay.status, (await j(replay)).error]).toEqual([400, 'invalid_grant']);
     expect((await mcpList(t2.access_token)).status).toBe(401); // the grant is gone, current tokens too
   });
 
@@ -199,7 +202,7 @@ describe('TC-BON-08-1 code + PKCE flow', () => {
     const cookie = await login('alice@example.test');
     const a = await manualCode(cookie);
     const wrong = await form({ grant_type: 'authorization_code', client_id: a.clientId, code: a.code, redirect_uri: REDIRECT, code_verifier: randomBytes(32).toString('base64url') });
-    expect([wrong.status, (await wrong.json()).error]).toEqual([400, 'invalid_grant']);
+    expect([wrong.status, (await j(wrong)).error]).toEqual([400, 'invalid_grant']);
     const after = await form({ grant_type: 'authorization_code', client_id: a.clientId, code: a.code, redirect_uri: REDIRECT, code_verifier: a.verifier });
     expect(after.status).toBe(400); // single use, even after a failed attempt
 
@@ -213,7 +216,7 @@ describe('TC-BON-08-1 code + PKCE flow', () => {
     expect(otherClient.status).toBe(400);
 
     const d = await manualCode(cookie);
-    const ok = await (await form({ grant_type: 'authorization_code', client_id: d.clientId, code: d.code, redirect_uri: REDIRECT, code_verifier: d.verifier })).json();
+    const ok = await j(form({ grant_type: 'authorization_code', client_id: d.clientId, code: d.code, redirect_uri: REDIRECT, code_verifier: d.verifier }));
     expect((await mcpList(ok.access_token)).status).toBe(200);
     const replay = await form({ grant_type: 'authorization_code', client_id: d.clientId, code: d.code, redirect_uri: REDIRECT, code_verifier: d.verifier });
     expect(replay.status).toBe(400);
@@ -223,7 +226,7 @@ describe('TC-BON-08-1 code + PKCE flow', () => {
   it('revoking the grant (user) or disabling the user → 401 on the next call; API keys keep working', async () => {
     const cookie = await login('alice@example.test');
     const m = await manualCode(cookie);
-    const t = await (await form({ grant_type: 'authorization_code', client_id: m.clientId, code: m.code, redirect_uri: REDIRECT, code_verifier: m.verifier })).json();
+    const t = await j(form({ grant_type: 'authorization_code', client_id: m.clientId, code: m.code, redirect_uri: REDIRECT, code_verifier: m.verifier }));
     expect((await mcpList(t.access_token)).status).toBe(200);
     const grants = (await app.inject({ method: 'GET', url: '/api/oauth/grants', headers: { cookie } })).json() as { id: string; revokedAt: string | null }[];
     const live = grants.find((g) => !g.revokedAt)!;
@@ -232,7 +235,7 @@ describe('TC-BON-08-1 code + PKCE flow', () => {
     expect((await mcpList(t.access_token)).status).toBe(401);
 
     const m2 = await manualCode(cookie);
-    const t2 = await (await form({ grant_type: 'authorization_code', client_id: m2.clientId, code: m2.code, redirect_uri: REDIRECT, code_verifier: m2.verifier })).json();
+    const t2 = await j(form({ grant_type: 'authorization_code', client_id: m2.clientId, code: m2.code, redirect_uri: REDIRECT, code_verifier: m2.verifier }));
     expect((await mcpList(t2.access_token)).status).toBe(200);
     await pool.query('UPDATE users SET disabled_at = now() WHERE id = $1', [aliceId]);
     expect((await mcpList(t2.access_token)).status).toBe(401);
@@ -262,7 +265,7 @@ describe('authorize and registration rules', () => {
   });
 
   it('unknown client or unregistered redirect → plain 400, never a redirect; missing PKCE → error to the client', async () => {
-    const reg = await (await register({ redirect_uris: [REDIRECT] })).json();
+    const reg = await j(register({ redirect_uris: [REDIRECT] }));
     const q = (p: Record<string, string>) => fetch(`${origin}/oauth/authorize?${new URLSearchParams(p)}`, { redirect: 'manual' });
     const pkce = { code_challenge: s256(randomBytes(32).toString('base64url')), code_challenge_method: 'S256', response_type: 'code' };
     const unknown = await q({ ...pkce, client_id: 'mcpc_nope_nope_nope_nope_nope', redirect_uri: REDIRECT });
@@ -298,7 +301,7 @@ describe('rate limits', () => {
 describe('TC-BON-08-2 tokens are bound to this resource', () => {
   it('another resource is refused at authorize and at token; a token for another resource is refused at /mcp', async () => {
     const cookie = await login('alice@example.test');
-    const reg = await (await fetch(`${origin}/oauth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [REDIRECT] }) })).json();
+    const reg = await j(fetch(`${origin}/oauth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [REDIRECT] }) }));
     const u = new URL(`${origin}/oauth/authorize`);
     for (const [k, v] of Object.entries({ response_type: 'code', client_id: reg.client_id, redirect_uri: REDIRECT, code_challenge: s256('v'.repeat(43)),
       code_challenge_method: 'S256', resource: 'https://other.example/mcp' })) u.searchParams.set(k, v);
@@ -307,10 +310,10 @@ describe('TC-BON-08-2 tokens are bound to this resource', () => {
 
     const m = await manualCode(cookie);
     const wrongTarget = await form({ grant_type: 'authorization_code', client_id: m.clientId, code: m.code, redirect_uri: REDIRECT, code_verifier: m.verifier, resource: 'https://other.example/mcp' });
-    expect((await wrongTarget.json()).error).toBe('invalid_target');
+    expect((await j(wrongTarget)).error).toBe('invalid_target');
 
     const m2 = await manualCode(cookie);
-    const t = await (await form({ grant_type: 'authorization_code', client_id: m2.clientId, code: m2.code, redirect_uri: REDIRECT, code_verifier: m2.verifier })).json();
+    const t = await j(form({ grant_type: 'authorization_code', client_id: m2.clientId, code: m2.code, redirect_uri: REDIRECT, code_verifier: m2.verifier }));
     // The same token presented to a gateway whose resource is different (another deployment) is refused.
     const otherAuth = mcpAuthenticator(db, new InternalTokenSigner(), 'https://other.example/mcp');
     expect(await otherAuth(t.access_token, { loopback: false })).toBeNull();

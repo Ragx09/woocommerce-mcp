@@ -43,6 +43,13 @@
       "when": 1792941102645,
       "tag": "0005_oauth",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792948785842,
+      "tag": "0006_stores",
+      "breakpoints": true
     }
   ]
 }

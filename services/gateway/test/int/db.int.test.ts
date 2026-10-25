@@ -36,6 +36,7 @@ describe('migrations', () => {
     expect(cols.rows.map((r) => r.column_name)).toEqual([
       'id', 'slug', 'name', 'url', 'enabled', 'auth_type', 'auth_header', 'credential_enc', 'created_by', 'created_at', 'updated_at',
       'member_access', 'member_tools', // 0003 (BON-01) appends columns
+      'store_id', // 0006 (BON-09/13): a created store's upstream
     ]);
   });
 

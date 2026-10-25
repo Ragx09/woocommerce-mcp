@@ -1,0 +1,106 @@
+{{- if and .Values.provisioner.enabled .Values.gateway.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $ctx := dict "root" . "app" "provisioner" }}
+{{- $sa := printf "system:serviceaccount:%s:provisioner" $ns }}
+# D-026 least privilege. Cluster-wide the provisioner may only manage namespaces and RoleBindings, and may bind
+# nothing but `store-manager`. RBAC cannot restrict `create` by name, so the ValidatingAdmissionPolicy below
+# refuses any namespace or RoleBinding it touches outside labelled `store-*` namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: provisioner
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [rolebindings]
+    verbs: [get, create, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles]
+    verbs: [bind]
+    resourceNames: [store-manager]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: provisioner
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: provisioner }
+subjects:
+  - { kind: ServiceAccount, name: provisioner, namespace: {{ $ns }} }
+---
+# Only the namespaced kinds charts/store renders (plus Secrets for Helm's release records and the store's
+# credentials, and read access to pods/events for readiness). Granted per store namespace by a RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: store-manager
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [services, configmaps, secrets, persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: provisioner-store-scope
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: [namespaces]
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: [rolebindings]
+  matchConditions:
+    - name: only-the-provisioner
+      expression: request.userInfo.username == {{ $sa | quote }}
+  variables:
+    - name: obj
+      expression: "request.operation == 'DELETE' ? oldObject : object"
+    - name: ns
+      expression: "request.resource.resource == 'namespaces' ? variables.obj.metadata.name : request.namespace"
+  validations:
+    - expression: "variables.ns.startsWith('store-') && variables.ns.size() <= 22"
+      message: "the provisioner may only touch store-<slug> namespaces"
+    - expression: >-
+        request.resource.resource != 'namespaces' ||
+        (has(variables.obj.metadata.labels) && 'platform.io/store' in variables.obj.metadata.labels &&
+         'store-' + variables.obj.metadata.labels['platform.io/store'] == variables.obj.metadata.name &&
+         (request.operation == 'DELETE' || variables.obj.metadata.labels[?'pod-security.kubernetes.io/enforce'].orValue('') == 'restricted'))
+      message: "store namespaces must carry platform.io/store=<slug> matching their name and Pod Security restricted"
+    - expression: >-
+        request.resource.resource != 'rolebindings' ||
+        (variables.obj.roleRef.kind == 'ClusterRole' && variables.obj.roleRef.name == 'store-manager' &&
+         variables.obj.subjects.all(s, s.kind == 'ServiceAccount' && s.name == 'provisioner' && s.namespace == {{ $ns | quote }}))
+      message: "the provisioner may only bind store-manager to itself"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: provisioner-store-scope
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  policyName: provisioner-store-scope
+  validationActions: [Deny]
+{{- end }}

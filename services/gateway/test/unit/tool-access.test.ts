@@ -30,7 +30,7 @@ const principals: Record<string, Principal> = {
 function row(over: Partial<Upstream> & { url: string }): Upstream {
   const now = new Date('2026-10-24T00:00:00Z');
   return { id: 'u1', slug: 'woo', name: 'Woo', enabled: true, authType: 'none', authHeader: null,
-    credentialEnc: null, memberAccess: 'all', memberTools: [], createdBy: null, createdAt: now, updatedAt: now, ...over };
+    credentialEnc: null, memberAccess: 'all', memberTools: [], storeId: null, createdBy: null, createdAt: now, updatedAt: now, ...over };
 }
 
 async function gateway(rows: { current: Upstream[] }, audit: AuditEvent[]) {

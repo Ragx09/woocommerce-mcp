@@ -4,7 +4,10 @@ import { loadCredentialKey } from './crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
 import { registerMcp } from './mcp/route.js';
 import { registerUpstreamRoutes } from './upstreams/routes.js';
-import { ssrfPolicy } from './upstreams/ssrf.js';
+import { ssrfPolicy, STORE_WOO_MCP_HOST } from './upstreams/ssrf.js';
+import { registerInternalStoreRoutes } from './stores/internal.js';
+import { loadSigningKey } from './stores/signing.js';
+import { setProvisionerPassword } from './stores/db-role.js';
 import { ToolDiscovery } from './upstreams/discovery.js';
 import { HealthMonitor } from './upstreams/health.js';
 import { UpstreamPool } from './upstreams/pool.js';
@@ -44,6 +47,12 @@ try {
   process.exit(1);
 }
 app.log.info('database migrations applied');
+// D-026: the provisioner's read-only DB role gets its login password from the provisioner-db Secret.
+if (process.env.PROVISIONER_DB_PASSWORD) {
+  await setProvisionerPassword(dbPool, process.env.PROVISIONER_DB_PASSWORD);
+  app.log.info('provisioner database role ready');
+}
+const signingKey = loadSigningKey();
 
 for (const seed of seedPlan.seeds) {
   const result = await seedUpstream(createDb(dbPool), credentialKey, seed);
@@ -58,7 +67,7 @@ else app.log.warn('LLM_API_KEY not set: the chat agent is disabled');
 
 // SSRF guard (T-06): internal addresses only through allowlisted hosts — the operator's list plus the
 // hosts of the upstreams the chart seeds (woo-mcp, everything-mcp).
-const ssrf = ssrfPolicy([...cfg.upstreamAllowedHosts, ...seedPlan.seeds.map((s) => new URL(s.url).hostname)]);
+const ssrf = ssrfPolicy([...cfg.upstreamAllowedHosts, ...seedPlan.seeds.map((s) => new URL(s.url).hostname)], [STORE_WOO_MCP_HOST]);
 app.log.info({ allowedHosts: [...ssrf.allowedHosts] }, 'ssrf allowlist');
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
 const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, ssrf, log: app.log,
@@ -82,6 +91,9 @@ if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/D
 // BON-08: OAuth needs the public origin as issuer and resource; without it /mcp takes API keys only.
 if (cfg.publicOrigin) registerOAuth(app, { db, issuer: cfg.publicOrigin, limiter });
 else app.log.warn('PUBLIC_ORIGIN not set: OAuth for /mcp is off (API keys only)');
+// D-026: signed provisioner → gateway calls (store ready/failed/deleted). Without the key, multi-store is off.
+if (signingKey) registerInternalStoreRoutes(app, { db, key: credentialKey, signingKey });
+else app.log.warn('PROVISIONER_SIGNING_KEY not set: created stores cannot be registered');
 const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, maxTools: cfg.maxToolsPerUpstream, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.

@@ -58,7 +58,9 @@ Teardown: `scripts/down.sh` removes the release but keeps namespaces, Secrets an
 ## 4. Secrets
 Never in git or values files. `scripts/make-secrets.sh` creates:
 - `store/mariadb-secrets` (root and user passwords), `store/wordpress-admin`, `store/woo-api` (consumer key/secret; the wp-init Job registers its hash in WooCommerce), `store/woo-mcp-auth` (token the gateway presents to woo-mcp)
-- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (`admin-email`, default `admin@example.invalid` or `GATEWAY_ADMIN_EMAIL`; random `admin-password` — the first dashboard admin, created only while the DB has no admin), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`)
+- `platform/postgres-secrets`, `platform/gateway-secrets` (`CREDENTIALS_KEY`, `SESSION_SECRET`, `INTERNAL_TOKEN_SECRET`), `platform/gateway-admin` (`admin-email`, default `admin@example.invalid` or `GATEWAY_ADMIN_EMAIL`; random `admin-password` — the first dashboard admin, created only while the DB has no admin), `platform/llm-secrets` (`LLM_API_KEY`), `platform/upstream-seed` (`woo-token` = same value as `woo-mcp-auth`, `github-pat` from `.env`), `platform/provisioner-secrets` (`signing-key` 64 hex for the provisioner → gateway HMAC, `db-password` for the provisioner's read-only Postgres role; D-026)
+- Created stores (BON-09+): the provisioner creates the same four store Secrets in `store-<slug>` with random values (never overwritten on retries) and deletes them with the namespace.
+- Per-store upgrades: a new `charts/store` version ships inside the provisioner image; existing stores keep their release until re-installed (BON-11 adds the upgrade path).
 
 ## 5. VPS (k3s) — scripted, not yet run
 Everything VPS-specific lives in [`vps-setup/`](../vps-setup/): sizing, costs, the provider (JarvisLabs CPU VM), our VM's facts and the running log are in [`vps-setup/VPS.md`](../vps-setup/VPS.md).

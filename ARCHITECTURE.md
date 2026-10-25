@@ -53,7 +53,9 @@ flowchart LR
 | `store.<domain>` → wordpress (storefront, wp-admin) | `woo-mcp` (ingress allowed only from gateway pods) |
 | `app.<domain>/` → dashboard | `everything-mcp` (gateway only) |
 | `app.<domain>/api/*` → gateway REST | `mariadb` (wordpress + wp-init only) |
-| `app.<domain>/mcp` → gateway MCP endpoint | `postgres` (gateway only) |
+| `app.<domain>/mcp` → gateway MCP endpoint | `postgres` (gateway + provisioner's read-only role) |
+| `app.<domain>/oauth/*`, `/.well-known/oauth-*` → gateway (BON-08) | `provisioner` (no Service; egress to the API server, Postgres, gateway `/internal`) |
+| `<slug>.store.<domain>` → a created store's wordpress (BON-09+) | each created store's `woo-mcp`, `mariadb` (namespace `store-<slug>`) |
 
 The dashboard and the gateway share the host `app.<domain>`, so the browser talks to one origin: the session cookie stays `SameSite=Strict` and no CORS is needed. The dashboard is static files behind nginx (no secrets, no outbound connections, CSP `default-src 'self'`); all logic and authorization live in the gateway. Both `/api` and `/mcp` are `Prefix` paths: Traefik orders routers by the length of the rule text, so an `Exact` `/mcp` would lose to the dashboard's `/` (UI-20).
 
@@ -97,6 +99,8 @@ sequenceDiagram
 
 ## 6. Kubernetes topology
 One umbrella chart `charts/platform`, with subcharts or templates per component, and two values files (`values-local.yaml`, `values-prod.yaml`). See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+**Stores (D-026, BON-09):** one store = one release of `charts/store` (MariaDB, WordPress + hardening, wp-init, woo-mcp, NetworkPolicies, `workload` ServiceAccount; ResourceQuota/LimitRange for created stores). The platform chart installs the default TATVA store through it as a dependency (linked at `charts/platform/charts/store`, rendering identical to before the move). The `provisioner` (platform namespace, single replica + Postgres advisory lock) is the only workload with Kubernetes rights: it reads desired state from `stores` with a read-only DB role, creates the labelled `store-<slug>` namespace (Pod Security restricted), binds `store-manager` there, creates the store's Secrets, runs `helm upgrade --install` of `charts/store`, polls readiness and reports ready/failed/deleted to the gateway's HMAC-signed `/internal/stores/:id/*`. The gateway (single writer) then encrypts the woo-mcp token and registers upstream `woo-<slug>`. A ValidatingAdmissionPolicy confines the provisioner to labelled `store-*` namespaces and `store-manager` bindings.
 
 | Differs by values | local (k3d) | prod (k3s VPS) |
 |---|---|---|

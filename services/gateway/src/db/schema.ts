@@ -1,6 +1,6 @@
 // Database schema (Drizzle). Migrations are generated from this file: `npm run db:generate -w services/gateway`.
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, check, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 /** AES-256-GCM ciphertext of an upstream credential (D-009). Never returned by the API. */
 export interface EncryptedCredential {
@@ -34,6 +34,8 @@ export const upstreams = pgTable(
     memberAccess: text('member_access', { enum: MEMBER_ACCESS }).notNull().default('all'),
     /** Upstream tool names (not public names) members may use when memberAccess = 'selected'. */
     memberTools: jsonb('member_tools').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** BON-13: set for a created store's woo-mcp (`woo-<slug>`); access then follows the store (owner, access list). */
+    storeId: uuid('store_id').references(() => stores.id, { onDelete: 'set null' }),
     /** The admin who added it; null for rows seeded at startup (or when that user is gone). */
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -325,4 +327,67 @@ export const oauthTokens = pgTable(
     index('oauth_tokens_grant_idx').on(t.grantId),
     index('oauth_tokens_expires_idx').on(t.expiresAt),
   ],
+);
+
+// ---- Multi-store (BON-09..15, D-026, SPEC A-11): desired state written by the gateway, reconciled by the provisioner ----
+
+export const STORE_NICHES = ['stationery', 'tea-coffee', 'home-ceramics', 'bags', 'bike', 'custom'] as const;
+export type StoreNiche = (typeof STORE_NICHES)[number];
+/** provisioning → ready | failed; deleting → deleted. Only the gateway writes (provisioner reports via the signed internal API). */
+export const STORE_STATUSES = ['provisioning', 'ready', 'failed', 'deleting', 'deleted'] as const;
+export type StoreStatus = (typeof STORE_STATUSES)[number];
+
+/** One created store (namespace `store-<slug>`, Helm release `store-<slug>`, upstream `woo-<slug>`). */
+export const stores = pgTable(
+  'stores',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** 3–16 chars so `woo-<slug>` fits the upstream slug rule; derived from the name, immutable. */
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    tagline: text('tagline').notNull().default(''),
+    niche: text('niche', { enum: STORE_NICHES }).notNull(),
+    /** Custom niche only: the owner's niche text (the store's only category). */
+    nicheText: text('niche_text'),
+    ownerId: uuid('owner_id').notNull().references(() => users.id),
+    /** Client idempotency key: the same create request twice → the same store. */
+    requestKey: text('request_key').notNull(),
+    status: text('status', { enum: STORE_STATUSES }).notNull().default('provisioning'),
+    statusReason: text('status_reason'),
+    /** What should exist: 'present' until deleted, then 'absent' (the provisioner tears it down). */
+    desired: text('desired', { enum: ['present', 'absent'] }).notNull().default('present'),
+    /** wp-admin password from the provisioner, encrypted (AAD store:<slug>); wiped after the one view. */
+    adminPasswordEnc: jsonb('admin_password_enc').$type<EncryptedCredential>(),
+    adminPasswordViewedAt: timestamp('admin_password_viewed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [
+    check('stores_slug_format', sql`${t.slug} ~ '^[a-z][a-z0-9-]{1,14}[a-z0-9]$' and ${t.slug} !~ '--'`),
+    check('stores_name_length', sql`char_length(${t.name}) between 1 and 60`),
+    check('stores_tagline_length', sql`char_length(${t.tagline}) <= 120`),
+    check('stores_niche', sql`${t.niche} in ('stationery', 'tea-coffee', 'home-ceramics', 'bags', 'bike', 'custom')`),
+    check('stores_niche_text', sql`(${t.niche} = 'custom') = (${t.nicheText} is not null) and (${t.nicheText} is null or char_length(${t.nicheText}) between 1 and 60)`),
+    check('stores_status', sql`${t.status} in ('provisioning', 'ready', 'failed', 'deleting', 'deleted')`),
+    check('stores_desired', sql`${t.desired} in ('present', 'absent')`),
+    check('stores_reason_length', sql`${t.statusReason} is null or char_length(${t.statusReason}) <= 300`),
+    check('stores_request_key', sql`${t.requestKey} ~ '^[A-Za-z0-9_-]{8,64}$'`),
+    uniqueIndex('stores_owner_request_idx').on(t.ownerId, t.requestKey),
+    index('stores_owner_idx').on(t.ownerId),
+  ],
+);
+export type Store = typeof stores.$inferSelect;
+
+/** Members a store is shared with (A-11); they get the store upstream's member rule (default read-only). */
+export const storeMembers = pgTable(
+  'store_members',
+  {
+    storeId: uuid('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    addedBy: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.storeId, t.userId] }), index('store_members_user_idx').on(t.userId)],
 );
