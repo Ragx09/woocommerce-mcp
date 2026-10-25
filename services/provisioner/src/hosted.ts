@@ -38,9 +38,11 @@ const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 /** Opens the gateway's blob (AES-256-GCM, AAD `upstream:hosted:<slug>`, see gateway/src/crypto/credentials.ts). */
 export function decryptSecretEnv(key: Buffer, slug: string, enc: EncryptedBlob): Record<string, string> {
   if (enc.v !== 1) throw new Error(`unsupported secret version ${String(enc.v)}`);
-  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'));
+  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'), { authTagLength: 16 });
   d.setAAD(Buffer.from(`upstream:hosted:${slug}`, 'utf8'));
-  d.setAuthTag(Buffer.from(enc.tag, 'base64'));
+  const tag = Buffer.from(enc.tag, 'base64');
+  if (tag.length !== 16) throw new Error('invalid authentication tag length');
+  d.setAuthTag(tag);
   const json = Buffer.concat([d.update(Buffer.from(enc.ciphertext, 'base64')), d.final()]).toString('utf8');
   const obj = JSON.parse(json) as unknown;
   if (typeof obj !== 'object' || obj === null || Object.values(obj).some((v) => typeof v !== 'string')) throw new Error('secret environment is not a string map');

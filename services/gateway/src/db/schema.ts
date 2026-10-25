@@ -450,6 +450,8 @@ export const hostedServers = pgTable(
     check('hosted_image_format', sql`char_length(${t.image}) <= 255 and ${t.image} ~ '^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$'`),
     check('hosted_port', sql`${t.port} between 1 and 65535`),
     check('hosted_path', sql`${t.path} ~ '^/[A-Za-z0-9._~/-]{0,127}$'`),
+    // F-API-2: dot segments are resolved away by URL parsing, so such a path could never match the registered address.
+    check('hosted_path_segments', sql`${t.path} !~ '(^|/)[.]{1,2}(/|$)' and ${t.path} !~ '//'`),
     check('hosted_status', sql`${t.status} in ('provisioning', 'ready', 'failed', 'deleting', 'deleted')`),
     check('hosted_desired', sql`${t.desired} in ('present', 'absent')`),
     check('hosted_reason_length', sql`${t.statusReason} is null or char_length(${t.statusReason}) <= 300`),

@@ -14,9 +14,11 @@ export interface ResetGateway { passwordReset(id: string, result: { ok: boolean;
 /** Opens the gateway's blob (AAD `upstream:store-reset:<slug>`, gateway/src/crypto/credentials.ts with slug `store-reset:<slug>`). */
 export function openReset(key: Buffer, slug: string, enc: EncryptedBlob): string {
   if (enc.v !== 1) throw new Error(`unsupported version ${String(enc.v)}`);
-  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'));
+  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'), { authTagLength: 16 });
   d.setAAD(Buffer.from(`upstream:store-reset:${slug}`, 'utf8'));
-  d.setAuthTag(Buffer.from(enc.tag, 'base64'));
+  const tag = Buffer.from(enc.tag, 'base64');
+  if (tag.length !== 16) throw new Error('invalid authentication tag length');
+  d.setAuthTag(tag);
   const pw = Buffer.concat([d.update(Buffer.from(enc.ciphertext, 'base64')), d.final()]).toString('utf8');
   if (!/^[A-Za-z0-9]{16,64}$/.test(pw)) throw new Error('unexpected password format');
   return pw;

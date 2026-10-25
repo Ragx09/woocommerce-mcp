@@ -33,7 +33,7 @@ for kw in "Tool permissions" "OAuth" "Hosted servers" "multi-store" "Scaling and
 done
 # 5. SYSTEM_DESIGN and THREAT_MODEL mention the new components
 grep -q "provisioner" docs/SYSTEM_DESIGN.md && grep -q "hosted-<slug>" docs/SYSTEM_DESIGN.md && pass "SYSTEM_DESIGN covers provisioner, stores and hosted servers" || fail "SYSTEM_DESIGN misses the provisioner/hosted servers"
-for t in T-29 T-30 T-31 T-32 T-33; do grep -q "^| $t " THREAT_MODEL.md && pass "THREAT_MODEL has $t" || fail "THREAT_MODEL misses $t"; done
+for t in T-29 T-30 T-31 T-32 T-33 T-34; do grep -q "^| $t " THREAT_MODEL.md && pass "THREAT_MODEL has $t" || fail "THREAT_MODEL misses $t"; done
 # 6. every REQ-SO / REQ-BON id is in the traceability matrix with a status
 for r in 01 02 03 04 05 06 07 08 09; do grep -q "^| REQ-SO-$r |" docs/REQUIREMENTS_TRACEABILITY.md && pass "traceability has REQ-SO-$r" || fail "traceability misses REQ-SO-$r"; done
 for r in 01 02 03 04 05 06 07 08; do grep -q "^| REQ-BON-$r |" docs/REQUIREMENTS_TRACEABILITY.md && pass "traceability has REQ-BON-$r" || fail "traceability misses REQ-BON-$r"; done

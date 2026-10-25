@@ -100,6 +100,9 @@ export function registerHostedRoutes(app: FastifyInstance, deps: HostedRouteDeps
         if (!SLUG_HOSTED_RE.test(b.slug) || b.slug.includes('--') || RESERVED_SLUGS.has(b.slug)) {
           throw new HostedError(400, 'validation_failed', 'slug: 3–16 lower-case letters, digits and single hyphens, starting with a letter (not a reserved word)');
         }
+        if (b.path !== undefined && (b.path.includes('//') || b.path.split('/').some((seg) => seg === '.' || seg === '..'))) {
+          throw new HostedError(400, 'validation_failed', 'path must not contain . or .. segments or //');
+        }
         const problem = imageProblem(b.image, deps.registries);
         if (problem) throw new HostedError(400, problem.startsWith('registry not allowed') ? 'registry_not_allowed' : 'validation_failed', problem);
         const env = b.env ?? {};

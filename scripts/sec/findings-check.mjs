@@ -43,6 +43,9 @@ for (const line of lines.slice(start + 2)) {
   if (signoff && row.Status === 'Open') errors.push(`${id}: still Open (${row.Severity})`);
 }
 if (count.total === 0) errors.push('no findings rows');
+// A blank line inside the table used to hide every row below it from this check (11 rows, found in SEC-09): any finding row after the table ends is an error.
+const tableEnd = start + 2 + count.total;
+for (const [i, line] of lines.slice(tableEnd).entries()) if (/^\|\s*F-[A-Z]+-\d+\s*\|/.test(line)) errors.push(`row "${line.slice(0, 40).trim()}…" (line ${tableEnd + i + 1}) is outside the findings table: remove the blank line above it`);
 
 const summary = Object.entries(count).map(([k, v]) => `${k} ${v}`).join(', ');
 for (const e of errors) console.log(`FAIL  ${e}`);

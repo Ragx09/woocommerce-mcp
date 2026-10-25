@@ -1,0 +1,1 @@
+ALTER TABLE "hosted_servers" ADD CONSTRAINT "hosted_path_segments" CHECK ("hosted_servers"."path" !~ '(^|/)[.]{1,2}(/|$)' and "hosted_servers"."path" !~ '//');

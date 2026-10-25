@@ -124,6 +124,8 @@ describe('TC-BON-10-2 hosted servers API', () => {
     expect(await code(good('echo', { port: 70000 }))).toBe(400);
     expect(await code(good('echo', { path: 'mcp' }))).toBe(400);
     expect(await code(good('echo', { path: '/a b' }))).toBe(400);
+    for (const path of ['/../../etc', '/mcp/..', '/./mcp', '/a//b', '/mcp/../admin']) expect(await code(good('echo', { path })), path).toBe(400); // F-API-2
+    await expect(pool.query(`INSERT INTO hosted_servers (slug,name,image,port,path) VALUES ('rawp','x','ghcr.io/acme/x:1',80,'/../etc')`)).rejects.toThrow(/hosted_path_segments/);
     expect(await code(good('echo', { env: { lower: 'x' } }))).toBe(400);
     expect(await code(good('echo', { env: { LD_PRELOAD: '/x.so' } }))).toBe(400);
     expect(await code(good('echo', { env: { KUBERNETES_SERVICE_HOST: 'x' } }))).toBe(400);

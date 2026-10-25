@@ -15,6 +15,9 @@ ARG TARGETARCH=amd64
 ARG HELM_VERSION=v3.22.0
 ARG HELM_SHA256_amd64=1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
 ARG HELM_SHA256_arm64=f14e804dfee240f55525b667488fe9adca349e63e00c9af634c0beb1421ac310
+# Build stage only, thrown away: curl is not pinned (DL3018); the pipe is `sha256sum -c` on one line (DL4006); `sum` is set by
+# eval from the per-arch checksum ARG (SC2154). The Helm binary itself is pinned by version and sha256.
+# hadolint ignore=DL3018,DL4006,SC2154
 RUN apk add --no-cache curl \
  && curl -fsSLo /tmp/helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
  && eval "sum=\$HELM_SHA256_${TARGETARCH}" && echo "${sum}  /tmp/helm.tgz" | sha256sum -c - \

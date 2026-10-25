@@ -42,6 +42,16 @@ spec:
       serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
       # BON-04: preStop pause (5 s) + graceful close of in-flight requests (index.ts, ≤ 5 s) fit in 15 s.
       terminationGracePeriodSeconds: 15
+      # SEC-09 (kube-linter no-anti-affinity): spread the replicas over nodes when there is more than one. "Preferred", not
+      # "required": the single-node k3d/VPS install must still schedule both replicas.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: {{- include "platform.selector" $ctx | nindent 22 }}
       {{- include "platform.pullSecrets" . | nindent 6 }}
       securityContext:
         runAsUser: 1000
@@ -164,6 +174,8 @@ metadata:
   labels: {{- include "platform.labels" $ctx | nindent 4 }}
 spec:
   minAvailable: 1
+  # SEC-09 (kube-linter): a pod that never became Ready must not block a node drain.
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
 {{- end }}

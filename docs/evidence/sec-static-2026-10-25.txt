@@ -1,0 +1,19 @@
+== npm audit (all workspaces, dev dependencies included)
+   unaccepted: none | accepted (dev-only): ['@esbuild-kit/core-utils', '@esbuild-kit/esm-loader', 'drizzle-kit', 'esbuild']
+PASS  npm audit: only the accepted dev-only esbuild advisory
+== npm audit (production dependencies only: what the images contain)
+PASS  npm audit --omit=dev: 0 vulnerabilities
+== gitleaks
+PASS  gitleaks: no secrets in the history
+PASS  gitleaks: no secrets in the working tree
+== semgrep
+PASS  semgrep: 0 findings
+== hadolint
+PASS  hadolint: every Dockerfile clean (ignores carry their reason in the file)
+== kube-linter (rendered charts)
+PASS  kube-linter: platform chart clean
+PASS  kube-linter: store chart clean
+PASS  kube-linter: hosted chart clean
+== chart policy
+PASS  scripts/check-chart.sh
+checks failed: 0, skipped: 0

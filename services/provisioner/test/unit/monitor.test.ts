@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import pino from 'pino';
 import { describe, expect, it } from 'vitest';
 import { Monitor, collectRuntime, cpuCores, memoryMiB, type MonitorGateway, type RuntimeSnapshot } from '../../src/monitor.js';
+import { decryptSecretEnv } from '../../src/hosted.js';
 import { ResetRunner, openReset, resetJob, resetName, type ResetGateway } from '../../src/reset.js';
 import type { Kube } from '../../src/kube.js';
 import * as pv from '../../src/signing.js';
@@ -106,6 +107,15 @@ describe('TC-BON-12-U3 password reset', () => {
     expect(openReset(resetKey, 'tea', r.enc)).toBe('NewPassw0rdNewPassw0rd12');
     expect(() => openReset(resetKey, 'other', r.enc)).toThrow();
     expect(() => openReset(pv.hostedEnvKey(signingKey), 'tea', r.enc)).toThrow();
+  });
+
+  it('F-CRY-1: truncated authentication tags are refused by both openers (prefix of the real tag)', () => {
+    const r = row();
+    const tag = Buffer.from(r.enc.tag, 'base64');
+    for (const n of [0, 4, 8, 12]) {
+      expect(() => openReset(resetKey, 'tea', { ...r.enc, tag: tag.subarray(0, n).toString('base64') }), `reset ${n}`).toThrow(/tag/i);
+      expect(() => decryptSecretEnv(pv.hostedEnvKey(signingKey), 'tea', { ...r.enc, tag: tag.subarray(0, n).toString('base64') }), `hosted ${n}`).toThrow(/tag/i);
+    }
   });
 
   it('creates the temporary Secret and the Job once, waits while it runs, then patches wordpress-admin, cleans up and reports ok', async () => {

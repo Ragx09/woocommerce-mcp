@@ -119,6 +119,7 @@ Dashboard → **Servers** → *Hosted servers* → **Add by image** (admins): im
 | [TEST_PLAN.md](TEST_PLAN.md) | test strategy |
 | [TASKS.md](TASKS.md) | roadmap and status |
 | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) | the short "System design and tradeoffs" note |
+| [docs/SECURITY_REPORT.md](docs/SECURITY_REPORT.md) | security report: what was tried, found, fixed, accepted, and still unproven |
 | [docs/](docs) | MCP design, API contracts, deployment, demo runbook, traceability, security testing ([rules](docs/SECURITY_TESTING.md), [findings](docs/SECURITY_FINDINGS.md), [red-team brief](docs/RED_TEAM_BRIEF.md)) |
 | [brand/](brand) | Storefront brand material (current working concept: TATVA) |
 | [knowledge/](knowledge) | learning notes |

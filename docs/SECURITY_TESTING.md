@@ -36,6 +36,9 @@ find → row in `SECURITY_FINDINGS.md` → fix (smallest change) → retest the 
 | Web app passive + API scanning | OWASP ZAP `zaproxy/zap-stable:2.16.1` (baseline, API scan) | `scripts/sec/zap.sh` | SEC-03 |
 | Auth, IDOR, CSRF, sessions, brute force, invites, checkout tampering | vitest workspace `tests/security` (live, against k3d or the VPS) | `npm test -w tests/security` | SEC-04 |
 | MCP-specific (prompt injection, name spoofing, huge/slow/broken upstreams, SSRF, credential exfiltration via chat) | test-only upstream `services/hostile-mcp` (chart `hostileMcp.enabled`, false in every values file) | `scripts/sec/hostile.sh` | SEC-05 |
+| Static analysis (no cluster) | npm audit, gitleaks 8.28.0, semgrep 1.182.1 (nodejs, typescript, secrets, dockerfile, kubernetes, owasp-top-ten, javascript), hadolint 2.12.0, kube-linter 0.7.2, kubeconform (via `check-chart.sh`) | `scripts/sec/static.sh` | SEC-09 |
+| Multi-store / hosted / admin extras (live) | vitest `tests/security/stores.test.mjs` (TC-SEC-11); a cluster, or a gateway started by hand with `SEC_*` variables | `npm test -w tests/security -- stores` | SEC-09 |
+| OAuth authorization server (live) | vitest `tests/security/oauth.test.mjs` (TC-SEC-12); a cluster, or a hand-started gateway with `SEC_*` variables; run at most once a minute (rate limits) | `npm test -w tests/security -- oauth` | SEC-09 |
 | Image CVEs (ours + third-party) | Trivy `aquasec/trivy:0.58.1` (`--ignore-unfixed`, HIGH/CRITICAL) | `scripts/sec/k8s-scan.sh trivy` | SEC-06 |
 | K8s config | kubescape `quay.io/kubescape/kubescape-cli:v3.0.40` (NSA + MITRE) + triage list in `scripts/sec/kubescape-summary.mjs` | `scripts/sec/k8s-scan.sh kubescape` | SEC-06 |
 | NetworkPolicy escape | `busybox:1.36` probe pods (`scripts/k8s-checks.sh netpol` + `rogue`) | `scripts/sec/k8s-scan.sh rogue` | SEC-06 |

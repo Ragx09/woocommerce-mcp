@@ -26,8 +26,10 @@ export function encryptCredential(key: CredentialKey, slug: string, plaintext: s
 /** Throws if the key, slug or any byte of the ciphertext is wrong (GCM authentication). */
 export function decryptCredential(key: CredentialKey, slug: string, enc: EncryptedCredential): string {
   if (enc.v !== 1) throw new Error(`unsupported credential version ${String(enc.v)}`);
-  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'));
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'base64'), { authTagLength: 16 });
   decipher.setAAD(aad(slug));
-  decipher.setAuthTag(Buffer.from(enc.tag, 'base64'));
+  const tag = Buffer.from(enc.tag, 'base64');
+  if (tag.length !== 16) throw new Error('invalid authentication tag length');
+  decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(Buffer.from(enc.ciphertext, 'base64')), decipher.final()]).toString('utf8');
 }

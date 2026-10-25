@@ -18,6 +18,13 @@ describe('credential encryption (D-009)', () => {
     expect(JSON.stringify(a)).not.toContain('secret-token-123');
   });
 
+  it('F-CRY-1 (semgrep gcm-no-tag-length): a truncated authentication tag is refused even when it is a correct prefix of the real one', () => {
+    const enc = encryptCredential(key, 'woo', 'secret-token-123');
+    const tag = Buffer.from(enc.tag, 'base64');
+    for (const n of [0, 1, 4, 8, 12, 15]) expect(() => decryptCredential(key, 'woo', { ...enc, tag: tag.subarray(0, n).toString('base64') }), `${n} bytes`).toThrow(/tag/i);
+    expect(decryptCredential(key, 'woo', enc)).toBe('secret-token-123'); // the full tag still works
+  });
+
   it('TC-UNIT-05 / TC-GW-03-U2: wrong key, other upstream (slug) or tampered bytes → throws', () => {
     const enc = encryptCredential(key, 'woo', 'secret-token-123');
     const other = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });

@@ -9,10 +9,37 @@ export const ZERO_ID = '00000000-0000-4000-8000-000000000000';
 export const rand = (n = 6) => randomBytes(n).toString('hex');
 
 let users;
-/** { a: {cookie, user}, b: {cookie, user, email} } — logged in once per test file. */
+/**
+ * { a: {cookie, user}, b: {cookie, user, email} } — logged in once per test file. On a cluster the demo users come from
+ * scripts/seed-demo-users.mjs (kubectl). Without a cluster (a gateway started by hand) set SEC_ADMIN_EMAIL,
+ * SEC_ADMIN_PASSWORD, SEC_MEMBER_EMAIL, SEC_MEMBER_PASSWORD and they are signed in directly.
+ */
 export async function demoUsers() {
-  users ??= await ensureDemoUsers();
+  if (users) return users;
+  const e = process.env;
+  if (e.SEC_ADMIN_EMAIL) {
+    const login = async (email, password) => {
+      const r = await api('POST', '/api/auth/login', { body: { email, password } });
+      if (r.status !== 200) throw new Error(`login ${email} → ${r.status}`);
+      return { cookie: r.cookie, user: r.body.user, email };
+    };
+    users = { a: await login(e.SEC_ADMIN_EMAIL, e.SEC_ADMIN_PASSWORD), b: await login(e.SEC_MEMBER_EMAIL, e.SEC_MEMBER_PASSWORD) };
+  } else {
+    users = await ensureDemoUsers();
+  }
   return users;
+}
+
+/** A second throwaway member (invited by the admin, accepted, signed in): needed for cross-user (IDOR) attacks. Disabled by the cleanup it returns. */
+export async function extraMember(adminCookie, prefix = 'secc') {
+  const email = `${prefix}-${rand(4)}@example.invalid`;
+  const password = `${prefix}-${rand(10)}-pw`;
+  const inv = await api('POST', '/api/invites', { cookie: adminCookie, body: { email } });
+  if (inv.status !== 201) throw new Error(`invite → ${inv.status}`);
+  const acc = await api('POST', '/api/invites/accept', { body: { token: inv.body.inviteUrl.split('#')[1], name: `${prefix} member`, password } });
+  if (acc.status !== 201) throw new Error(`accept → ${acc.status}`);
+  const login = await api('POST', '/api/auth/login', { body: { email, password } });
+  return { cookie: login.cookie, user: login.body.user, email, disable: () => api('PATCH', `/api/users/${login.body.user.id}`, { cookie: adminCookie, body: { disabled: true } }) };
 }
 
 /** Gateway API call. `origin: false` sends no Origin header; any other string replaces it. */

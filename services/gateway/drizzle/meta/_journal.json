@@ -64,6 +64,13 @@
       "when": 1792964711822,
       "tag": "0008_runtime_and_reset",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792967204562,
+      "tag": "0009_hosted_path_segments",
+      "breakpoints": true
     }
   ]
 }
