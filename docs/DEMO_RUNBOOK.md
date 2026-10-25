@@ -1,6 +1,6 @@
 # Demo Runbook
 
-> Status: **Phase 7 verified on k3d 2026-10-18** (`scripts/e2e.sh all` PASS); rehearsed in REL-15. Every step lists the action and the expected result. Never put real passwords or keys in this file. Use `$USER_A_KEY` etc. from your shell.
+> Status: **Phase 7 verified on k3d 2026-10-18** (`scripts/e2e.sh all` PASS); §8 (multi-store) and §9 (hosted servers) are written against the built features and still need their first cluster run; rehearsed in REL-15. The recording plan is [VIDEO_PLAN.md](VIDEO_PLAN.md). Every step lists the action and the expected result. Never put real passwords or keys in this file. Use `$USER_A_KEY` etc. from your shell.
 
 ## 0. Setup before recording
 - [ ] Cluster up, all pods Ready (`kubectl get pods -A`)
@@ -40,3 +40,18 @@ Scripted version of 2–5 (except Claude Code itself): `scripts/e2e.sh all`.
 4. Settings → show the wp-admin password (once; the second try is refused). Share the first store with B → B's tool list shows only its read-only tools; remove B → gone on the next request.
 5. Delete the second store (type its name). **Expect:** its tools vanish at once; `kubectl get ns,pv` and `/api/upstreams` show nothing of it; the audit log keeps its rows.
 Scripted: `scripts/e2e.sh stores` (also kills the provisioner mid-create); isolation probes: `scripts/k8s-checks.sh stores`.
+
+## 9. Hosted MCP server by image — stand-out 5 (REQ-SO-05)
+1. Servers → *Hosted servers* → Add by image: name "Everything (hosted)", image `ghcr.io/ragx09/everything-mcp:<tag>` (the allowed registry), port 8080, environment `GZIP_ALLOWED_DOMAINS=invalid`, a secret variable. **Expect:** "Creating…" → Ready in about a minute; only the secret's *name* is shown afterwards.
+2. Negative cases: an image from `docker.io/...`, or any `:latest`, is refused with the reason.
+3. Chat/Inspector as A: `everything-hosted__echo` works. As B: nothing, until A edits the server → Member access → selected tools → then only those.
+4. `kubectl -n hosted-<slug> get pod,svc,networkpolicy,resourcequota,secret`; `kubectl -n hosted-<slug> get pod -o yaml | grep -E "runAsUser|readOnlyRootFilesystem|automount"`. **Expect:** non-root, read-only, no token; NetworkPolicies default-deny + gateway-only ingress; no egress policy unless it was ticked.
+5. Delete (type the slug). **Expect:** its tools vanish at once; the namespace, Secret and Service are gone; the audit log keeps its rows.
+Scripted: `scripts/e2e.sh hosted`; isolation probes: `scripts/k8s-checks.sh hosted`.
+
+## 10. Observability and scaling — stand-out 7/8 (REQ-SO-07/08)
+1. Servers page → "Last hour" per server: calls, failed %, p95, refused. Make a few calls (one refused tool, one to a stopped server) and refresh within 10 s.
+2. `kubectl -n platform get pods -l app=gateway` → 2 replicas; delete one while `scripts/k8s-checks.sh replicas` (or a loop of calls) runs. **Expect:** no failed request.
+3. `kubectl -n platform port-forward deploy/gateway 9464` → `curl localhost:9464/metrics | grep mcp_tool_calls_total`.
+4. A member over the per-key budget gets 429 + `Retry-After`, audited as `rate_limited`.
+Scripted: `scripts/k8s-checks.sh replicas` and `metrics`.

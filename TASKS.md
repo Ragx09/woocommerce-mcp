@@ -2500,7 +2500,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-16 — Stand-out documentation and demo
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 20
 - **Depends on:** BON-01..BON-15
 - **Requirements:** REQ-DEL-08
@@ -2508,8 +2508,8 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Output:** README, `docs/DEMO_RUNBOOK.md`, `docs/SYSTEM_DESIGN.md`, `THREAT_MODEL.md`.
 - **Acceptance:** Every stand-out item and the bonus listed with where to find it; rehearsal (REL-15) covers them.
 - **Tests:** checklist.
-- **Command:** —
-- **Evidence:** —
+- **Command:** `scripts/check-docs.sh`
+- **Evidence:** 2026-10-25 (documentation deliverable; REL-15 rehearsal still to do). README: usage sections for stores and hosted servers; stand-out table rewritten to all nine items + the multi-store bonus + brand, each with a status word (verified on k3d · built, cluster run pending · prepared), what was built and where; the old "Not attempted yet" line replaced. New `docs/VIDEO_PLAN.md` (timings, what to show per required topic and per stand-out item, pre-recording checklist, topic checklist). DEMO_RUNBOOK §9 hosted servers and §10 observability/scaling added (§8 multi-store from BON-12). SYSTEM_DESIGN: provisioner/stores/hosted rows in the workload table and a new §5 (provisioning design and cost, store access, hosted servers as untrusted code, honest status). THREAT_MODEL T-29..T-32 cover provisioner, internal API, store access and hosted images. Checklist test `scripts/check-docs.sh` → 50 PASS, failures: 0 (README lists all nine items and the bonus, each row states its status, every path named in the section exists, runbook and video plan cover every item and all six topics, SYSTEM_DESIGN/THREAT_MODEL/traceability entries present, no placeholder text); it found one real defect on its first run (`values-prod.yaml` named without its directory) which was fixed, and fails when a README row is removed (checked). **Note:** the table's status words must be updated when the pending cluster runs (BON-10, BON-12..15) pass — `scripts/check-docs.sh` keeps the structure honest, not the status.
 - **Regression risk:** —
 
 ---
