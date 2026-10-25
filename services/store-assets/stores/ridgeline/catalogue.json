@@ -10,43 +10,43 @@
    "slug": "riding-gear",
    "name": "Riding Gear & Protection",
    "description": "Helmets, jackets, gloves, boots, rainwear and protective accessories.",
-   "image": "bike/editorial/category-riding-gear.webp"
+   "image": "editorial/category-riding-gear.webp"
   },
   {
    "slug": "motorcycle-accessories",
    "name": "Motorcycle Accessories",
    "description": "Luggage, phone mounts, lighting, grips, covers and touring accessories.",
-   "image": "bike/editorial/category-motorcycle-accessories.webp"
+   "image": "editorial/category-motorcycle-accessories.webp"
   },
   {
    "slug": "car-accessories",
    "name": "Car Accessories",
    "description": "Dashcams, phone mounts, inflators, organisers, sunshades and car-care items.",
-   "image": "bike/editorial/category-car-accessories.webp"
+   "image": "editorial/category-car-accessories.webp"
   },
   {
    "slug": "travel-touring",
    "name": "Travel & Touring",
    "description": "Dry bags, backpacks, duffels, headlamps, hydration and travel organisers.",
-   "image": "bike/editorial/category-travel-touring.webp"
+   "image": "editorial/category-travel-touring.webp"
   },
   {
    "slug": "maintenance-care",
    "name": "Maintenance & Care",
    "description": "Chain care, cleaning brushes, microfiber cloths, pressure gauges and tools.",
-   "image": "bike/editorial/category-maintenance-care.webp"
+   "image": "editorial/category-maintenance-care.webp"
   },
   {
    "slug": "lifestyle",
    "name": "Lifestyle & Everyday Carry",
    "description": "T-shirts, caps, mugs, patches and everyday carry pouches.",
-   "image": "bike/editorial/category-lifestyle.webp"
+   "image": "editorial/category-lifestyle.webp"
   },
   {
    "slug": "electronics",
    "name": "Electronics & Connectivity",
    "description": "Helmet intercoms, camera mounts and travel power.",
-   "image": "bike/editorial/category-electronics.webp"
+   "image": "editorial/category-electronics.webp"
   }
  ],
  "brands": [
@@ -126,7 +126,7 @@
    "tags": [
     "everyday-rider"
    ],
-   "image": "bike/products/rdg-001.webp"
+   "image": "products/rdg-001.webp"
   },
   {
    "sku": "RDG-002",
@@ -140,7 +140,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-002.webp"
+   "image": "products/rdg-002.webp"
   },
   {
    "sku": "RDG-003",
@@ -154,7 +154,7 @@
    "tags": [
     "everyday-rider"
    ],
-   "image": "bike/products/rdg-003.webp"
+   "image": "products/rdg-003.webp"
   },
   {
    "sku": "RDG-004",
@@ -168,7 +168,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-004.webp"
+   "image": "products/rdg-004.webp"
   },
   {
    "sku": "RDG-005",
@@ -180,7 +180,7 @@
    "short_description": "Riding shoes. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-005.webp"
+   "image": "products/rdg-005.webp"
   },
   {
    "sku": "RDG-006",
@@ -194,7 +194,7 @@
    "tags": [
     "everyday-rider"
    ],
-   "image": "bike/products/rdg-006.webp"
+   "image": "products/rdg-006.webp"
   },
   {
    "sku": "RDG-007",
@@ -206,7 +206,7 @@
    "short_description": "Riding knee guards. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-007.webp"
+   "image": "products/rdg-007.webp"
   },
   {
    "sku": "RDG-008",
@@ -218,7 +218,7 @@
    "short_description": "Balaclava riding face cover. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-008.webp"
+   "image": "products/rdg-008.webp"
   },
   {
    "sku": "RDG-009",
@@ -232,7 +232,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-009.webp"
+   "image": "products/rdg-009.webp"
   },
   {
    "sku": "RDG-010",
@@ -244,7 +244,7 @@
    "short_description": "High-visibility rain cover. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-010.webp"
+   "image": "products/rdg-010.webp"
   },
   {
    "sku": "RDG-011",
@@ -258,7 +258,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-011.webp"
+   "image": "products/rdg-011.webp"
   },
   {
    "sku": "RDG-012",
@@ -272,7 +272,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-012.webp"
+   "image": "products/rdg-012.webp"
   },
   {
    "sku": "RDG-013",
@@ -286,7 +286,7 @@
    "tags": [
     "everyday-rider"
    ],
-   "image": "bike/products/rdg-013.webp"
+   "image": "products/rdg-013.webp"
   },
   {
    "sku": "RDG-014",
@@ -300,7 +300,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-014.webp"
+   "image": "products/rdg-014.webp"
   },
   {
    "sku": "RDG-015",
@@ -312,7 +312,7 @@
    "short_description": "Motorcycle cover. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-015.webp"
+   "image": "products/rdg-015.webp"
   },
   {
    "sku": "RDG-016",
@@ -326,7 +326,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-016.webp"
+   "image": "products/rdg-016.webp"
   },
   {
    "sku": "RDG-017",
@@ -338,7 +338,7 @@
    "short_description": "Auxiliary lights. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-017.webp"
+   "image": "products/rdg-017.webp"
   },
   {
    "sku": "RDG-018",
@@ -350,7 +350,7 @@
    "short_description": "Handlebar grip set. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-018.webp"
+   "image": "products/rdg-018.webp"
   },
   {
    "sku": "RDG-019",
@@ -364,7 +364,7 @@
    "tags": [
     "everyday-rider"
    ],
-   "image": "bike/products/rdg-019.webp"
+   "image": "products/rdg-019.webp"
   },
   {
    "sku": "RDG-020",
@@ -376,7 +376,7 @@
    "short_description": "Compact tyre-pressure gauge. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-020.webp"
+   "image": "products/rdg-020.webp"
   },
   {
    "sku": "RDG-021",
@@ -390,7 +390,7 @@
    "tags": [
     "car-trip"
    ],
-   "image": "bike/products/rdg-021.webp"
+   "image": "products/rdg-021.webp"
   },
   {
    "sku": "RDG-022",
@@ -404,7 +404,7 @@
    "tags": [
     "car-trip"
    ],
-   "image": "bike/products/rdg-022.webp"
+   "image": "products/rdg-022.webp"
   },
   {
    "sku": "RDG-023",
@@ -418,7 +418,7 @@
    "tags": [
     "car-trip"
    ],
-   "image": "bike/products/rdg-023.webp"
+   "image": "products/rdg-023.webp"
   },
   {
    "sku": "RDG-024",
@@ -432,7 +432,7 @@
    "tags": [
     "car-trip"
    ],
-   "image": "bike/products/rdg-024.webp"
+   "image": "products/rdg-024.webp"
   },
   {
    "sku": "RDG-025",
@@ -444,7 +444,7 @@
    "short_description": "Car sunshade set. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-025.webp"
+   "image": "products/rdg-025.webp"
   },
   {
    "sku": "RDG-026",
@@ -458,7 +458,7 @@
    "tags": [
     "car-trip"
    ],
-   "image": "bike/products/rdg-026.webp"
+   "image": "products/rdg-026.webp"
   },
   {
    "sku": "RDG-027",
@@ -470,7 +470,7 @@
    "short_description": "Emergency jump starter. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-027.webp"
+   "image": "products/rdg-027.webp"
   },
   {
    "sku": "RDG-028",
@@ -482,7 +482,7 @@
    "short_description": "Seat-back organiser. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-028.webp"
+   "image": "products/rdg-028.webp"
   },
   {
    "sku": "RDG-029",
@@ -496,7 +496,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-029.webp"
+   "image": "products/rdg-029.webp"
   },
   {
    "sku": "RDG-030",
@@ -510,7 +510,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-030.webp"
+   "image": "products/rdg-030.webp"
   },
   {
    "sku": "RDG-031",
@@ -522,7 +522,7 @@
    "short_description": "Compact travel duffel. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-031.webp"
+   "image": "products/rdg-031.webp"
   },
   {
    "sku": "RDG-032",
@@ -536,7 +536,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-032.webp"
+   "image": "products/rdg-032.webp"
   },
   {
    "sku": "RDG-033",
@@ -548,7 +548,7 @@
    "short_description": "Lightweight travel mat. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-033.webp"
+   "image": "products/rdg-033.webp"
   },
   {
    "sku": "RDG-034",
@@ -562,7 +562,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-034.webp"
+   "image": "products/rdg-034.webp"
   },
   {
    "sku": "RDG-035",
@@ -574,7 +574,7 @@
    "short_description": "Compact first-aid pouch. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-035.webp"
+   "image": "products/rdg-035.webp"
   },
   {
    "sku": "RDG-036",
@@ -588,7 +588,7 @@
    "tags": [
     "weekend-escape"
    ],
-   "image": "bike/products/rdg-036.webp"
+   "image": "products/rdg-036.webp"
   },
   {
    "sku": "RDG-037",
@@ -602,7 +602,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-037.webp"
+   "image": "products/rdg-037.webp"
   },
   {
    "sku": "RDG-038",
@@ -616,7 +616,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-038.webp"
+   "image": "products/rdg-038.webp"
   },
   {
    "sku": "RDG-039",
@@ -630,7 +630,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-039.webp"
+   "image": "products/rdg-039.webp"
   },
   {
    "sku": "RDG-040",
@@ -644,7 +644,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-040.webp"
+   "image": "products/rdg-040.webp"
   },
   {
    "sku": "RDG-041",
@@ -658,7 +658,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-041.webp"
+   "image": "products/rdg-041.webp"
   },
   {
    "sku": "RDG-042",
@@ -672,7 +672,7 @@
    "tags": [
     "keep-it-running"
    ],
-   "image": "bike/products/rdg-042.webp"
+   "image": "products/rdg-042.webp"
   },
   {
    "sku": "RDG-043",
@@ -686,7 +686,7 @@
    "tags": [
     "the-edit"
    ],
-   "image": "bike/products/rdg-043.webp"
+   "image": "products/rdg-043.webp"
   },
   {
    "sku": "RDG-044",
@@ -700,7 +700,7 @@
    "tags": [
     "the-edit"
    ],
-   "image": "bike/products/rdg-044.webp"
+   "image": "products/rdg-044.webp"
   },
   {
    "sku": "RDG-045",
@@ -714,7 +714,7 @@
    "tags": [
     "the-edit"
    ],
-   "image": "bike/products/rdg-045.webp"
+   "image": "products/rdg-045.webp"
   },
   {
    "sku": "RDG-046",
@@ -728,7 +728,7 @@
    "tags": [
     "the-edit"
    ],
-   "image": "bike/products/rdg-046.webp"
+   "image": "products/rdg-046.webp"
   },
   {
    "sku": "RDG-047",
@@ -742,7 +742,7 @@
    "tags": [
     "the-edit"
    ],
-   "image": "bike/products/rdg-047.webp"
+   "image": "products/rdg-047.webp"
   },
   {
    "sku": "RDG-048",
@@ -756,7 +756,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-048.webp"
+   "image": "products/rdg-048.webp"
   },
   {
    "sku": "RDG-049",
@@ -768,7 +768,7 @@
    "short_description": "Action camera mounting kit. Demo listing: fitment, sizes and specifications are not verified.",
    "featured": false,
    "tags": [],
-   "image": "bike/products/rdg-049.webp"
+   "image": "products/rdg-049.webp"
   },
   {
    "sku": "RDG-050",
@@ -782,7 +782,7 @@
    "tags": [
     "long-distance"
    ],
-   "image": "bike/products/rdg-050.webp"
+   "image": "products/rdg-050.webp"
   }
  ]
 }

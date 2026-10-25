@@ -1,7 +1,7 @@
 <?php
 /**
  * TATVA child theme. Presentation only: products, brands, categories and images live in WooCommerce
- * (imported from services/store-assets/catalogue/catalogue.json by wp-init). Nothing here invents
+ * (imported from services/store-assets/stores/<store>/catalogue.json by wp-init). Nothing here invents
  * product facts, reviews or stock levels.
  *
  * @package tatva
@@ -60,13 +60,23 @@ function tatva_copy( string $key ): string {
 	return $v;
 }
 
-/** An editorial image: the niche's own version when it ships one (assets/images/<niche>/), else TATVA's. */
+/** Which store's own files to use (services/store-assets/stores/<store>/): ridgeline for bike, tatva otherwise. */
+function tatva_store_dir(): string {
+	return 'bike' === tatva_niche() ? 'ridgeline' : 'tatva';
+}
+
+/** A file shipped for a store (assets/stores/<store>/...). */
+function tatva_store_uri( string $path, string $store = '' ): string {
+	return get_theme_file_uri( 'assets/stores/' . ( '' !== $store ? $store : tatva_store_dir() ) . '/' . $path );
+}
+
+/** An editorial image: the store's own version when it ships one, else TATVA's. */
 function tatva_image_uri( string $file ): string {
-	$n = tatva_niche();
-	if ( '' !== $n && is_readable( get_theme_file_path( "assets/images/$n/$file" ) ) ) {
-		return get_theme_file_uri( "assets/images/$n/$file" );
+	$dir = tatva_store_dir();
+	if ( is_readable( get_theme_file_path( "assets/stores/$dir/editorial/$file" ) ) ) {
+		return tatva_store_uri( "editorial/$file", $dir );
 	}
-	return get_theme_file_uri( "assets/images/$file" );
+	return tatva_store_uri( "editorial/$file", 'tatva' );
 }
 
 /** The niche accent replaces the TATVA greens in the palette variables (presentation only). */
@@ -82,15 +92,24 @@ add_action(
 	20
 );
 
+/** Ridgeline: its mark in front of the store name in the header (the name stays text, so it is read out once). */
+add_filter(
+	'render_block_core/site-title',
+	static function ( string $html ): string {
+		if ( 'bike' !== tatva_niche() ) {
+			return $html;
+		}
+		$mark = '<img class="tatva-site-mark" src="' . esc_url( tatva_store_uri( 'brand/ridgeline-mark.svg', 'ridgeline' ) ) . '" alt="" width="40" height="25" aria-hidden="true">';
+		return (string) preg_replace( '/(<a[^>]*>)/', '$1' . $mark, $html, 1 );
+	}
+);
+
 /** Alt text for theme images, shipped with the theme (built from images/manifest.json, plus the niche's own). */
 function tatva_manifest(): array {
 	static $m = null;
 	if ( null === $m ) {
 		$m = array();
-		$files = array( get_theme_file_path( 'assets/image-meta.json' ) );
-		if ( '' !== tatva_niche() ) {
-			$files[] = get_theme_file_path( 'assets/images/' . tatva_niche() . '/image-meta.json' );
-		}
+		$files = array_unique( array( get_theme_file_path( 'assets/stores/tatva/image-meta.json' ), get_theme_file_path( 'assets/stores/' . tatva_store_dir() . '/image-meta.json' ) ) );
 		foreach ( $files as $file ) {
 			if ( is_readable( $file ) ) {
 				$m = array_merge( $m, (array) json_decode( (string) file_get_contents( $file ), true ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions

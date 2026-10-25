@@ -4,12 +4,13 @@
  *
  * Idempotent: categories/brands/tags by slug, products by SKU, images by key + checksum. Re-running
  * changes nothing when the catalogue and images are unchanged. Single source of truth:
- * /assets/catalogue/catalogue.json (services/store-assets/catalogue/catalogue.json in git).
+ * /assets/stores/<store>/catalogue.json (services/store-assets/stores/<store>/ in git).
  * Uses the normal WooCommerce data model and media library; no direct SQL.
  *
- * BON-11 (A-11) created stores: STORE_NICHE picks catalogue/<niche>.json (stationery, tea-coffee, home-ceramics,
- * bags, bike); "custom" imports no products and one category named STORE_NICHE_TEXT. STORE_TAGLINE replaces the
- * catalogue's tagline. Image alt texts come from images/manifest.json plus images/<niche>/manifest.json.
+ * BON-11 (A-11) created stores: STORE_NICHE picks the store data — "" (default) and stationery, tea-coffee,
+ * home-ceramics, bags use stores/tatva (catalogue.json or niches/<niche>.json, TATVA images); bike uses
+ * stores/ridgeline; "custom" imports no products and one category named STORE_NICHE_TEXT. STORE_TAGLINE replaces
+ * the catalogue's tagline. Image paths and alt texts are relative to stores/<store>/images/.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,6 +24,8 @@ $niche  = (string) getenv( 'STORE_NICHE' );
 if ( '' !== $niche && ! preg_match( '/^(stationery|tea-coffee|home-ceramics|bags|bike|custom)$/', $niche ) ) {
 	WP_CLI::error( 'unknown STORE_NICHE' );
 }
+$store = 'bike' === $niche ? 'ridgeline' : 'tatva';
+$dir   = "$assets/stores/$store";
 if ( 'custom' === $niche ) {
 	// The owner's niche text becomes the only category; the owner adds products in wp-admin.
 	$text = trim( mb_substr( wp_strip_all_tags( (string) getenv( 'STORE_NICHE_TEXT' ) ), 0, 60 ) );
@@ -30,12 +33,11 @@ if ( 'custom' === $niche ) {
 	$cat  = array( 'store' => array( 'tagline' => '' ), 'categories' => array( array( 'slug' => sanitize_title( $text ) ?: 'products', 'name' => $text, 'description' => '' ) ),
 		'brands' => array(), 'collections' => array(), 'products' => array() );
 } else {
-	$cat = json_decode( (string) file_get_contents( "$assets/catalogue/" . ( '' === $niche ? 'catalogue' : $niche ) . '.json' ), true );
+	$file = ( '' === $niche || 'bike' === $niche ) ? "$dir/catalogue.json" : "$dir/niches/$niche.json";
+	$cat  = json_decode( (string) file_get_contents( $file ), true );
 }
-$meta = json_decode( (string) file_get_contents( "$assets/images/manifest.json" ), true );
-if ( '' !== $niche && is_readable( "$assets/images/$niche/manifest.json" ) ) {
-	$meta = array_merge( (array) $meta, (array) json_decode( (string) file_get_contents( "$assets/images/$niche/manifest.json" ), true ) );
-}
+$images = "$dir/images";
+$meta   = json_decode( (string) file_get_contents( "$images/manifest.json" ), true );
 if ( ! is_array( $cat ) || ! is_array( $meta ) ) {
 	WP_CLI::error( 'catalogue or manifest.json missing or invalid' );
 }
@@ -108,7 +110,7 @@ foreach ( $cat['categories'] as $i => $c ) {
 	$id = tatva_term( 'product_cat', $c['slug'], $c['name'], $c['description'] );
 	update_term_meta( $id, 'order', $i + 1 );
 	$key = 'ed-category-' . $c['slug'];
-	$img = isset( $c['image'] ) ? tatva_attachment( $key, "$assets/images/{$c['image']}", $meta[ $key ]['alt'] ?? $c['name'], $stats ) : 0;
+	$img = isset( $c['image'] ) ? tatva_attachment( $key, "$images/{$c['image']}", $meta[ $key ]['alt'] ?? $c['name'], $stats ) : 0;
 	if ( $img ) {
 		update_term_meta( $id, 'thumbnail_id', $img );
 	}
@@ -162,7 +164,7 @@ foreach ( $cat['products'] as $order => $p ) {
 	$prod->set_stock_status( 'instock' );
 	$prod->set_reviews_allowed( false );
 	$prod->set_menu_order( $order );
-	$img = tatva_attachment( $key, "$assets/images/{$p['image']}", $meta[ $key ]['alt'] ?? $p['name'], $stats );
+	$img = tatva_attachment( $key, "$images/{$p['image']}", $meta[ $key ]['alt'] ?? $p['name'], $stats );
 	if ( (int) $prod->get_image_id( 'edit' ) !== $img ) { // stored as a string: compare as numbers
 		$prod->set_image_id( $img ); // 0 = no image → WooCommerce placeholder, theme shows its fallback
 	}
@@ -216,9 +218,11 @@ foreach ( $pages as $slug => [ $title, $pattern ] ) {
 	}
 }
 
-// Site icon (favicon) from the TATVA mark: the default store only (created stores carry no TATVA branding).
-if ( '' === $niche ) {
-	$icon = tatva_attachment( 'site-icon', "$assets/images/brand/site-icon.png", 'TATVA', $stats );
+// Site icon (favicon): the TATVA mark for the default store, a niche's own mark when it ships one (bike:
+// Ridgeline); other created stores carry no TATVA branding and keep the WordPress default.
+$icon_file = "$dir/brand/site-icon.png";
+if ( ( '' === $niche || 'bike' === $niche ) && is_readable( $icon_file ) ) {
+	$icon = tatva_attachment( '' === $niche ? 'site-icon' : "site-icon-$niche", $icon_file, '' === $niche ? 'TATVA' : get_bloginfo( 'name' ), $stats );
 	if ( $icon ) {
 		update_option( 'site_icon', $icon );
 	}

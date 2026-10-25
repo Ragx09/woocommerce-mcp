@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """BON-11: niche catalogues for created stores, cut from the TATVA catalogue (one source of truth).
-Writes services/store-assets/catalogue/<niche>.json for stationery, tea-coffee, home-ceramics, bags.
-Re-run after editing catalogue.json. Bike (BON-17) has its own hand-made bike.json; custom needs no file."""
+Writes services/store-assets/stores/tatva/niches/<niche>.json for stationery, tea-coffee, home-ceramics, bags
+(created stores of these niches use TATVA's images).
+Re-run after editing stores/tatva/catalogue.json. Bike = the Ridgeline store (stores/ridgeline/); custom needs no file."""
 import json, os
 
-ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'catalogue')
+ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'stores', 'tatva')
 NICHES = {  # niche → (TATVA categories, title used only when nothing else is set)
     'stationery': (['stationery-everyday'], 'Stationery & desk'),
     'tea-coffee': (['food-drink'], 'Tea & coffee'),
@@ -24,5 +25,5 @@ for niche, (cats, title) in NICHES.items():
         'collections': [c for c in src['collections'] if c['tag'] in tags],
         'products': products,
     }
-    json.dump(out, open(os.path.join(ROOT, f'{niche}.json'), 'w'), indent=1, ensure_ascii=False)
+    json.dump(out, open(os.path.join(ROOT, 'niches', f'{niche}.json'), 'w'), indent=1, ensure_ascii=False)
     print(f'{niche}: {len(products)} products, {len(out["brands"])} brands, {len(out["collections"])} collections')

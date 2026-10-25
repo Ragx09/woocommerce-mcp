@@ -43,8 +43,10 @@ if [ "${BRAND_ENABLED:-false}" = "true" ]; then
   # BRD-08: TATVA admin colour scheme for the admin user, only while it is still the default
   # (a scheme the user picked under Users → Profile is kept). WordPress 7 creates users with "modern",
   # older versions with "fresh" (found by the 2026-10-24 clean install).
+  # BON-11: the bike niche (Ridgeline) has its own scheme; a scheme the user picked is still kept.
+  SCHEME=tatva; [ "${STORE_NICHE:-}" = bike ] && SCHEME=ridgeline
   case "$($WP user meta get "$ADMIN_USER" admin_color 2>/dev/null || true)" in
-    ''|fresh|modern) q user meta update "$ADMIN_USER" admin_color tatva && echo "admin colour scheme: tatva" ;;
+    ''|fresh|modern|tatva) [ "$($WP user meta get "$ADMIN_USER" admin_color 2>/dev/null || true)" = "$SCHEME" ] || { q user meta update "$ADMIN_USER" admin_color "$SCHEME" && echo "admin colour scheme: $SCHEME"; } ;;
   esac
   ASSETS_DIR=/assets $WP eval-file /assets/import/import-catalogue.php
 elif [ "$($WP post list --post_type=product --post_status=any --format=count)" = "0" ]; then

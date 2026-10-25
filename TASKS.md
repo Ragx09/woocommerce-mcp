@@ -2025,7 +2025,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 ---
 
 ## Phase 9 — Storefront brand and catalogue
-Brand: **TATVA (current working concept; may change, D-015)**. Source material: [`docs/tatva-brand-and-products.md`](docs/tatva-brand-and-products.md) (brand + catalogue), [`docs/v1-brand-ui-theme.md`](docs/v1-brand-ui-theme.md) (UI/theme), [`docs/PRODUCT_IMAGES.md`](docs/PRODUCT_IMAGES.md) (images). If the concept changes, only these docs and D-015 change; the tasks stay the same.
+Brand: **TATVA (current working concept; may change, D-015)**. Source material: [`brand/tatva/tatva-brand-and-products.md`](brand/tatva/tatva-brand-and-products.md) (brand + catalogue), [`brand/tatva/v1-brand-ui-theme.md`](brand/tatva/v1-brand-ui-theme.md) (UI/theme), [`docs/PRODUCT_IMAGES.md`](docs/PRODUCT_IMAGES.md) (images). If the concept changes, only these docs and D-015 change; the tasks stay the same.
 Exit criterion: the storefront follows the current brand concept and theme spec, has the catalogue, comes back the same on a fresh cluster, and checkout and MCP tests still pass. Added 2026-10-12 at the user's request. Runs alongside Phase 4 on Day 3; P2, so brand polish is the first thing cut if behind.
 
 ### BRD-01 — Niche and positioning
@@ -2034,8 +2034,8 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Day:** 3
 - **Depends on:** WC-03
 - **Requirements:** —
-- **Description:** Current working concept **TATVA** (D-015, may change): curated multi-brand Indian lifestyle store, primary line "The Essence of Good Design.", 5 categories (Home & Living hero), placeholder brands, voice and merchandising rules. Source of truth: `docs/tatva-brand-and-products.md` (user-supplied).
-- **Output:** `docs/tatva-brand-and-products.md` (brand + catalogue), applied in theme copy and `services/store-assets/catalogue/catalogue.json`.
+- **Description:** Current working concept **TATVA** (D-015, may change): curated multi-brand Indian lifestyle store, primary line "The Essence of Good Design.", 5 categories (Home & Living hero), placeholder brands, voice and merchandising rules. Source of truth: `brand/tatva/tatva-brand-and-products.md` (user-supplied).
+- **Output:** `brand/tatva/tatva-brand-and-products.md` (brand + catalogue), applied in theme copy and `services/store-assets/stores/tatva/catalogue.json`.
 - **Acceptance:** BRD-02..05 built from it without further questions; brand-name review note for REL-16/17 recorded (D-015).
 - **Tests:** TC-BRD-01-1: copy check — site title, tagline, hero, concept page match the doc; no unsupported claims.
 - **Command:** —
@@ -2048,8 +2048,8 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Day:** 3
 - **Depends on:** BRD-01
 - **Requirements:** —
-- **Description:** Wordmark for the working name (Literata, letter-spaced, as site title so it stays crisp and editable) + SVG wordmark + site icon; palette and fonts from `docs/v1-brand-ui-theme.md` §2 (+ terracotta accent).
-- **Output:** `brand/logo/tatva-wordmark.svg`, `brand/logo/site-icon-512.png`, `favicon-64.png`; site icon installed by the importer; fonts Literata + Manrope (OFL, bundled in the theme, no CDN).
+- **Description:** Wordmark for the working name (Literata, letter-spaced, as site title so it stays crisp and editable) + SVG wordmark + site icon; palette and fonts from `brand/tatva/v1-brand-ui-theme.md` §2 (+ terracotta accent).
+- **Output:** `brand/tatva/logo/tatva-wordmark.svg`, `brand/tatva/logo/site-icon-512.png`, `favicon-64.png`; site icon installed by the importer; fonts Literata + Manrope (OFL, bundled in the theme, no CDN).
 - **Acceptance:** Logo readable at 32 px; text pairs meet WCAG AA.
 - **Tests:** TC-BRD-02-1 contrast; TC-BRD-02-2 favicon set.
 - **Command:** —
@@ -2064,7 +2064,7 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Requirements:** —
 - **Description:** Theme decision (D-016): `tatva` child theme of Twenty Twenty-Five (block theme, WooCommerce blocks). theme.json maps the TATVA palette onto the parent's slots (base, contrast, accent-1..6) so every parent/WooCommerce template inherits it; type scale Literata (display) + Manrope (UI).
 - **Output:** `services/store-assets/theme/tatva/` (theme.json, style.css, functions.php, parts/, templates/, patterns/, assets/).
-- **Acceptance:** Tokens match `docs/v1-brand-ui-theme.md`; no hard-coded colours outside theme.json except the documented footer note tint.
+- **Acceptance:** Tokens match `brand/tatva/v1-brand-ui-theme.md`; no hard-coded colours outside theme.json except the documented footer note tint.
 - **Tests:** TC-BRD-03-1 grep for raw hex outside theme.json.
 - **Command:** `grep -rn "#[0-9A-Fa-f]\{6\}" services/store-assets/theme/tatva --include=*.css --include=*.html --include=*.php`
 - **Evidence:** 2026-10-12: palette Warm ivory #F8F6F0, Charcoal #252A27, Forest #173D35, Sand #E8DCC9, Sage #A6B7A0, Muted grey #5F645F, White, Terracotta #A4532F; buttons 2 px radius, visible focus outline, reduced-motion respected. Raw hex outside theme.json: footer note colour #d9dfd6 only (documented).
@@ -2076,7 +2076,7 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Day:** 3
 - **Depends on:** BRD-03
 - **Requirements:** —
-- **Description:** Pages per `docs/v1-brand-ui-theme.md`: header (wordmark, Home/Shop/Brands/Categories/Our Concept, search, account, cart; mobile menu), homepage sections in spec order (hero, curation principles, shop by category, featured brands, featured products, curated collection "The Morning Table", concept), shop/category/brand/search archives with category/brand/price filters and sorting (no rating sort: no reviews exist), product page (gallery, brand, ₹ price, add to cart, SKU, demo-listing note, related products), brand directory, category directory, concept page, footer. Brand shown on cards, product page and cart lines. Missing-image fallback.
+- **Description:** Pages per `brand/tatva/v1-brand-ui-theme.md`: header (wordmark, Home/Shop/Brands/Categories/Our Concept, search, account, cart; mobile menu), homepage sections in spec order (hero, curation principles, shop by category, featured brands, featured products, curated collection "The Morning Table", concept), shop/category/brand/search archives with category/brand/price filters and sorting (no rating sort: no reviews exist), product page (gallery, brand, ₹ price, add to cart, SKU, demo-listing note, related products), brand directory, category directory, concept page, footer. Brand shown on cards, product page and cart lines. Missing-image fallback.
 - **Output:** Theme templates/patterns; pages Brands, Categories, Our Concept created by the importer (bodies are theme patterns).
 - **Acceptance:** Homepage matches the spec sections in order; links work; mobile usable; checkout still works.
 - **Tests:** TC-BRD-04-1 screenshots desktop+mobile; TC-BRD-04-2 search returns products; TC-BRD-04-3 empty search shows a clear empty state.
@@ -2090,8 +2090,8 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Day:** 3
 - **Depends on:** BRD-01
 - **Requirements:** —
-- **Description:** INR store; 5 categories, 9 placeholder brands (WooCommerce Brands), the 50-product proposed catalogue from `docs/tatva-brand-and-products.md` §6 (illustrative ₹ prices, descriptions only restating the product name), 8 featured, collection tag "The Morning Table". Images per `docs/PRODUCT_IMAGES.md`, restricted to **CC0 / Public Domain** (no attribution needed, so the store shows no credits — user decision 2026-10-12); sourced via the Openverse and Wikimedia Commons APIs, chosen visually, cropped/resized only. Imported idempotently (SKU, image key + checksum); replaces the old sample products (trashed).
-- **Output:** `services/store-assets/catalogue/catalogue.json`, `services/store-assets/images/{products,editorial,brand}/`, `services/store-assets/images/manifest.json` (source, creator, licence, URLs, original size, sha256, modifications, alt), `services/store-assets/import/import-catalogue.php`, tools `scripts/brand/{find_images,fetch_image,validate_images}.py`.
+- **Description:** INR store; 5 categories, 9 placeholder brands (WooCommerce Brands), the 50-product proposed catalogue from `brand/tatva/tatva-brand-and-products.md` §6 (illustrative ₹ prices, descriptions only restating the product name), 8 featured, collection tag "The Morning Table". Images per `docs/PRODUCT_IMAGES.md`, restricted to **CC0 / Public Domain** (no attribution needed, so the store shows no credits — user decision 2026-10-12); sourced via the Openverse and Wikimedia Commons APIs, chosen visually, cropped/resized only. Imported idempotently (SKU, image key + checksum); replaces the old sample products (trashed).
+- **Output:** `services/store-assets/stores/tatva/catalogue.json`, `services/store-assets/stores/tatva/images/{products,editorial,brand}/`, `services/store-assets/stores/tatva/images/manifest.json` (source, creator, licence, URLs, original size, sha256, modifications, alt), `services/store-assets/import/import-catalogue.php`, tools `scripts/brand/{find_images,fetch_image,validate_images}.py`.
 - **Acceptance:** Fresh install → all 5 categories have products; re-running wp-init creates no duplicates; every product has an image or a recorded gap.
 - **Tests:** TC-BRD-05-1 counts; TC-BRD-05-2 re-run → unchanged; TC-BRD-05-3 MCP list_products returns ₹ catalogue; TC-BRD-05-4 `validate_images.py`.
 - **Command:** `python3 scripts/brand/validate_images.py && scripts/woo-int.sh`
@@ -2118,7 +2118,7 @@ Exit criterion: the storefront follows the current brand concept and theme spec,
 - **Day:** 3
 - **Depends on:** BRD-04, BRD-06
 - **Requirements:** —
-- **Description:** Screenshots (desktop + mobile) checked against `docs/v1-brand-ui-theme.md` §9; regression of checkout and MCP tools.
+- **Description:** Screenshots (desktop + mobile) checked against `brand/tatva/v1-brand-ui-theme.md` §9; regression of checkout and MCP tools.
 - **Output:** `docs/evidence/brd-07-*.jpg`; `scripts/storefront-screens.sh`, `tests/e2e/screens.mjs`.
 - **Acceptance:** Checkout (COD) passes; woo-int passes; screenshots stored.
 - **Tests:** TC-BRD-07-1 `scripts/e2e-checkout.sh` → COD PASS. TC-BRD-07-2 `scripts/woo-int.sh` → all PASS.
@@ -2420,7 +2420,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Day:** 19
 - **Depends on:** BON-09
 - **Requirements:** REQ-BON-02
-- **Description:** `charts/store` values per store: name, tagline, niche, accent colour, host `<slug>.store.<domain>`, generated Secrets (DB passwords, WooCommerce keys, woo-mcp token, one-time wp-admin password). Every store uses the TATVA theme with its own name/tagline (no TATVA name on new stores, A-11) and a per-niche accent within the TATVA palette, set by wp-init. Niche catalogues in `services/store-assets/catalogue/<niche>.json`: Stationery & desk, Tea & coffee, Home & ceramics, Bags & accessories (from the existing 50-product catalogue), Custom (owner's niche text as the only category, no products). Bike accessories is BON-17. The default store stays as it is.
+- **Description:** `charts/store` values per store: name, tagline, niche, accent colour, host `<slug>.store.<domain>`, generated Secrets (DB passwords, WooCommerce keys, woo-mcp token, one-time wp-admin password). Every store uses the TATVA theme with its own name/tagline (no TATVA name on new stores, A-11) and a per-niche accent within the TATVA palette, set by wp-init. Niche catalogues in `services/store-assets/stores/<store>/catalogue.json`: Stationery & desk, Tea & coffee, Home & ceramics, Bags & accessories (from the existing 50-product catalogue), Custom (owner's niche text as the only category, no products). Bike accessories is BON-17. The default store stays as it is.
 - **Output:** `charts/store` values/templates, wp-init theme parameters, niche catalogue files, DEPLOYMENT notes (per-store upgrade path).
 - **Acceptance:** Two extra stores of different niches install side by side, each with its own name, tagline, accent, products and a working COD checkout.
 - **Tests:** TC-BON-11-1 (k3d): two stores Ready, `e2e-checkout.sh` against each; TC-BON-11-2: storefront screens per store (name in header, no TATVA name, niche products).
@@ -2491,11 +2491,11 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Depends on:** BON-11; the user's catalogue md files in `docs/`
 - **Requirements:** REQ-BON-02
 - **Description:** Bike accessories catalogue from the md files the user will add to `docs/` (product names, prices, descriptions); product images curated from open-license sources following `docs/PRODUCT_IMAGES.md` (commercial-use licences only, credits in the image manifest), baked into the store-assets image as `catalogue/bike.json`.
-- **Output:** `services/store-assets/catalogue/bike.json`, images + manifest entries.
+- **Output:** `services/store-assets/stores/ridgeline/catalogue.json`, images + manifest entries.
 - **Acceptance:** A store created with the Bike accessories niche shows the catalogue with images and credits; licences recorded.
 - **Tests:** TC-BON-17-1: storefront screens for a bike store (no broken images, prices).
 - **Command:** `scripts/storefront-screens.sh`
-- **Evidence:** 2026-10-25: catalogue `services/store-assets/catalogue/bike.json` from `docs/ridgeline-brand-products.md` §6 (50 products, 7 categories, 6 placeholder brand labels, 6 collections; descriptions claim no fitment/certification). Images sourced by 3 parallel agents with `scripts/brand/find_images.py`/`fetch_image.py` (now `IMAGE_ROOT`/`MANIFEST` aware), CC0/PD only: `services/store-assets/images/bike/manifest.json` 49 entries — **39/50 product images + 10 editorial** (hero, concept, collection, 7 category tiles); licences `CC0 1.0` 27, `CC0` 15, `Public domain` 7; sources Openverse + Wikimedia Commons; every file decodes as WebP, source/asset URL and alt recorded, no duplicate content (2 duplicates and 1 image showing a third party's username removed). Live: `ridgeline.store.127.0.0.1.nip.io` 50 products, checkout order #109 PASS. **Open:** 11 products without a suitable CC0/PD image (RDG-009, 012, 013, 015, 022, 025, 028, 029, 038, 046, 047: tail bag, motorcycle cover, phone mounts, sunshade, seat-back organiser, dry bag, chain lube, patch set, base layer, EDC pouch) show the theme's name fallback; several images are below 1000×1250 (Openverse serves ~1024 px) and some are representative (e.g. a helmet for the intercom). Needs the user's call: accept, or supply images.
+- **Evidence:** 2026-10-25: catalogue `services/store-assets/stores/ridgeline/catalogue.json` from `brand/ridgeline/ridgeline-brand-products.md` §6 (50 products, 7 categories, 6 placeholder brand labels, 6 collections; descriptions claim no fitment/certification). Images sourced by 3 parallel agents with `scripts/brand/find_images.py`/`fetch_image.py` (now `IMAGE_ROOT`/`MANIFEST` aware), CC0/PD only: `services/store-assets/stores/ridgeline/images/manifest.json` 49 entries — **39/50 product images + 10 editorial** (hero, concept, collection, 7 category tiles); licences `CC0 1.0` 27, `CC0` 15, `Public domain` 7; sources Openverse + Wikimedia Commons; every file decodes as WebP, source/asset URL and alt recorded, no duplicate content (2 duplicates and 1 image showing a third party's username removed). Live: `ridgeline.store.127.0.0.1.nip.io` 50 products, checkout order #109 PASS. **Open:** 11 products without a suitable CC0/PD image (RDG-009, 012, 013, 015, 022, 025, 028, 029, 038, 046, 047: tail bag, motorcycle cover, phone mounts, sunshade, seat-back organiser, dry bag, chain lube, patch set, base layer, EDC pouch) show the theme's name fallback; several images are below 1000×1250 (Openverse serves ~1024 px) and some are representative (e.g. a helmet for the intercom). Needs the user's call: accept, or supply images.
 - **Regression risk:** Image licences: no image without a recorded commercial-use licence.
 
 ### BON-16 — Stand-out documentation and demo

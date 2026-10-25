@@ -4,17 +4,17 @@
 Usage: fetch_image.py <slot-key> <candidate-index> <role> [focus_x focus_y] [--alt "text"]
   role: product (4:5, 1000x1250) | editorial (3:2, 1800x1200) | tile (4:5 category tile, 900x1125)
   focus: 0..1 position of the crop centre (default 0.5 0.5)
-Reads $WORKDIR/cand/<slot>.json (from find_images.py). Writes services/store-assets/images/<dir>/<file>.webp
-and updates services/store-assets/images/manifest.json. The original download stays in $WORKDIR/dl.
+Reads $WORKDIR/cand/<slot>.json (from find_images.py). Writes services/store-assets/stores/<store>/images/<dir>/<file>.webp
+and updates that store's images/manifest.json (default store: tatva). The original download stays in $WORKDIR/dl.
 Only cropping and resizing are applied (no filters), so the image is not misrepresented (PRODUCT_IMAGES.md §5).
 """
 import argparse, datetime, hashlib, io, json, os, sys
 import requests
 from PIL import Image
 
-# IMAGE_ROOT: a niche's image directory (e.g. services/store-assets/images/bike); MANIFEST: manifest file to update
+# IMAGE_ROOT: a store's image directory (e.g. services/store-assets/stores/ridgeline/images); MANIFEST: manifest file to update
 # (lets parallel sourcing runs write separate manifests that are merged afterwards).
-ROOT = os.environ.get('IMAGE_ROOT') or os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'images')
+ROOT = os.environ.get('IMAGE_ROOT') or os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'stores', 'tatva', 'images')
 UA = {'User-Agent': 'tatva-demo-image-sourcing/0.1 (https://github.com/Ragx09/woocommerce-mcp)'}
 SIZES = {'product': (1000, 1250), 'editorial': (1800, 1200), 'tile': (900, 1125)}  # tile: 4:5 category tiles
 

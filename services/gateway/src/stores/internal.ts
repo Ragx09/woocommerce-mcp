@@ -97,6 +97,9 @@ export function registerInternalStoreRoutes(app: FastifyInstance, deps: Internal
       const s = await load(req.params.id);
       if (!s) return reply.code(404).send({ error: 'not_found', message: 'store not found' });
       if (s.desired !== 'absent') return reply.code(409).send({ error: 'conflict', message: 'store is not being deleted' });
+      // The store's upstream goes with it (BON-13; the delete API also unregisters it first). Audit rows keep
+      // the slug, so the history stays readable.
+      await deps.db.delete(upstreams).where(eq(upstreams.storeId, s.id));
       if (s.status !== 'deleted') {
         await deps.db.update(stores).set({ status: 'deleted', deletedAt: new Date(), adminPasswordEnc: null }).where(eq(stores.id, s.id));
         req.log.info({ store: s.slug }, 'store deleted');

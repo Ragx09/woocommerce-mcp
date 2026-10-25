@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Validate the TATVA image set (PRODUCT_IMAGES.md §10). Exit 1 on any problem.
+"""Validate one store's image set (PRODUCT_IMAGES.md §10). Exit 1 on any problem.
+Usage: validate_images.py [tatva|ridgeline]   (default tatva; data in services/store-assets/stores/<store>/)
 
 Checks: every manifest file exists and decodes as an image (not an HTML error page); expected size
 per role; only no-attribution licences (CC0 / Public Domain); source + licence URLs recorded; no
@@ -9,11 +10,15 @@ as known-missing); alt text present.
 import hashlib, json, os, sys
 from PIL import Image
 
-ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets')
+STORE = sys.argv[1] if len(sys.argv) > 1 else 'tatva'
+ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'stores', STORE)
 IMG = os.path.join(ROOT, 'images')
-SIZES = {'product': (800, 1000), 'tile': (900, 1125)}
+# TATVA images were normalised to exact sizes; Ridgeline keeps the source resolution (many open-licence files are
+# ~1024 px), so only the 4:5 / 3:2 ratio is checked there.
+SIZES = {'product': (800, 1000), 'tile': (900, 1125)} if STORE == 'tatva' else {}
+RATIOS = {'product': 0.8, 'tile': 0.8, 'editorial': 1.5}
 m = json.load(open(os.path.join(IMG, 'manifest.json')))
-cat = json.load(open(os.path.join(ROOT, 'catalogue', 'catalogue.json')))
+cat = json.load(open(os.path.join(ROOT, 'catalogue.json')))
 problems, hashes = [], {}
 
 for key, e in m.items():
@@ -29,6 +34,8 @@ for key, e in m.items():
         problems.append(f'{key}: not a valid image ({ex})'); continue
     if fmt != 'WEBP':
         problems.append(f'{key}: format {fmt}, expected WEBP')
+    if abs(size[0] / size[1] - RATIOS.get(e['role'], size[0] / size[1])) > 0.01:
+        problems.append(f'{key}: ratio {size}, expected {RATIOS[e["role"]]}')
     want = SIZES.get(e['role'])
     if want and size != want:
         problems.append(f'{key}: {size}, expected {want}')

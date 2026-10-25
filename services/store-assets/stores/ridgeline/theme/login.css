@@ -1,0 +1,64 @@
+/* Ridgeline login page (bike niche): login.css with the RIDGELINE palette. Logo URL added inline by inc/admin.php. */
+body.login {
+	background: #F4F1E9;
+	color: #252A27;
+	font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#login h1 a {
+	width: 270px;
+	height: 48px;
+	background-size: 270px 48px;
+	background-position: center;
+	margin-bottom: 28px;
+}
+.login form {
+	background: #FFFFFF;
+	border: 1px solid #D9C8A1;
+	border-radius: 6px;
+	box-shadow: none;
+}
+.login label { color: #252A27; }
+.login input[type="text"]:focus,
+.login input[type="password"]:focus,
+.login input[type="checkbox"]:focus {
+	border-color: #202820;
+	box-shadow: 0 0 0 1px #202820;
+}
+.login .button-primary,
+.wp-core-ui .button-primary {
+	background: #202820;
+	border-color: #202820;
+	color: #FFFFFF;
+	border-radius: 4px;
+}
+.login .button-primary:hover,
+.login .button-primary:focus,
+.wp-core-ui .button-primary:hover,
+.wp-core-ui .button-primary:focus {
+	background: #151A15;
+	border-color: #151A15;
+	color: #FFFFFF;
+}
+.wp-core-ui .button-primary:focus {
+	box-shadow: 0 0 0 1px #FFFFFF, 0 0 0 3px #202820;
+}
+.login .button.wp-hide-pw .dashicons { color: #202820; }
+.login #nav a,
+.login #backtoblog a,
+.login .privacy-policy-page-link a {
+	color: #5F645F;
+}
+.login #nav a:hover,
+.login #backtoblog a:hover {
+	color: #B75C3B;
+}
+.login .message,
+.login .notice,
+.login .success {
+	border-left-color: #202820;
+}
+.login #login_error,
+.login .notice-error {
+	border-left-color: #B75C3B;
+}
+.login .language-switcher { display: none; }

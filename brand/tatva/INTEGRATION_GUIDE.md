@@ -1,8 +1,8 @@
 # Brand integration guide: storefront (TATVA, current working concept)
 
-This guide explains how to turn a rough brand idea into the running store without breaking checkout, the MCP tools or the "same chart deploys locally and on the VPS" rule. It belongs to **Phase 9 (BRD-01…07)** in [`TASKS.md`](../TASKS.md). The related decisions are D-015 (store concept: TATVA for now, may change) and D-016 (theme approach, still Proposed).
+This guide explains how to turn a rough brand idea into the running store without breaking checkout, the MCP tools or the "same chart deploys locally and on the VPS" rule. It belongs to **Phase 9 (BRD-01…07)** in [`TASKS.md`](../../TASKS.md). The related decisions are D-015 (store concept: TATVA for now, may change) and D-016 (theme approach, still Proposed).
 
-Design reference: [`docs/v1-brand-ui-theme.md`](../docs/v1-brand-ui-theme.md) (current). The earlier Urumi mockup `Urumi Curated Indian Marketplace Homepage.png` (outside the repo, `/mnt/c/Users/arcot/ragx/Woocommerce/`) is superseded; sections below that describe it are kept as layout inspiration.
+Design reference: [`brand/tatva/v1-brand-ui-theme.md`](../brand/tatva/v1-brand-ui-theme.md) (current). The earlier Urumi mockup `Urumi Curated Indian Marketplace Homepage.png` (outside the repo, `/mnt/c/Users/arcot/ragx/Woocommerce/`) is superseded; sections below that describe it are kept as layout inspiration.
 
 ---
 
@@ -64,9 +64,9 @@ There are 2 hosts and 3 surfaces.
 
 | Missing | Why it matters | Put it in | Unblocks |
 |---|---|---|---|
-| Logo as **SVG** (wordmark + mark), favicon | The mockup logo is raster and can't be cut out cleanly | `brand/logo/` | BRD-02 |
+| Logo as **SVG** (wordmark + mark), favicon | The mockup logo is raster and can't be cut out cleanly | `brand/tatva/logo/` | BRD-02 |
 | **Exact hex values and font names** (with licence) | Without them, colours are guessed from a PNG | `brand/palette.md` | BRD-02 → 03 |
-| **Full catalogue**: ~50 products (proposed, `docs/tatva-brand-and-products.md` §6) | The mockup has 6; every category needs products | `brand/products/products.csv` | BRD-05 |
+| **Full catalogue**: ~50 products (proposed, `brand/tatva/tatva-brand-and-products.md` §6) | The mockup has 6; every category needs products | `brand/products/products.csv` | BRD-05 |
 | **Separate images** for products, categories and brand logos | Mockup images are part of one composite PNG. You need separate files that are licensed, self-made or AI-generated. | `brand/products/images/`, `brand/categories/`, `brand/brands/` | BRD-05, 04 |
 | **Other page designs**: product page, shop/category listing, brand page, cart/checkout look, About copy, footer, **mobile** | The mockup only shows the desktop homepage | `brand/theme/` | BRD-03 (currently **Blocked** on this), BRD-04 |
 | **Real vs fictional brand names** | FabIndia, Bira 91 and the others are trademarks (D-015). Deciding now avoids redoing the catalogue at REL-16/17. | Note in `brand/BRAND.md` | BRD-01 |
@@ -83,7 +83,7 @@ Copy each block into its own file and replace the `…`.
 ### 4.1 `brand/BRAND.md` (BRD-01)
 
 ```markdown
-# TATVA — brand brief (working; see docs/tatva-brand-and-products.md)
+# TATVA — brand brief (working; see brand/tatva/tatva-brand-and-products.md)
 - **One-liner:** …
 - **Audience:** …
 - **Value proposition:** …
@@ -120,7 +120,7 @@ Fonts: display = … (licence: …), body = … (licence: …)
 Radii: card …px, button …px. Shadow: …
 ```
 
-### 4.3 `brand/logo/`
+### 4.3 `brand/tatva/logo/`
 
 `logo.svg` (wordmark), `mark.svg` (icon only), `favicon.ico`, `site-icon-512.png`. Check it's readable at 32 px and on light and dark backgrounds.
 

@@ -107,7 +107,9 @@ describe('TC-BON-09-3 signed internal API', () => {
     expect((await call(`/internal/stores/${s.id}/ready`, ready('tea'))).statusCode).toBe(409); // failed stays failed
     expect((await call(`/internal/stores/${s.id}/deleted`, {})).statusCode).toBe(409); // not being deleted
     const d = await newStore('del', 'deleting');
+    await pool.query(`INSERT INTO upstreams (slug, name, url, store_id) VALUES ('woo-del', 'Del', 'http://woo-mcp.store-del.svc.cluster.local/mcp', $1)`, [d.id]);
     expect((await call(`/internal/stores/${d.id}/deleted`, {})).json()).toEqual({ status: 'deleted' });
+    expect((await pool.query(`SELECT count(*)::int AS n FROM upstreams WHERE slug = 'woo-del'`)).rows[0].n).toBe(0); // unregistered with the store
     expect((await call(`/internal/stores/${d.id}/deleted`, {})).statusCode).toBe(200);
   });
 });

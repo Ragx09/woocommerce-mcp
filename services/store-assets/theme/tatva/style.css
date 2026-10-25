@@ -147,3 +147,7 @@ img.tatva-img-missing {
 	.tatva-grid--categories .tatva-card__body h3 { font-size: var(--wp--preset--font-size--medium); }
 }
 
+
+/* BON-11: Ridgeline mark before the store name (bike niche only; the filter adds it). */
+.tatva-site-mark { display: inline-block; width: 40px; height: 25px; margin-right: 0.55rem; vertical-align: -0.2em; }
+.wp-block-site-title a:has(.tatva-site-mark) { display: inline-flex; align-items: center; text-transform: uppercase; letter-spacing: 0.12em; }
