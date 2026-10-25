@@ -35,7 +35,7 @@ More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 ## VPS (k3s) setup
 > Scripted in [`vps-setup/`](vps-setup/); **not yet run on a real VPS** (JarvisLabs CPU VM chosen, waiting for credits). Specs, costs, setup log: [`vps-setup/VPS.md`](vps-setup/VPS.md).
 
-Needs Ubuntu LTS, x86_64, 4 vCPU / 16 GB (bonus items), ≥ 100 GB disk; TCP 22/80/443 open (keep 6443 closed).
+Needs Ubuntu LTS, x86_64, 2 vCPU / 8 GB (demo: default store + 1 extra; 4 vCPU / 16 GB for more stores), ≥ 100 GB disk; TCP 22/80/443 open (keep 6443 closed).
 ```bash
 jl setup                     # once: JarvisLabs CLI sign-in (uv tool install jarvislabs)
 vps-setup/up.sh              # VM → preflight → k3s → SSH tunnel → images → cert-manager → Secrets → Helm (values-prod) → TLS → demo users

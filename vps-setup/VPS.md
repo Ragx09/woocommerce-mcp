@@ -95,17 +95,17 @@ These are not in the table:
 - **Pause is risky for us:** the public IP changes on resume (sslip.io domain + certificate break) unless a **Reserved IP** ($5/mo) is attached; the docs also say only the home directory is guaranteed to persist across pause. k3s keeps its state in `/var/lib/rancher` → **do not pause the VM**; keep it running or destroy it.
 
 ### Usage plan: on only for evidence, recording and presenting (decided 2026-10-24)
-- **Size: 4 vCPU / 16 GB, 100 GB.** Billed per hour, so the bigger size costs only ~₹4/h more and leaves room for every bonus item: the default store + 2–3 extra stores (≈0.5 CPU / 0.9 GiB requested each, CPU-heavy wp-init on create), hosted servers, provisioner, cert-manager, k3s. 2 vCPU / 8 GB would run out of CPU requests at about 2 extra stores, and live store creation would be slow on camera.
+- **Size: 2 vCPU / 8 GB, 100 GB** (decided 2026-10-25: demo only, **2 stores in total**). Measured on local k3d: 630m CPU / 1.2 GiB requested, 2.8 GiB at the limits, 114m CPU / 878 MiB actually used at idle. Estimate with cert-manager and k3s: ≈0.7 CPU requested, +≈0.5 per extra store → ≈1.2 of 2.0 with the second store, room left for rolling-update surge pods; memory well under half of 8 GB. A third extra store would not schedule (CPU requests). Store creation and the first install are slower (CPU throttled). For more stores: `VPS_VCPUS=4 VPS_RAM=16 vps-setup/up.sh` (≈₹9.34/h).
 - **Between sessions: destroy, not pause** (default). Cost between sessions is ₹0, and nothing depends on whether a paused VM keeps `/var/lib/rancher`. A fresh bring-up is scripted (create VM → k3s → secrets → Helm → TLS → seed) and takes ~20–30 min, so start it well before a recording or a presentation.
 - **Pause only for a short gap** (e.g. recording today, presenting tomorrow): compute stops, the 100 GB disk keeps costing ₹1.30/h (≈₹31/day). Only after a test pause/resume showed that k3s and its data survive (first session), and with a Reserved IP (₹475/month) or a redeploy with the new `<ip>.sslip.io` domain.
-- **Sessions planned:** (1) bring-up + BON-07 evidence (`e2e.sh all` over https) + pause test, ~4–6 h; (2) video recording, ~3 h; (3) presentation, ~2 h. ≈ 10–12 h × ₹9.34/h ≈ **₹100–150 in total**, plus the Reserved IP if one is used.
+- **Sessions planned:** (1) bring-up + BON-07 evidence (`e2e.sh all` over https) + pause test, ~4–6 h; (2) video recording, ~3 h; (3) presentation, ~2 h. ≈ 10–12 h × ₹5.32/h ≈ **₹55–65 in total** (credits ₹500 on 2026-10-25), plus the Reserved IP if one is used.
 
 ## 3. Facts (fill in once the VPS exists)
 | Field | Value |
 |---|---|
-| Provider / plan | JarvisLabs CPU VM, 4 vCPU / 16 GB, on-demand |
+| Provider / plan | JarvisLabs CPU VM, 2 vCPU / 8 GB, on-demand |
 | Region | IN2 (default in `lib.sh`) |
-| vCPU / RAM / disk | 4 / 16 GB / 100 GB SSD |
+| vCPU / RAM / disk | 2 / 8 GB / 100 GB SSD (default in `lib.sh`; override `VPS_VCPUS`/`VPS_RAM`) |
 | Arch | (from preflight) |
 | OS | (from preflight) |
 | Public IPv4 | (changes per VM unless a Reserved IP is attached) |
@@ -159,3 +159,4 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — `jl ssh-key add ~/.ssh/jarvis_vps.pub --name woo-mcp-vps` → "SSH key 'woo-mcp-vps' added"; `jl ssh-key list` shows id `AKQronIl`, ssh-ed25519 …INbX.
 - 2026-10-24 — Created Security Group `woo-mcp-vps` in IN2 via the dashboard → after reload shows "4 inbound · 1 outbound · 0 instances": TCP 22 ← 103.86.107.161/32, ICMP ← 103.86.107.161/32, TCP 80 ← Anywhere, TCP 443 ← Anywhere, ANY → Anywhere. `jl create --help` has no security-group option → attach manually per VM.
 - 2026-10-24 — `up.sh`: Security Group gate after SSH is up and before k3s (pause + re-check loop), the late 6443 warning is now an error; `VPS_SECURITY_GROUP` in `lib.sh`. Probe tested locally: blackhole 10.255.255.1:6443 → attached (5 s timeout), 127.0.0.1:1 refused → not attached, listening 127.0.0.1:18999 → not attached. `bash -n` OK. Not yet run against a real VM.
+- 2026-10-25 — Credits added: `jl status` balance ₹500.00, 0 running/paused, `jl list`: no instances. Size changed to **2 vCPU / 8 GB** (demo only, 2 stores in total; local k3d measured 630m / 1.2 GiB requested, 114m / 878 MiB used). `lib.sh` default 2/8.

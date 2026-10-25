@@ -4,7 +4,7 @@
 #   vps-setup/up.sh            create/resume the VM → preflight → k3s → tunnel → images → cert-manager
 #                              → Secrets → helm (values-prod) → certificates → demo users
 #   vps-setup/up.sh --no-vm    skip the jl step (VM already running, IP in vps-setup/.state)
-# Env / .env: VPS_VCPUS/VPS_RAM (4/16), VPS_REGION (IN2), VPS_DOMAIN (default <ip>.sslip.io),
+# Env / .env: VPS_VCPUS/VPS_RAM (2/8; 4/16 for more stores), VPS_REGION (IN2), VPS_DOMAIN (default <ip>.sslip.io),
 #   DUCKDNS_DOMAIN + DUCKDNS_TOKEN (optional: point <name>.duckdns.org at the VM and use it as the domain),
 #   TLS_ISSUER (letsencrypt-prod | letsencrypt-staging), ACME_EMAIL (optional),
 #   SKIP_SG_CHECK=1 (skip the Security Group gate below; only if the check itself misfires).

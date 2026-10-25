@@ -61,7 +61,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Acceptance:** `vps-setup/preflight.sh` run on the VPS exits 0 (RAM ≥3.8 GB, ≥2 CPU, ≥20 GB disk, amd64/arm64, systemd, 80/443 free, outbound HTTPS).
 - **Tests:** TC-P0-03-1: VPS exists → ssh command → prints specs.
 - **Command:** `vps-setup/up.sh` (runs the preflight) or `ssh <alias> 'bash -s' < vps-setup/preflight.sh`
-- **Evidence:** 2026-10-24: provider chosen — JarvisLabs CPU VM 4 vCPU / 16 GB / 100 GB, on-demand, destroyed between sessions (`vps-setup/VPS.md` §2). `jl` 0.2.17 installed, key `~/.ssh/jarvis_vps` created; waiting for account credits. Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
+- **Evidence:** 2026-10-24: provider chosen — JarvisLabs CPU VM 4 vCPU / 16 GB / 100 GB (2026-10-25: changed to 2 vCPU / 8 GB, demo with 2 stores in total; credits ₹500 added, SSH key + Security Group done), on-demand, destroyed between sessions (`vps-setup/VPS.md` §2). `jl` 0.2.17 installed, key `~/.ssh/jarvis_vps` created; waiting for account credits. Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
 - **Regression risk:** High schedule risk if it slips past Day 5.
 
 ### P0-04 — Obtain LLM and GitHub credentials
