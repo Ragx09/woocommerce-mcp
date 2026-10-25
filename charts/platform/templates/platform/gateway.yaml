@@ -114,6 +114,7 @@ spec:
             {{- if $v.seed.github.enabled }}
             - { name: SEED_GITHUB_URL, value: {{ $v.seed.github.url | quote }} }
             - { name: SEED_GITHUB_NAME, value: {{ $v.seed.github.name | quote }} }
+            - { name: SEED_GITHUB_MEMBER_TOOLS, value: {{ join "," ($v.seed.github.memberTools | default list) | quote }} }
             - name: SEED_GITHUB_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $v.seed.secret }}, key: github-pat, optional: true } }
             {{- end }}

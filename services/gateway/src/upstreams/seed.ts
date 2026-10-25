@@ -127,7 +127,14 @@ export function loadSeeds(env: NodeJS.ProcessEnv = process.env): SeedPlan {
   const ghUrl = env.SEED_GITHUB_URL?.trim();
   if (ghUrl) {
     const pat = env.SEED_GITHUB_TOKEN?.trim();
-    if (pat) plan.seeds.push({ slug: 'github', name: env.SEED_GITHUB_NAME?.trim() || 'GitHub', url: ghUrl, authType: 'bearer', credential: pat });
+    if (pat) {
+      const gh: SeedUpstream = { slug: 'github', name: env.SEED_GITHUB_NAME?.trim() || 'GitHub', url: ghUrl, authType: 'bearer', credential: pat };
+      // F-MCP-6: members get a read-only GitHub tool set (no create/delete/push/merge/*_write driven by
+      // the shared PAT, and not get_me which reveals the shared identity — F-MCP-3). Empty → all tools.
+      const memberTools = toolList(env.SEED_GITHUB_MEMBER_TOOLS);
+      if (memberTools.length) gh.memberTools = memberTools;
+      plan.seeds.push(gh);
+    }
     else plan.skipped.push({ slug: 'github', reason: 'SEED_GITHUB_TOKEN is empty (set GITHUB_MCP_PAT in .env and rotate upstream-seed)' });
   }
   return plan;

@@ -33,4 +33,19 @@ describe('loadSeeds (GW-03/13/14)', () => {
     expect(plan.seeds.map((s) => [s.slug, s.memberTools])).toEqual([['woo', ['list_products', 'list_orders', 'get_order']], ['everything', ['echo', 'get-sum']]]);
     expect(loadSeeds({ ...WOO, SEED_WOO_MEMBER_TOOLS: ' , ' }).seeds[0]!.memberTools).toBeUndefined();
   });
+
+  it('TC-SEC-08-1 / F-MCP-6: github gets a member tool allowlist from the chart; writes and get_me are not in it', () => {
+    const gh = loadSeeds({ ...WOO,
+      SEED_GITHUB_URL: 'https://api.githubcopilot.com/mcp/', SEED_GITHUB_TOKEN: 'github_pat_x',
+      SEED_GITHUB_MEMBER_TOOLS: 'get_file_contents, list_issues ,search_repositories',
+    }).seeds.find((s) => s.slug === 'github')!;
+    expect(gh.memberTools).toEqual(['get_file_contents', 'list_issues', 'search_repositories']);
+    // The write/destructive tools and get_me (shared-identity leak, F-MCP-3) must never slip into a member list.
+    const forbidden = ['create_repository', 'delete_file', 'push_files', 'merge_pull_request',
+      'create_pull_request', 'fork_repository', 'issue_write', 'get_me'];
+    for (const t of forbidden) expect(gh.memberTools).not.toContain(t);
+    // Empty env → no rule (members get all); this is the insecure default F-MCP-6 fixed, so the chart must set it.
+    expect(loadSeeds({ ...WOO, SEED_GITHUB_URL: 'https://api.githubcopilot.com/mcp/', SEED_GITHUB_TOKEN: 'x' })
+      .seeds.find((s) => s.slug === 'github')!.memberTools).toBeUndefined();
+  });
 });

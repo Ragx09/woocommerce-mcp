@@ -140,3 +140,57 @@ describe('TC-SEC-04-4 IDOR on keys, users and audit rows', () => {
     } finally { await k.revoke(); }
   });
 });
+
+// SEC-08 red-team round 1 fixes.
+describe('TC-SEC-08 red-team round 1', () => {
+  // F-MCP-6: a member-role key must not be offered the destructive github tools (shared PAT).
+  const GITHUB_WRITES = ['create_repository', 'create_or_update_file', 'push_files', 'delete_file',
+    'create_branch', 'create_pull_request', 'merge_pull_request', 'update_pull_request',
+    'update_pull_request_branch', 'fork_repository', 'issue_write', 'sub_issue_write',
+    'pull_request_review_write', 'add_issue_comment', 'update_issue_comment',
+    'add_comment_to_pending_review', 'add_reply_to_pull_request_comment', 'request_copilot_review',
+    'run_secret_scanning', 'get_me'];
+  it('TC-SEC-08-1: github member policy excludes every destructive tool (writes + get_me)', async () => {
+    // Authoritative, health-independent check: the stored policy on the github row. (tools/list depends
+    // on the upstream being reachable, so the live listing below is only asserted when github is up.)
+    const gh = (await api('GET', '/api/upstreams', { cookie: a.cookie })).body.find((u) => u.slug === 'github');
+    expect(gh, 'github upstream present').toBeTruthy();
+    expect(gh.memberAccess, 'github must not be memberAccess=all').toBe('selected');
+    const forbidden = GITHUB_WRITES.filter((w) => gh.memberTools.includes(w));
+    expect(forbidden, `destructive github tools in the member policy: ${forbidden.join(', ')}`).toEqual([]);
+    for (const t of gh.memberTools) expect.soft(t, t).toMatch(/^(search_|list_|get_|issue_read|pull_request_read|ui_get)/);
+
+    // Live listing (best-effort: only meaningful while the github upstream answers).
+    const k = await tempKey(b.cookie);
+    const ak = await tempKey(a.cookie);
+    try {
+      const member = ((await mcp(k.key, 'tools/list', {})).body.result?.tools ?? []).map((t) => t.name).filter((n) => n.startsWith('github__'));
+      const admin = ((await mcp(ak.key, 'tools/list', {})).body.result?.tools ?? []).map((t) => t.name).filter((n) => n.startsWith('github__'));
+      console.log(`live github tools — member: ${member.length}, admin: ${admin.length}`);
+      expect(GITHUB_WRITES.filter((w) => member.includes(`github__${w}`)), 'member live-listed a write tool').toEqual([]);
+      if (admin.length > 0) {
+        // Upstream is up: the member set is a strict read-only subset of the admin set.
+        expect(admin).toContain('github__create_repository');
+        expect(member.length).toBeLessThan(admin.length);
+        for (const n of member) expect.soft(admin, n).toContain(n);
+      } else {
+        console.log('github upstream unreachable now — live-listing control skipped; policy check above still holds');
+      }
+    } finally { await k.revoke(); await ak.revoke(); }
+  });
+
+  // F-API-1: the member view of /api/upstreams must not carry internal health error/timing strings.
+  it('TC-SEC-08-2: /api/upstreams hides lastError/timing from members, keeps it for admins', async () => {
+    const mem = (await api('GET', '/api/upstreams', { cookie: b.cookie })).body;
+    const adm = (await api('GET', '/api/upstreams', { cookie: a.cookie })).body;
+    for (const row of mem) {
+      for (const f of ['lastError', 'lastCheckedAt', 'lastOkAt', 'url', 'authType', 'memberAccess']) {
+        expect(row, `member row should not carry ${f}`).not.toHaveProperty(f);
+      }
+    }
+    // Admins still see the operational detail.
+    for (const f of ['lastError', 'lastCheckedAt', 'lastOkAt', 'url']) {
+      expect(adm[0]).toHaveProperty(f);
+    }
+  });
+});

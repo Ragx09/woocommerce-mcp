@@ -129,12 +129,15 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     const role = isAdmin ? 'admin' : 'member';
     const base = {
       id: pub.id, name: pub.name, slug: pub.slug, enabled: pub.enabled,
-      status: h.status, lastError: h.lastError,
-      lastCheckedAt: h.lastCheckedAt?.toISOString() ?? null, lastOkAt: h.lastOkAt?.toISOString() ?? null,
+      // F-API-1: members get a coarse status only. The raw lastError strings and health timing leak
+      // internal infrastructure detail (peer hostnames, timeouts), so they stay in the admin view.
+      status: h.status,
       // Members count only the tools they may use (BON-01), the same set /mcp gives them.
       toolCount: t && 'tools' in t ? t.tools.filter((x) => x.name && canUseTool(role, row, x.name)).length : null,
     };
-    return isAdmin ? { ...base, url: pub.url, authType: pub.authType, authHeader: pub.authHeader,
+    return isAdmin ? { ...base, lastError: h.lastError,
+      lastCheckedAt: h.lastCheckedAt?.toISOString() ?? null, lastOkAt: h.lastOkAt?.toISOString() ?? null,
+      url: pub.url, authType: pub.authType, authHeader: pub.authHeader,
       hasCredential: pub.hasCredential, memberAccess: pub.memberAccess, memberTools: pub.memberTools,
       // BON-03: team-wide numbers (all users, all replicas), so admins only.
       stats: stats ? { windowMinutes: STATS_WINDOW_MINUTES, ...(stats.get(row.id) ?? { calls: 0, failed: 0, rejected: 0, p95Ms: null }) } : undefined,

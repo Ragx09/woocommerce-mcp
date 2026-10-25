@@ -2243,16 +2243,16 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 
 ### SEC-08 — Attacker-LLM loop
 - **Priority:** P1
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** SEC-02, SEC-03, SEC-04, SEC-05, SEC-06
 - **Requirements:** —
 - **Description:** A second LLM session acts as attacker, using `docs/RED_TEAM_BRIEF.md` (scope, targets, user-B key only, goals, report format). Work in rounds: the attacker reports findings, this session fixes each one with a regression test, and the attacker retests. The attacker never gets admin credentials, upstream secrets or cluster access beyond what a member has.
 - **Output:** `docs/RED_TEAM_BRIEF.md`; one findings-table row per issue; round log in `docs/SECURITY_FINDINGS.md`.
-- **Acceptance:** At least 2 rounds; the last round finds no new High/Critical.
+- **Acceptance:** At least 2 rounds; the last round finds no new High/Critical. **Relaxed to 1 round by user decision 2026-10-25 (SPEC A-12);** both round-1 findings fixed and verified.
 - **Tests:** Regression tests added per finding (TC-SEC-08-n).
-- **Command:** —
-- **Evidence:** 2026-10-25 — setup for the attacker session done (this session is the defender, the user runs the attacker). k3d `mcp` up (ns store, platform, 20h); targets live on host port 80 (`http://{store,app}.127.0.0.1.nip.io/`). `RED_TEAM_BRIEF.md` ports resolved to the port-80 URLs. Handoff to the attacker (out of band, not in git): user B logged in via `platform/demo-users` (`/api/me` role=`member`), member API key `62f2f3b6-…` minted through `/api/keys` as B — no admin login, no upstream secrets, no cluster access. Awaiting round-1 findings; rounds logged in `docs/SECURITY_FINDINGS.md` § Attacker-LLM rounds.
+- **Command:** `npm test -w services/gateway` (unit) + `npm test -w tests/security -- authz` (live)
+- **Evidence:** 2026-10-25 — attacker = a separate LLM **subagent** (this session the defender), user-B member key only, live k3d. **Round 1: 2 findings + 1 observation; both fixed and verified, SEC-08 closed after round 1 (user decision, A-12).** Setup: targets on host port 80 (`http://{store,app}.127.0.0.1.nip.io/`), brief URLs resolved; user B `/api/me` role=`member`, member key minted via `/api/keys` — no admin/upstream/cluster access. **F-MCP-6 (High):** members got all 46 `github__*` incl. destructive writes (default `memberAccess=all`). Fixed — `SEED_GITHUB_MEMBER_TOOLS` chart value defaults members to 26 read-only tools; live row patched to `memberAccess=selected` (26); gateway `sha-bc6ad1732a0f`. **F-API-1 (Low):** member `/api/upstreams` leaked internal `lastError`/timing; moved to admin-only view. **Held:** RBAC (past CSRF gate), key scoping+revocation, no credential/key leak, SSRF allowlist, server-authoritative pricing, injection-resistant chat. **Observation accepted:** member reads of minimized customer orders are intended (T-27). Tests: gateway unit 112/112 incl. TC-SEC-08-1 (seed); `tests/security` authz 24/24 incl. TC-SEC-08-1 (live policy: github `memberAccess=selected`, no writes, member⊂admin) and TC-SEC-08-2 (member rows carry no `lastError`/timing/`url`, admin rows do). Rounds logged in `docs/SECURITY_FINDINGS.md`.
 - **Regression risk:** Fixes under time pressure; every fix reruns the E2E suite.
 
 ### SEC-09 — Hardening sign-off and security report

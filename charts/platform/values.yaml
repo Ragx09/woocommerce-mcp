@@ -151,6 +151,14 @@ gateway:
       enabled: true
       name: GitHub
       url: https://api.githubcopilot.com/mcp/
+      # F-MCP-6 (SEC-08 R1): members get read-only GitHub tools only (no create/delete/push/merge/*_write
+      # driven by the shared PAT, and not get_me — it reveals the shared identity, F-MCP-3). admins: all.
+      # [] → all tools. Editable per upstream in the dashboard.
+      memberTools: [get_commit, get_file_contents, get_label, get_latest_release, get_release_by_tag,
+        get_tag, get_team_members, get_teams, issue_read, list_branches, list_commits, list_issue_fields,
+        list_issue_types, list_issues, list_pull_requests, list_releases, list_repository_collaborators,
+        list_tags, pull_request_read, search_code, search_commits, search_issues, search_pull_requests,
+        search_repositories, search_users, ui_get]
   # UI-13 / D-012: chat agent LLM, any OpenAI-compatible chat-completions API. Switching provider is a
   # values change: OpenRouter → baseUrl https://openrouter.ai/api/v1, model openai/gpt-oss-120b:free.
   # The key lives only in the Secret (key api-key, from .env LLM_API_KEY); missing → chat disabled.
