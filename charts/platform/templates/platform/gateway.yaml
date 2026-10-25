@@ -88,6 +88,12 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Values.provisioner.secret }}, key: signing-key, optional: true } }
             - name: PROVISIONER_DB_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ .Values.provisioner.secret }}, key: db-password, optional: true } }
+            # BON-12: caps and how a created store's URL is built (<slug>.store.<domain>, same as the provisioner's host value).
+            - { name: STORE_MAX_PER_MEMBER, value: {{ .Values.provisioner.maxPerMember | quote }} }
+            - { name: STORE_MAX_TOTAL, value: {{ .Values.provisioner.maxTotal | quote }} }
+            - { name: STORE_HOST_SUFFIX, value: "store.{{ .Values.global.domain }}" }
+            - { name: STORE_SCHEME, value: {{ .Values.global.scheme | quote }} }
+            - { name: DEFAULT_STORE_URL, value: {{ printf "%s://store.%s" .Values.global.scheme .Values.global.domain | quote }} }
             {{- end }}
             {{- if $v.adminSecret }}
             # AUTH-02: first admin, created only while the DB has no admin.

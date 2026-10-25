@@ -25,6 +25,7 @@ import { VERSION } from '../app.js';
 import type { Principal } from '../auth/api-keys.js';
 import { isLoopback } from '../auth/internal-token.js';
 import { canCallPublicName, canSeeUpstream, canUseTool } from '../authz/tool-access.js';
+import { needsStoreAccess, roleFor, type StoreAccess } from '../authz/store-access.js';
 import type { AuditEvent, AuditMethod, AuditSink, CallContext } from '../audit/audit.js';
 import type { AuditOutcome, Role } from '../db/schema.js';
 import type { Upstream } from '../db/schema.js';
@@ -58,6 +59,11 @@ export interface McpDeps {
   audit?: AuditSink;
   /** BON-08: RFC 9728 metadata URL named in the 401's WWW-Authenticate, so MCP clients can start the OAuth flow. */
   resourceMetadataUrl?: string;
+  /**
+   * BON-14: the stores the caller owns or was given access to. Needed only when a store's upstream is registered;
+   * without it (or when it fails) a non-admin sees no store at all.
+   */
+  storeAccess?: (userId: string) => Promise<StoreAccess>;
   /** BON-04: per-key and per-user budgets for tools/call + tools/list (0 = no limit). Omitted → none. */
   rateLimit?: { limiter: RateLimiter; perKey: number; perUser: number; windowMs: number };
 }
@@ -131,6 +137,16 @@ function thrownOutcome(e: unknown): { outcome: AuditOutcome; code: string } {
 function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext, role: Role): Server {
   const server = new Server({ name: 'mcp-gateway', version: VERSION }, { capabilities: { tools: {} } });
   const callTimeoutMs = deps.callTimeoutMs ?? CALL_TIMEOUT_MS;
+  // BON-14: store access is read at most once per request, and only when the registry holds a store.
+  let accessLoad: Promise<StoreAccess> | undefined;
+  const accessFor = async (rows: Upstream[]): Promise<StoreAccess> => {
+    if (!needsStoreAccess(rows) || !deps.storeAccess || !ctx.userId) return new Map();
+    accessLoad ??= deps.storeAccess(ctx.userId).catch((e) => {
+      log.error({ err: (e as Error).message }, 'loading store access failed: stores hidden for this request');
+      return new Map() as StoreAccess;
+    });
+    return accessLoad;
+  };
   const audit = (method: AuditMethod, started: number, e: Omit<AuditEvent, 'requestId' | 'userId' | 'apiKeyId' | 'source' | 'method' | 'durationMs'>) =>
     deps.audit?.({ requestId: ctx.requestId, userId: ctx.userId, apiKeyId: ctx.keyId, source: ctx.source, method, durationMs: Date.now() - started, ...e });
 
@@ -160,7 +176,9 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext, ro
     if (!row) throw unknownTool(publicName);
     rec.upstreamId = row.id;
     // Before anything else, incl. "disabled": a member must not learn more about a tool they may not use.
-    if (!canCallPublicName(role, row, publicName)) throw forbiddenTool(publicName);
+    // BON-14: a store's tools depend on who the caller is for that store (owner, shared, nobody).
+    const eff = roleFor(row, role, await accessFor(rows));
+    if (eff === null || !canCallPublicName(eff, row, publicName)) throw forbiddenTool(publicName);
     if (!row.enabled) {
       throw new McpError(ErrorCode.InvalidParams, `upstream ${row.slug} is disabled`, { code: 'upstream_disabled' });
     }
@@ -185,7 +203,7 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext, ro
       return f.result;
     }
     if (!tool) throw unknownTool(publicName);
-    if (!canUseTool(role, row, tool)) throw forbiddenTool(publicName); // second check on the resolved name
+    if (!canUseTool(eff, row, tool)) throw forbiddenTool(publicName); // second check on the resolved name
     rec.tool = tool;
 
     try {
@@ -219,10 +237,12 @@ function buildServer(deps: McpDeps, log: FastifyBaseLogger, ctx: CallContext, ro
     await deps.pool.sync(rows);
     const result = await deps.discovery.discover();
     const byId = new Map(rows.map((r) => [r.id, r]));
+    const access = await accessFor(rows);
     // Policy from the rows just read (not the discovery cache), so a rule change applies on the next request.
     const { tools, index } = aggregateTools(result, (id, tool) => {
       const row = byId.get(id);
-      return !!row && canSeeUpstream(role, row) && canUseTool(role, row, tool);
+      const eff = row ? roleFor(row, role, access) : null;
+      return !!row && eff !== null && canSeeUpstream(eff, row) && canUseTool(eff, row, tool);
     });
     for (const c of index.conflicts) {
       log.warn({ upstream: c.slug, tool: c.tool, publicName: c.publicName, kept: c.keptTool }, 'duplicate public tool name dropped');

@@ -24,7 +24,7 @@ export interface ChatDeps {
   /** Shared limiter (PgRateLimiter in the gateway); defaults to one in this process's memory. */
   limiter?: RateLimiter;
   /** UI-18: enabled servers the health monitor has as unreachable right now (none if not given). */
-  unavailable?: () => Promise<UnavailableServer[]>;
+  unavailable?: (user: { id: string; role: 'admin' | 'member' }) => Promise<UnavailableServer[]>;
   agent?: { maxSteps?: number; deadlineMs?: number };
 }
 
@@ -85,7 +85,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatDeps): void {
     let offered = { count: 0, notOffered: 0 };
     try {
       // A failed lookup must not fail the chat; it only loses the hint.
-      const unavailable = await (deps.unavailable?.() ?? Promise.resolve([])).catch(() => [] as UnavailableServer[]);
+      const unavailable = await (deps.unavailable?.({ id: req.user!.id, role: req.user!.role }) ?? Promise.resolve([])).catch(() => [] as UnavailableServer[]);
       const result = await runAgent({
         llm, connect, maxSteps: deps.agent?.maxSteps, deadlineMs: deps.agent?.deadlineMs, unavailable: unavailable.map((u) => u.server),
         onToolsListed: (count, notOffered) => { offered = { count, notOffered }; }, // the rest is reachable via find_tools

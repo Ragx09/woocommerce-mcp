@@ -29,6 +29,6 @@ rm -f "$out"
 echo "== values diff (local vs prod: only domain/TLS (incl. the Secure cookie flag)/registry/pull policy/storage/resources may differ)"
 unexpected="$(diff <(helm template platform "$CHART" -f "$CHART/values-local.yaml" --set global.domain=example.test) \
                    <(helm template platform "$CHART" -f "$CHART/values-prod.yaml" --set global.domain=example.test) \
-  | grep -E '^[<>]' | grep -vE 'image:|imagePullPolicy|storage:|memory:|cpu:|https?://|cert-manager|annotations:|tls:|hosts:|secretName|COOKIE_SECURE' || true)"
+  | grep -E '^[<>]' | grep -vE 'image:|imagePullPolicy|storage:|memory:|cpu:|https?://|cert-manager|annotations:|tls:|hosts:|secretName|COOKIE_SECURE|STORE_SCHEME' || true)"
 if [ -z "$unexpected" ]; then echo "PASS  only expected keys differ"; else echo "$unexpected" | sed 's/^/FAIL  unexpected diff: /'; rc=1; fi
 exit $rc

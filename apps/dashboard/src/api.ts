@@ -19,6 +19,8 @@ export interface RequestOptions {
   method?: HttpMethod;
   body?: unknown;
   signal?: AbortSignal;
+  /** Extra request headers (e.g. Idempotency-Key for creating a store). */
+  headers?: Record<string, string>;
 }
 
 /** Messages for codes the user can act on; anything else uses the server's message or a generic one. */
@@ -27,6 +29,7 @@ const FRIENDLY: Record<string, string> = {
   unauthenticated: 'Your session has ended. Please sign in again.',
   invalid_credentials: 'Wrong email or password.',
   forbidden: 'You do not have permission to do that.',
+  already_viewed: 'The wp-admin password was already shown once and is no longer stored. Use "Lost your password?" on the store\'s login page.',
   not_found: 'Not found.',
   invite_used: 'This invite has already been used.',
   invite_expired: 'This invite has expired. Ask an admin for a new one.',
@@ -66,7 +69,7 @@ export function toApiError(status: number, body: unknown, retryAfter: string | n
 }
 
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { accept: 'application/json' };
+  const headers: Record<string, string> = { accept: 'application/json', ...opts.headers };
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   let res: Response;
   try {
@@ -234,4 +237,50 @@ export interface OAuthGrant {
   revokedAt: string | null;
   revokedReason: 'user' | 'admin' | 'client' | 'replay' | null;
   owner: { id: string; email: string; name: string };
+}
+
+// BON-12 stores (GET/POST /api/stores, docs/API_CONTRACTS.md).
+export type StoreStatus = 'provisioning' | 'ready' | 'failed' | 'deleting' | 'deleted';
+export type StoreNiche = 'stationery' | 'tea-coffee' | 'home-ceramics' | 'bags' | 'bike' | 'custom';
+export interface StoreMember {
+  userId: string;
+  name: string;
+  email: string;
+  addedAt: string;
+}
+export interface StoreInfo {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  niche: StoreNiche | null;
+  nicheText: string | null;
+  status: StoreStatus;
+  statusReason: string | null;
+  url: string | null;
+  owner: { id: string; name: string } | null;
+  role: 'owner' | 'admin' | 'shared';
+  createdAt: string | null;
+  readyAt: string | null;
+  isDefault: boolean;
+  canManage: boolean;
+  // Owner and admin only:
+  adminUrl?: string | null;
+  passwordAvailable?: boolean;
+  members?: StoreMember[];
+  toolRule?: { memberAccess: MemberAccess; memberTools: string[] } | null;
+  tools?: string[];
+  readOnlyTools?: string[];
+  // Admin only:
+  namespace?: string;
+}
+export interface StoreList {
+  enabled: boolean;
+  limits: { maxPerMember: number; maxTotal: number; total: number; mine: number };
+  stores: StoreInfo[];
+}
+export interface SlugPreview {
+  slug: string;
+  available: boolean;
+  reason: string | null;
 }

@@ -66,3 +66,17 @@ describe('api()', () => {
     await expect(api('/api/me')).rejects.toBe(abort);
   });
 });
+
+describe('BON-12 api() extra headers and store errors', () => {
+  it('sends the given headers (Idempotency-Key) next to content-type and keeps the server message for store limits', async () => {
+    const fetchMock = vi.fn(async () => json(409, { error: 'store_limit', message: 'you already own 3 stores (limit 3); delete one first' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api('/api/stores', { method: 'POST', body: { name: 'x' }, headers: { 'idempotency-key': 'abc-12345678' } }))
+      .rejects.toMatchObject({ status: 409, code: 'store_limit', message: expect.stringContaining('limit 3') });
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.headers).toMatchObject({ 'idempotency-key': 'abc-12345678', 'content-type': 'application/json' });
+  });
+  it('a second look at the wp-admin password gets the explanation, not a bare error', () => {
+    expect(toApiError(410, { error: 'already_viewed', message: 'x' }, null).message).toMatch(/already shown once/);
+  });
+});

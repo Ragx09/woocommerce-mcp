@@ -1038,7 +1038,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 
 ### GW-15 — Cross-server call test
 - **Priority:** P0
-- **Status:** Blocked
+- **Status:** In Progress
 - **Day:** 3
 - **Depends on:** GW-13, GW-14
 - **Requirements:** REQ-DOD-07
@@ -1047,7 +1047,7 @@ Exit criterion: one endpoint exposes tools from ≥3 upstreams and handles the r
 - **Acceptance:** Issue created in the throwaway repo.
 - **Tests:** TC-GW-15-1: run → issue URL printed.
 - **Command:** `node scripts/cross-server.mjs`
-- **Evidence:** 2026-10-13: `scripts/cross-server.mjs` written (one SDK client → gateway `/mcp`; checks both tools are listed, `woo__list_orders` → summary by status/value + table → `github__issue_write {method:create}`; prints the issue URL; `--dry-run` stops before writing; `GITHUB_REPO=owner/repo` required, key read from Secret `gateway-dev-key` and never printed). Dry run on k3d: `ok tools/list (64 tools, woo + github present)`, `ok woo__list_orders (501 ms)`, issue text with 2 orders (processing 2, 2598.00 INR). **Blocked:** the throwaway repo the PAT may write to is not recorded (P0-04) and is not visible through `search_repositories` (only public repos, none a throwaway); not guessing, because the issue would be public. Needs the repo name from the user, then `GITHUB_REPO=<owner/repo> node scripts/cross-server.mjs`.
+- **Evidence:** 2026-10-13: `scripts/cross-server.mjs` written (one SDK client → gateway `/mcp`; checks both tools are listed, `woo__list_orders` → summary by status/value + table → `github__issue_write {method:create}`; prints the issue URL; `--dry-run` stops before writing; `GITHUB_REPO=owner/repo` required, key read from Secret `gateway-dev-key` and never printed). Dry run on k3d: `ok tools/list (64 tools, woo + github present)`, `ok woo__list_orders (501 ms)`, issue text with 2 orders (processing 2, 2598.00 INR). **Unblocked 2026-10-25: the user created the throwaway repo `Ragx09/mcp-issue-write-test`; the real run (`GITHUB_REPO=Ragx09/mcp-issue-write-test node scripts/cross-server.mjs`, then `scripts/e2e.sh cross`) needs the k3d cluster and is still to do.** Was blocked: the throwaway repo the PAT may write to was not recorded (P0-04) and is not visible through `search_repositories` (only public repos, none a throwaway); not guessing, because the issue would be public. Needs the repo name from the user, then `GITHUB_REPO=<owner/repo> node scripts/cross-server.mjs`.
 - **Regression risk:** —
 
 ### GW-16 — Kill-pod resilience test
@@ -2430,7 +2430,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-12 — Multi-store: create/delete API and dashboard
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 20
 - **Depends on:** BON-11
 - **Requirements:** REQ-BON-01, REQ-BON-06, REQ-BON-07
@@ -2439,12 +2439,12 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** Three stores created at once from the dashboard all reach Ready; a forced failure shows a clear reason; caps, ownership and access-list changes are enforced on the server (member 403/404 on others' stores); the wp-admin password can be viewed exactly once.
 - **Tests:** TC-BON-12-1 (int): API rules (caps, ownership, idempotency, slug); TC-BON-12-2 (browser): create three, see Ready/Failed, view password once, share with a member, delete.
 - **Command:** `scripts/gateway-db-int.sh && scripts/dashboard-screens.sh stores`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 (branch `claude/trusting-turing-7n7uqe`; **no cluster in this session — nothing below ran on k3d**). Built: `services/gateway/src/stores/routes.ts` (`/api/stores` list/slug preview/create/get/delete/members/rule/one-time password; caps under an advisory lock; idempotency key; names limited to letters, digits, plain punctuation), `src/config.ts` `stores` (+ chart env `STORE_MAX_PER_MEMBER/TOTAL`, `STORE_HOST_SUFFIX`, `STORE_SCHEME`, `DEFAULT_STORE_URL`), dashboard `Stores` page (create form with slug preview, live status 4 s while provisioning/deleting, Failed reason, open/wp-admin links, one-time password, access list, tool rule, typed-slug delete, admin namespace), docs API_CONTRACTS/MCP_DESIGN/D-028/T-31. Real Postgres 16 (local): `test/int/stores-api.int.test.ts` 15/15 — TC-BON-12-1: slug rules, idempotent create, validation (script/shell/template injection refused), caps 2/4 incl. **8 parallel creates → exactly 2, 12 parallel from 4 people → exactly 4**, ownership 404s, sharing rules, password once under 5 concurrent requests (1×200, 4×410, wiped, not in any other column), tool rule, delete + name reuse, store servers not editable through `/api/upstreams`; mutation-checked (removing the lock fails the race test; removing the owner scope fails 5). Gateway unit 118/118, dashboard unit 27/27, both typecheck, `scripts/check-chart.sh` PASS (helm 3.22.0; kubeconform not installed). Browser TC-BON-12-2 against the **real gateway + a stand-in provisioner** (Chromium, 23/23: create → Creating… → Ready without reload, links, password once then 'Already shown', failed store with reason, third store refused, share with B, rule saved, B sees it read-only and only that server, delete → Deleting… → gone, B's server list empty, 375 px no h-scroll, no page errors; script kept outside the repo). **Open:** (1) the acceptance run on k3d — three stores created at once, forced failure reason (`scripts/dashboard-screens.sh stores` is not written yet); (2) admin 'reset wp-admin password' (needs a provisioner action; fallback is WordPress's 'Lost your password?'); (3) admin view of pod readiness and quota usage (needs a provisioner status report). One pre-existing int failure on this host (`TC-UI-05-API connect-time guard`, 'unknown' vs 'unreachable'; also fails on the unmodified tree — sandbox DNS), not caused by this task.
 - **Regression risk:** Concurrent creates racing the caps (check under a row lock); a stuck store must not block others.
 
 ### BON-13 — Multi-store: automatic MCP registration and teardown
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 21
 - **Depends on:** BON-12
 - **Requirements:** REQ-BON-03, REQ-BON-04
@@ -2453,12 +2453,12 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** A new store's tools appear for its owner without manual steps; after delete nothing remains (`kubectl get ns,pv`, `/api/upstreams`, `tools/list`, Helm release).
 - **Tests:** TC-BON-13-1 (k3d): create → tools listed and callable → delete → no trace; TC-BON-13-2 (int): registration only through the signed endpoint.
 - **Command:** `scripts/e2e.sh stores`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 (no cluster in this session). Registration: the BON-09 signed `ready` call already registers `woo-<slug>` (owner-scoped, token encrypted); added: a store's server cannot be edited (url/credential/name) or deleted through `/api/upstreams` (409), delete unregisters the server in the same transaction that sets `desired=absent`, the pool drops its connection at once (`registryChanged`), and `deleted` removes any leftover upstream. Gateway egress to `platform.io/store` namespaces' woo-mcp pods was already in `networkpolicies.yaml` (BON-09). Int `stores-api` TC-BON-13 parts: delete → upstream row gone and `tools/list` empty on the very next request, retried delete 202, `deleted` → store 404 and name reusable; `stores-internal` TC-BON-09-3 (registration only through the signed endpoint) 4/4. Docs: MCP_DESIGN §16. `scripts/e2e-stores.mjs` (TC-BON-13-1: create → tools listed and callable → delete → nothing left in kubectl/Helm/`/api/upstreams`) is written and syntax-checked, **not run (needs the cluster)**. **Open:** TC-BON-13-1 on k3d.
 - **Regression risk:** A delete that fails half-way must be retried by the reconcile loop, not leave orphans.
 
 ### BON-14 — Multi-store: isolation, access, guardrails, recovery
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 22
 - **Depends on:** BON-13
 - **Requirements:** REQ-BON-05, REQ-BON-06, REQ-BON-07
@@ -2467,12 +2467,12 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** Probe pods prove one store's woo-mcp/wordpress cannot reach another store's database or WordPress; quota, caps and timeout enforced server-side; access rules hold for API keys and the chat; the kill test passes.
 - **Tests:** TC-BON-14-1 (k3d): cross-store probe matrix; TC-BON-14-2: quota/cap/timeout; TC-BON-14-3: provisioner killed mid-create; TC-BON-14-4 (int): store access rules (owner, shared member, other member, admin).
 - **Command:** `scripts/k8s-checks.sh stores && scripts/gateway-db-int.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 (no cluster in this session). Access rules (TC-BON-14-4, int, real Postgres, 4 tests + unit): `src/authz/store-access.ts` `roleFor` — owner/admin all tools, access-list members the store's rule, others nothing; applied in `/mcp` (tools/list and tools/call), `/api/upstreams`, `/api/upstreams/:id/tools` and the chat's unreachable-servers hint; refusals audited `tool_forbidden` and reach no upstream (fake upstream call counter unchanged); changes (widen/narrow rule, remove person, delete store) apply on the next request; fails closed without an access source; same answers over API key and internal chat token. Mutation-checked: making `roleFor` ignore the store fails 5 tests. Guardrails: caps under lock (TC-BON-12-1), provisioning timeout → Failed with reason already covered by BON-09 (`failed | provisioning timed out after 15 min …`). Store chart already renders default-deny ingress+egress, wordpress ← Traefik + own woo-mcp, mariadb ← own wordpress/wp-init, woo-mcp ← gateway only, wp-init → mariadb + :443, ResourceQuota + LimitRange, `workload` ServiceAccount (BON-09/11). `scripts/k8s-checks.sh stores` (TC-BON-14-1 cross-store matrix of 24 probes + TC-BON-14-2 quota, LimitRange, Pod Security, token automount per store namespace) is written and syntax-checked, **not run**. THREAT_MODEL T-31, D-028. **Open:** run `k8s-checks.sh stores` and the provisioner-kill test (TC-BON-14-3, inside `e2e-stores.mjs`) on k3d; the quota in the chart is 4 CPU / 3 GiB (above the ≈1 CPU / 1.5 GiB in the description, because the store's own limits sum to about 3 CPU — BON-09).
 - **Regression risk:** The gateway egress change must not widen access to anything but labelled store woo-mcp pods.
 
 ### BON-15 — Multi-store acceptance test
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 23
 - **Depends on:** BON-14
 - **Requirements:** REQ-BON-08
@@ -2481,12 +2481,12 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** Chat answer names both stores' order counts matching each database; after delete `tools/list`, `/api/upstreams` and `kubectl` show nothing of that store.
 - **Tests:** TC-BON-15-1 (k3d, then VPS).
 - **Command:** `scripts/e2e.sh stores`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 (no cluster in this session). `scripts/e2e-stores.mjs` + `scripts/e2e.sh stores` written (node --check / bash -n OK): creates a tea-and-coffee and a bike store from the API, kills the provisioner 20 s in (TC-BON-14-3), checks both Ready, member B sees nothing and is refused by name, tools appear for A with no manual step, share/unshare gives and removes the read-only set, orders (2 in one store, 1 in the other) match each store's MariaDB, the chat compares them (each `woo-<slug>__list_orders` count = that store's database; the answer names both numbers), delete one store → tools gone on the next request, `/api/upstreams`, namespace, volumes and Helm release gone, audit rows kept; cleanup deletes the other store (KEEP=1 keeps it). DEMO_RUNBOOK §8 added. **Not run — acceptance still open** (needs the k3d cluster and the LLM key; about 8 minutes).
 - **Regression risk:** Groq free-tier limits: retry on 429 like the security suite.
 
 ### BON-17 — Bike accessories niche
 - **Priority:** P1
-- **Status:** In Progress
+- **Status:** Blocked
 - **Day:** 23
 - **Depends on:** BON-11; the user's catalogue md files in `docs/`
 - **Requirements:** REQ-BON-02
@@ -2495,7 +2495,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** A store created with the Bike accessories niche shows the catalogue with images and credits; licences recorded.
 - **Tests:** TC-BON-17-1: storefront screens for a bike store (no broken images, prices).
 - **Command:** `scripts/storefront-screens.sh`
-- **Evidence:** 2026-10-25: catalogue `services/store-assets/stores/ridgeline/catalogue.json` from `brand/ridgeline/ridgeline-brand-products.md` §6 (50 products, 7 categories, 6 placeholder brand labels, 6 collections; descriptions claim no fitment/certification). Images sourced by 3 parallel agents with `scripts/brand/find_images.py`/`fetch_image.py` (now `IMAGE_ROOT`/`MANIFEST` aware), CC0/PD only: `services/store-assets/stores/ridgeline/images/manifest.json` 49 entries — **39/50 product images + 10 editorial** (hero, concept, collection, 7 category tiles); licences `CC0 1.0` 27, `CC0` 15, `Public domain` 7; sources Openverse + Wikimedia Commons; every file decodes as WebP, source/asset URL and alt recorded, no duplicate content (2 duplicates and 1 image showing a third party's username removed). Live: `ridgeline.store.127.0.0.1.nip.io` 50 products, checkout order #109 PASS. **Open:** 11 products without a suitable CC0/PD image (RDG-009, 012, 013, 015, 022, 025, 028, 029, 038, 046, 047: tail bag, motorcycle cover, phone mounts, sunshade, seat-back organiser, dry bag, chain lube, patch set, base layer, EDC pouch) show the theme's name fallback; several images are below 1000×1250 (Openverse serves ~1024 px) and some are representative (e.g. a helmet for the intercom). Needs the user's call: accept, or supply images.
+- **Evidence:** 2026-10-25 **PAUSED by the user (Blocked = on hold by decision, resume on their word; 11 images open).** Earlier: catalogue `services/store-assets/stores/ridgeline/catalogue.json` from `brand/ridgeline/ridgeline-brand-products.md` §6 (50 products, 7 categories, 6 placeholder brand labels, 6 collections; descriptions claim no fitment/certification). Images sourced by 3 parallel agents with `scripts/brand/find_images.py`/`fetch_image.py` (now `IMAGE_ROOT`/`MANIFEST` aware), CC0/PD only: `services/store-assets/stores/ridgeline/images/manifest.json` 49 entries — **39/50 product images + 10 editorial** (hero, concept, collection, 7 category tiles); licences `CC0 1.0` 27, `CC0` 15, `Public domain` 7; sources Openverse + Wikimedia Commons; every file decodes as WebP, source/asset URL and alt recorded, no duplicate content (2 duplicates and 1 image showing a third party's username removed). Live: `ridgeline.store.127.0.0.1.nip.io` 50 products, checkout order #109 PASS. **Open:** 11 products without a suitable CC0/PD image (RDG-009, 012, 013, 015, 022, 025, 028, 029, 038, 046, 047: tail bag, motorcycle cover, phone mounts, sunshade, seat-back organiser, dry bag, chain lube, patch set, base layer, EDC pouch) show the theme's name fallback; several images are below 1000×1250 (Openverse serves ~1024 px) and some are representative (e.g. a helmet for the intercom). Needs the user's call: accept, or supply images.
 - **Regression risk:** Image licences: no image without a recorded commercial-use licence.
 
 ### BON-16 — Stand-out documentation and demo

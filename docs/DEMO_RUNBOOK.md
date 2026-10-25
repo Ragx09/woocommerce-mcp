@@ -32,3 +32,11 @@ Scripted version of 2–5 (except Claude Code itself): `scripts/e2e.sh all`.
 ## 6. Kubernetes tour
 `kubectl get ns,pods,svc,ingress,pvc,secrets,networkpolicy -A`; show probes and limits (`kubectl describe`), the NetworkPolicy deny test.
 ## 7. MCP internals, security, chat loop, local→VPS (talk track; see ARCHITECTURE, MCP_DESIGN, THREAT_MODEL, DEPLOYMENT)
+
+## 8. Multi-store — REQ-BON-01..08
+1. Dashboard → Stores → create "Chai Corner" (Tea & coffee) and "Ridgeline" (Bike accessories). **Expect:** both "Creating…", Ready after about 4 minutes (page updates by itself); a name already taken or the limit gives a clear message.
+2. Open each store: own name, niche products, accent. Place a COD order in each (`scripts/e2e-checkout.sh` with `STORE_URL`/`STORE_NS`, or by hand): 2 in the first, 1 in the second.
+3. Chat as A: "How many orders came in today in Chai Corner and how many in Ridgeline? Compare." **Expect:** calls to `woo-<slug>__list_orders` for both; the counts match each store's MariaDB.
+4. Settings → show the wp-admin password (once; the second try is refused). Share the first store with B → B's tool list shows only its read-only tools; remove B → gone on the next request.
+5. Delete the second store (type its name). **Expect:** its tools vanish at once; `kubectl get ns,pv` and `/api/upstreams` show nothing of it; the audit log keeps its rows.
+Scripted: `scripts/e2e.sh stores` (also kills the provisioner mid-create); isolation probes: `scripts/k8s-checks.sh stores`.

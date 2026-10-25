@@ -4,9 +4,10 @@
 Phase 7 — External MCP clients and acceptance testing: done on local k3d (2026-10-18, Day 8 — one day past the 2026-10-17 deadline). Phase 8 (VPS, release) next.
 
 ## Current task
-2026-10-25: **BON-11 Done** — stores get their own name, tagline, niche catalogue, accent and (bike) editorial images; default TATVA store unchanged. k3d runs `chai` (Chai Corner, tea & coffee) and `ridgeline` (Ridgeline, bike) next to TATVA; checkout PASS on both. **BON-17 In Progress**: bike catalogue live, 39/50 product images (CC0/PD), 11 open. **Next: BON-12** (stores API + dashboard, caps, sharing, one-time password) together with the BON-14 store access rules (until then every member sees created stores' read-only tools). SEC-09 waits for the user's go. VPS: JarvisLabs balance ₹0.
+2026-10-25 (session without a cluster): **BON-12, BON-13, BON-14, BON-15 built and verified as far as a laptop-less sandbox allows; all four stay In Progress** until they run on k3d. BON-17 paused by the user. GW-15 unblocked (throwaway repo `Ragx09/mcp-issue-write-test`). **Next, on a machine with Docker/k3d:** `scripts/up.sh` (new gateway + dashboard images), then `scripts/k8s-checks.sh stores` after creating two stores in the dashboard, `scripts/e2e.sh stores` (BON-15, ~8 min, real LLM), `GITHUB_REPO=Ragx09/mcp-issue-write-test node scripts/cross-server.mjs` (GW-15); then mark BON-12..15 and GW-15 Done with that evidence. Not built yet: admin "reset wp-admin password", admin pod/quota view, `dashboard-screens.sh stores`. SEC-09 waits for the user's go. VPS: JarvisLabs balance ₹0.
 
 ## Recently completed
+- 2026-10-25: **BON-12..15 (multi-store API, access, acceptance script)** — `/api/stores` (create with idempotency key and slug preview, list, show, delete with typed name, access list, per-store tool rule, wp-admin password once), caps 3/5 under an advisory lock, `authz/store-access.ts` (owner/admin all tools, access list the store rule, others nothing — in `/mcp`, `/api/upstreams`, chat hint), Stores dashboard page, chart env for caps/URLs, `scripts/k8s-checks.sh stores` (24 probes + quota/Pod Security), `scripts/e2e-stores.mjs` (`e2e.sh stores`). Local evidence: gateway int `stores-api` 15/15 (mutation-checked), full int 159/160 (the 1 failure is pre-existing on this host, see BON-12), unit 118/118, dashboard 27/27, chart check PASS, browser 23/23 against the real gateway with a stand-in provisioner. D-028, T-31, MCP_DESIGN §16, API_CONTRACTS, DEMO_RUNBOOK §8. **Nothing ran on a cluster.**
 - 2026-10-25: **BON-11 — per-store install**: niche catalogues, niche-aware theme and importer, `e2e-checkout.sh` per store. **BON-17 (part)**: bike catalogue + 49 CC0/PD images via 3 parallel sourcing agents.
 - 2026-10-25: **BON-09 — provisioner foundation**: `charts/store`, `services/provisioner`, `templates/rbac-provisioner.yaml`, `templates/platform/provisioner.yaml`, migration `0006_stores`, `services/gateway/src/stores/*`, `scripts/k8s-checks.sh rbac`, `provisioner-secrets` in make-secrets. Fixed the fresh-install break (mu-plugin now outside the data volume) and the store quota.
 - 2026-10-25: **BON-08 — OAuth on the gateway** (MCP auth spec 2025-11-25): `services/gateway/src/oauth/{store,routes}.ts`, migration `0005_oauth`, dashboard `/connect` + Connected apps, Ingress paths `/oauth`, `/.well-known/oauth-*`; `scripts/e2e-oauth.mjs`. Two stale acceptance checks fixed (TC-K8S-04a header, TC-E2E-10d used `github__get_me`, removed for members by SEC-08).
@@ -84,7 +85,8 @@ Phase 7 — External MCP clients and acceptance testing: done on local k3d (2026
 ## Blockers
 - **Scope vs time**: Phase 11 is about 6–8 working days; multi-store also needs ≈0.5 GB RAM per extra store (VPS: 8 GB recommended).
 - **LLM free-tier budget**: Groq allows 8k tokens/min ≈ two chat questions per minute. Enough for the demo if paced; otherwise a paid tier or another provider (values change).
-- **GW-15** (issue-writing cross-server demo) needs the throwaway GitHub repo (owner/repo) the PAT may write issues to; REQ-DOD-07 itself is met read-only (E2E-06).
+- **GW-15**: repo now known (`Ragx09/mcp-issue-write-test`); the real run needs the cluster. REQ-DOD-07 itself is met read-only (E2E-06).
+- **No cluster in the cloud sandbox** (no Docker/k3d): multi-store acceptance (BON-12..15) must run on the laptop or the VPS.
 - SEC-07 TLS part waits for the VPS / REL-04.
 - **VPS not available** (user will provision one) → blocks P0-03, REL-01, REQ-K8S-02. Needed by Day 4–5.
 - GitHub repo is **private**. It must be made public (or reviewers added) at submission → REL-17.
@@ -93,10 +95,10 @@ Phase 7 — External MCP clients and acceptance testing: done on local k3d (2026
 SDK v1 stateless Streamable HTTP (D-002); WooCommerce REST + OAuth1 (D-003); `slug__tool` namespacing (D-005); k3d/k3s + Traefik + nip.io (D-010); own Helm templates with official images (D-011); Groq/OpenRouter via OpenAI-compatible API (D-012).
 
 ## Next recommended task
-REL-12 clean-cluster dry run (needs the user's OK: `scripts/down.sh --all` deletes all local data). Then Phase 10 SEC-01..06 (local), UI-18. VPS chain when a VPS exists.
+Run the cluster checks listed under Current task and close BON-12..15 and GW-15; then BON-10, BON-16, SEC-09 (user's go), REL-15..17; VPS chain when a VPS exists.
 
 ## Remaining mandatory acceptance criteria
-All 12 DoD checks (REQ-DOD-01…12): not started.
+All 12 DoD checks passed on local k3d (2026-10-18, E2E-01..13); the same on the VPS is open (REL-01/03).
 
 ## Risks
 | # | Risk | Mitigation | Owner task |

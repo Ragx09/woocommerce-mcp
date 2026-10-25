@@ -11,7 +11,7 @@ import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Db } from '../db/index.js';
 import { stores, upstreams, type Store } from '../db/schema.js';
-import { encryptCredential, type CredentialKey } from '../crypto/credentials.js';
+import { decryptCredential, encryptCredential, type CredentialKey } from '../crypto/credentials.js';
 import { STORE_WOO_MCP_HOST } from '../upstreams/ssrf.js';
 import { SIGNATURE_HEADER, verify } from './signing.js';
 
@@ -22,6 +22,9 @@ export interface InternalDeps { db: Db; key: CredentialKey; signingKey: Buffer }
 
 export const storeUpstreamSlug = (slug: string): string => `woo-${slug}`;
 const storeAad = (slug: string) => `store:${slug}`;
+/** wp-admin user the provisioner creates in every store (services/provisioner storeSecrets). */
+export const STORE_ADMIN_USER = 'storeadmin';
+export const decryptStorePassword = (key: CredentialKey, slug: string, enc: Parameters<typeof decryptCredential>[2]) => decryptCredential(key, storeAad(slug), enc);
 export const encryptStorePassword = (key: CredentialKey, slug: string, password: string) => encryptCredential(key, storeAad(slug), password);
 
 const SAFE_REASON = /[^\x20-\x7E]/g; // printable ASCII only in stored reasons

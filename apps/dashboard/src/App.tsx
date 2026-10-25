@@ -11,6 +11,7 @@ import { Overview } from './pages/Overview.js';
 import { Placeholder } from './pages/Placeholder.js';
 import { ServerForm } from './pages/ServerForm.js';
 import { Servers } from './pages/Servers.js';
+import { Stores } from './pages/Stores.js';
 
 export function App() {
   useSessionExpiry();
@@ -24,6 +25,7 @@ export function App() {
         <Route path="servers" element={<Servers />} />
         <Route path="servers/new" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
         <Route path="servers/:id/edit" element={<RequireAuth admin><ServerForm /></RequireAuth>} />
+        <Route path="stores" element={<Stores />} />
         <Route path="chat" element={<Chat />} />
         <Route path="keys" element={<Keys />} />
         <Route path="members" element={<RequireAuth admin><Members /></RequireAuth>} />
@@ -37,7 +39,7 @@ export function App() {
 function Shell() {
   const me = useMe().data!;
   const logout = useLogout();
-  const links: [string, string][] = [['/', 'Overview'], ['/servers', 'Servers'], ['/chat', 'Chat'], ['/keys', 'API keys']];
+  const links: [string, string][] = [['/', 'Overview'], ['/servers', 'Servers'], ['/stores', 'Stores'], ['/chat', 'Chat'], ['/keys', 'API keys']];
   if (me.role === 'admin') links.push(['/members', 'Members'], ['/audit', 'Audit log']);
   return (
     <div className="shell">

@@ -6,6 +6,8 @@ import { registerMcp } from './mcp/route.js';
 import { registerUpstreamRoutes } from './upstreams/routes.js';
 import { ssrfPolicy, STORE_WOO_MCP_HOST } from './upstreams/ssrf.js';
 import { registerInternalStoreRoutes } from './stores/internal.js';
+import { registerStoreRoutes } from './stores/routes.js';
+import { loadStoreAccess, roleFor } from './authz/store-access.js';
 import { loadSigningKey } from './stores/signing.js';
 import { setProvisionerPassword } from './stores/db-role.js';
 import { ToolDiscovery } from './upstreams/discovery.js';
@@ -96,6 +98,9 @@ if (signingKey) registerInternalStoreRoutes(app, { db, key: credentialKey, signi
 else app.log.warn('PROVISIONER_SIGNING_KEY not set: created stores cannot be registered');
 const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, maxTools: cfg.maxToolsPerUpstream, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
+// BON-12: /api/stores. Needs the signing key: without the provisioner a created store would never become ready.
+registerStoreRoutes(app, { db, key: credentialKey, cfg: cfg.stores, enabled: !!signingKey,
+  registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.
 const internalTokens = new InternalTokenSigner();
 // BON-03: every audit event is also a metric observation (same events, counted once).
@@ -112,6 +117,7 @@ registerMcp(app, {
   resourceMetadataUrl: cfg.publicOrigin && resourceMetadataUrl(cfg.publicOrigin),
   audit: async (e) => { metrics.record(e); await auditToDb(e); },
   loadUpstreams: () => listUpstreams(db),
+  storeAccess: (userId) => loadStoreAccess(db, userId), // BON-14: owner / shared / nobody per store
   pool: upstreamPool,
   discovery,
   health,
@@ -123,8 +129,13 @@ registerChatRoutes(app, {
   limiter,
   signer: internalTokens,
   mcpUrl: () => `http://127.0.0.1:${cfg.port}/mcp`,
-  unavailable: async () => (await listUpstreams(db)).filter((r) => r.enabled && health.isUnreachable(r.id))
-    .map((r) => ({ server: r.slug, name: r.name })),
+  // Only servers this user could use anyway: another person's store must not show up in their prompt (BON-14).
+  unavailable: async (user) => {
+    const rows = await listUpstreams(db);
+    const access = rows.some((r) => r.storeId) ? await loadStoreAccess(db, user.id) : new Map();
+    return rows.filter((r) => r.enabled && health.isUnreachable(r.id) && roleFor(r, user.role, access) !== null)
+      .map((r) => ({ server: r.slug, name: r.name }));
+  },
 });
 
 await app.listen({ port: cfg.port, host: cfg.host });

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rbac|rogue|ingress|killpod|metrics|replicas|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rbac|stores|rogue|ingress|killpod|metrics|replicas|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -122,6 +122,58 @@ netpol() {
   out=$(kubectl -n "$PLATFORM" exec deploy/dashboard -- sh -c \
     "nc -z -w 4 $(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}') 443 && echo OPEN || echo CLOSED" 2>/dev/null)
   [ "$out" = CLOSED ] && pass "TC-UI-20-1c dashboard egress (API server by IP) → CLOSED" || fail "TC-UI-20-1c dashboard egress → ${out:-no result} (want CLOSED)"
+}
+
+# TC-BON-14-1 / TC-BON-14-2 (D-026, A-11): isolation and guardrails of CREATED stores. Needs two stores made through
+# the dashboard (or `scripts/e2e.sh stores`); checks the first two it finds. Probes run from pods that carry the
+# labels the policies key on, so a "yes" here means the policy allows exactly that and nothing wider.
+stores() {
+  local -a slugs; read -r -a slugs <<<"$(kubectl get ns -l platform.io/store -o jsonpath='{.items[*].metadata.labels.platform\.io/store}')"
+  if [ "${#slugs[@]}" -lt 2 ]; then fail "TC-BON-14-1 needs two created stores (found ${#slugs[@]}): create them in the dashboard first"; return; fi
+  local a="${slugs[0]}" b="${slugs[1]}"; local na="store-$a" nb="store-$b"
+  local a_db="mariadb.$na.svc.cluster.local" a_wp="wordpress.$na.svc.cluster.local" a_mcp="woo-mcp.$na.svc.cluster.local"
+  local b_db="mariadb.$nb.svc.cluster.local" b_wp="wordpress.$nb.svc.cluster.local" b_mcp="woo-mcp.$nb.svc.cluster.local"
+  echo "# checking created stores: $a ($na) and $b ($nb)"
+  # Cross-store: nothing in A reaches anything in B, whatever label it carries.
+  expect CLOSED "TC-BON-14-1a A woo-mcp → B mariadb" "$na" app=woo-mcp "$b_db" 3306
+  expect CLOSED "TC-BON-14-1b A woo-mcp → B wordpress" "$na" app=woo-mcp "$b_wp" 80
+  expect CLOSED "TC-BON-14-1c A woo-mcp → B woo-mcp" "$na" app=woo-mcp "$b_mcp" 80
+  expect CLOSED "TC-BON-14-1d A wordpress → B mariadb" "$na" app=wordpress "$b_db" 3306
+  expect CLOSED "TC-BON-14-1e A wordpress → B wordpress" "$na" app=wordpress "$b_wp" 80
+  expect CLOSED "TC-BON-14-1f B wordpress → A mariadb" "$nb" app=wordpress "$a_db" 3306
+  expect CLOSED "TC-BON-14-1g A wp-init → B mariadb" "$na" app=wp-init "$b_db" 3306
+  # Same store: only the intended paths.
+  expect OPEN   "TC-BON-14-1h A wordpress → A mariadb" "$na" app=wordpress "$a_db" 3306
+  expect OPEN   "TC-BON-14-1i A woo-mcp → A wordpress" "$na" app=woo-mcp "$a_wp" 80
+  expect CLOSED "TC-BON-14-1j A woo-mcp → A mariadb (no direct DB access)" "$na" app=woo-mcp "$a_db" 3306
+  expect CLOSED "TC-BON-14-1k a random pod in A → A mariadb" "$na" app=intruder "$a_db" 3306
+  expect CLOSED "TC-BON-14-1l a random pod in A → A woo-mcp" "$na" app=intruder "$a_mcp" 80
+  expect CLOSED "TC-BON-14-1m a random pod in A → A wordpress" "$na" app=intruder "$a_wp" 80
+  # The platform and the default store.
+  expect OPEN   "TC-BON-14-1n gateway → A woo-mcp (the one allowed way in)" "$PLATFORM" app=gateway "$a_mcp" 80
+  expect CLOSED "TC-BON-14-1o gateway → A mariadb" "$PLATFORM" app=gateway "$a_db" 3306
+  expect CLOSED "TC-BON-14-1p gateway → A wordpress" "$PLATFORM" app=gateway "$a_wp" 80
+  expect CLOSED "TC-BON-14-1q a random pod in $PLATFORM → A woo-mcp" "$PLATFORM" app=intruder "$a_mcp" 80
+  expect CLOSED "TC-BON-14-1r default store wordpress → A mariadb" "$STORE" app=wordpress "$a_db" 3306
+  expect CLOSED "TC-BON-14-1s default store woo-mcp → A woo-mcp" "$STORE" app=woo-mcp "$a_mcp" 80
+  expect CLOSED "TC-BON-14-1t A wordpress → postgres" "$na" app=wordpress "postgres.$PLATFORM.svc.cluster.local" 5432
+  expect CLOSED "TC-BON-14-1u A woo-mcp → gateway" "$na" app=woo-mcp "gateway.$PLATFORM.svc.cluster.local" 80
+  expect CLOSED "TC-BON-14-1v internet from A wordpress" "$na" app=wordpress 1.1.1.1 443
+  expect CLOSED "TC-BON-14-1w internet from A woo-mcp" "$na" app=woo-mcp 1.1.1.1 443
+  expect CLOSED "TC-BON-14-1x Kubernetes API from A woo-mcp" "$na" app=woo-mcp "$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')" 443
+  # TC-BON-14-2: quota and Pod Security hold in every created namespace.
+  local ns out
+  for ns in "$na" "$nb"; do
+    kubectl -n "$ns" get resourcequota store >/dev/null 2>&1 && pass "TC-BON-14-2a $ns has its ResourceQuota" || fail "TC-BON-14-2a $ns has no ResourceQuota"
+    kubectl -n "$ns" get limitrange store >/dev/null 2>&1 && pass "TC-BON-14-2b $ns has its LimitRange" || fail "TC-BON-14-2b $ns has no LimitRange"
+    out="$(kubectl -n "$ns" run quota-probe --image=busybox:1.36 --restart=Never --dry-run=server \
+      --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"p","image":"busybox:1.36","command":["true"],"resources":{"limits":{"cpu":"64","memory":"512Mi"},"requests":{"cpu":"64","memory":"64Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' 2>&1)"
+    echo "$out" | grep -qiE 'exceeded quota|maximum cpu usage|forbidden' && pass "TC-BON-14-2c $ns refuses a pod beyond its quota" || fail "TC-BON-14-2c $ns accepted an oversized pod: $(echo "$out" | head -1)"
+    out="$(kubectl -n "$ns" run root-probe --image=busybox:1.36 --restart=Never --dry-run=server --overrides='{"spec":{"containers":[{"name":"p","image":"busybox:1.36","command":["true"],"securityContext":{"runAsUser":0}}]}}' 2>&1)"
+    echo "$out" | grep -qiE 'violates PodSecurity|forbidden' && pass "TC-BON-14-2d $ns refuses a root pod (Pod Security restricted)" || fail "TC-BON-14-2d $ns accepted a root pod: $(echo "$out" | head -1)"
+    out="$(kubectl -n "$ns" get serviceaccount workload -o jsonpath='{.automountServiceAccountToken}' 2>/dev/null)"
+    [ "$out" = false ] && pass "TC-BON-14-2e $ns workloads get no service account token" || fail "TC-BON-14-2e $ns workload ServiceAccount automount = ${out:-missing}"
+  done
 }
 
 # SEC-06 (TC-SEC-06-3): rogue pods (no special labels, or a label they should not be able to use for a
@@ -369,6 +421,7 @@ replicas() {
 case "${1:-all}" in
   netpol) netpol ;;
   rbac) rbac ;;
+  stores) stores ;;
   rogue) rogue ;;
   ingress) ingress ;;
   killpod) killpod ;;

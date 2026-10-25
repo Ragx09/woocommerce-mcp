@@ -27,6 +27,20 @@ export interface Config {
   upstreamAllowedHosts: string[];
   /** Chat agent LLM (UI-13, D-012): any OpenAI-compatible chat-completions endpoint. */
   llm: LlmConfig;
+  /** Multi-store (BON-12, A-11): caps enforced by /api/stores, and how a store's public URL is built. */
+  stores: StoresConfig;
+}
+
+export interface StoresConfig {
+  /** Stores one member may own (not yet deleted). Admins are not limited per person. */
+  maxPerMember: number;
+  /** Stores in total (not yet deleted), admins included. 0 = creating stores is off. */
+  maxTotal: number;
+  /** `<slug>.<hostSuffix>` is a store's host, e.g. store.127.0.0.1.nip.io. Unset → no URL is shown. */
+  hostSuffix: string | undefined;
+  scheme: 'http' | 'https';
+  /** URL of the default (chart-installed) store, listed as "default" and not deletable. */
+  defaultStoreUrl: string | undefined;
 }
 
 export interface LlmConfig {
@@ -53,6 +67,13 @@ function bool(name: string, value: string | undefined, fallback: boolean): boole
   if (v === 'true' || v === '1') return true;
   if (v === 'false' || v === '0') return false;
   throw new Error(`${name} must be true or false`);
+}
+
+function hostSuffix(name: string, value: string | undefined): string | undefined {
+  const v = value?.trim().toLowerCase();
+  if (!v) return undefined;
+  if (!/^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$/.test(v) || v.includes('..')) throw new Error(`${name} must be a DNS name`);
+  return v;
 }
 
 function origin(name: string, value: string | undefined): string | undefined {
@@ -102,6 +123,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     cookieSecure: bool('COOKIE_SECURE', env.COOKIE_SECURE, false),
     publicOrigin: origin('PUBLIC_ORIGIN', env.PUBLIC_ORIGIN),
     upstreamAllowedHosts: (env.UPSTREAM_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
+    stores: {
+      maxPerMember: int('STORE_MAX_PER_MEMBER', env.STORE_MAX_PER_MEMBER, 3, 0, 50),
+      maxTotal: int('STORE_MAX_TOTAL', env.STORE_MAX_TOTAL, 5, 0, 200),
+      hostSuffix: hostSuffix('STORE_HOST_SUFFIX', env.STORE_HOST_SUFFIX),
+      scheme: env.STORE_SCHEME?.trim() === 'https' ? 'https' : 'http',
+      defaultStoreUrl: origin('DEFAULT_STORE_URL', env.DEFAULT_STORE_URL),
+    },
     llm: {
       baseUrl: baseUrl('LLM_BASE_URL', env.LLM_BASE_URL, 'https://api.groq.com/openai/v1'),
       model: env.LLM_MODEL?.trim() || 'openai/gpt-oss-120b',

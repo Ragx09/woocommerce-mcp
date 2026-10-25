@@ -13,7 +13,8 @@ import { encryptCredential, type CredentialKey } from '../crypto/credentials.js'
 import type { Db } from '../db/index.js';
 import { callStatsByUpstream, STATS_WINDOW_MINUTES, type CallStats } from '../audit/stats.js';
 import { canSeeUpstream, canUseTool } from '../authz/tool-access.js';
-import { MEMBER_ACCESS, upstreams, type Upstream } from '../db/schema.js';
+import { loadStoreAccess, needsStoreAccess, roleFor, type StoreAccess } from '../authz/store-access.js';
+import { MEMBER_ACCESS, upstreams, type Role, type Upstream } from '../db/schema.js';
 import { MAX_DESCRIPTION, SLUG_RE, toPublicName } from '../mcp/naming.js';
 import type { ToolDiscovery } from './discovery.js';
 import { healthError, type HealthMonitor } from './health.js';
@@ -29,6 +30,8 @@ export interface UpstreamRouteDeps {
   /** Needed for writes (credential encryption). */
   key?: CredentialKey;
   ssrf?: SsrfPolicy;
+  /** BON-14: the caller's stores (default: read from `db`). */
+  storeAccess?: (userId: string) => Promise<StoreAccess>;
   /** For tests: DNS used by the SSRF check when a URL is saved. */
   lookup?: Parameters<typeof validateUpstreamUrl>[2];
 }
@@ -122,11 +125,11 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     }
   }
 
-  async function view(row: Upstream, isAdmin: boolean, stats?: Map<string, CallStats>) {
+  async function view(row: Upstream, isAdmin: boolean, stats?: Map<string, CallStats>, effRole?: Role) {
     const h = health.get(row);
     const t = row.enabled ? await tools(row) : undefined;
     const pub = toPublic(row);
-    const role = isAdmin ? 'admin' : 'member';
+    const role = effRole ?? (isAdmin ? 'admin' : 'member');
     const base = {
       id: pub.id, name: pub.name, slug: pub.slug, enabled: pub.enabled,
       // F-API-1: members get a coarse status only. The raw lastError strings and health timing leak
@@ -155,6 +158,12 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     return validateUpstreamUrl(url, deps.ssrf, deps.lookup);
   }
 
+  /** Only reads the DB when a store's server is in `rows` (BON-14). */
+  async function accessOf(userId: string, rows: Upstream[]): Promise<StoreAccess> {
+    if (!needsStoreAccess(rows)) return new Map();
+    return (deps.storeAccess ?? ((id: string) => loadStoreAccess(db, id)))(userId);
+  }
+
   function fail(reply: FastifyReply, e: unknown) {
     if (e instanceof InputError) return reply.code(e.status).send({ error: e.code, message: e.message });
     if (e instanceof SsrfError) return reply.code(400).send({ error: 'ssrf_blocked', message: e.message });
@@ -169,21 +178,23 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     const rows = await listUpstreams(db);
     await pool.sync(rows); // a server added a moment ago can be listed before the next health round
     const role = req.user!.role;
+    const access = await accessOf(req.user!.id, rows);
     const stats = role === 'admin' ? await callStatsByUpstream(db) : undefined;
-    return Promise.all(rows.filter((row) => canSeeUpstream(role, row)).map((row) => view(row, role === 'admin', stats)));
+    const visible = rows.flatMap((row) => { const eff = roleFor(row, role, access); return eff !== null && canSeeUpstream(eff, row) ? [{ row, eff }] : []; });
+    return Promise.all(visible.map(({ row, eff }) => view(row, role === 'admin', stats, eff)));
   });
 
   app.get<{ Params: { id: string } }>('/api/upstreams/:id/tools', {
     config: { access: 'session' }, schema: { params: idParams },
   }, async (req, reply) => {
     const [row] = await db.select().from(upstreams).where(eq(upstreams.id, req.params.id));
-    const role = req.user!.role;
-    if (!row || !canSeeUpstream(role, row)) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
+    const eff = row ? roleFor(row, req.user!.role, await accessOf(req.user!.id, [row])) : null;
+    if (!row || eff === null || !canSeeUpstream(eff, row)) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
     if (!row.enabled) return reply.code(409).send({ error: 'upstream_disabled', message: `server ${row.slug} is disabled` });
     await pool.sync(await listUpstreams(db));
     const t = await tools(row);
     if ('error' in t) return reply.code(502).send({ error: 'upstream_unreachable', message: t.error });
-    return t.tools.filter((x) => x.name && canUseTool(role, row, x.name)).map((x) => toolView(row.slug, x));
+    return t.tools.filter((x) => x.name && canUseTool(eff, row, x.name)).map((x) => toolView(row.slug, x));
   });
 
   // Create (UI-05).
@@ -212,6 +223,10 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
       const [prev] = await db.select().from(upstreams).where(eq(upstreams.id, req.params.id));
       if (!prev) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
       const b = req.body;
+      // A store's server belongs to the store (BON-13): its address and credential are set by the provisioner.
+      if (prev.storeId && (b.url !== undefined || b.authType !== undefined || b.authHeader !== undefined || b.credential !== undefined || b.name !== undefined)) {
+        return reply.code(409).send({ error: 'conflict', message: 'this server belongs to a store; only enabled and the member rule can be changed here' });
+      }
       const touchesAuth = b.authType !== undefined || b.authHeader !== undefined || b.credential !== undefined;
       const set: Partial<typeof upstreams.$inferInsert> = {};
       if (b.name !== undefined) set.name = b.name.trim();
@@ -236,6 +251,8 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
   app.delete<{ Params: { id: string } }>('/api/upstreams/:id', {
     config: { access: 'admin' }, schema: { params: idParams },
   }, async (req, reply) => {
+    const [owned] = await db.select({ storeId: upstreams.storeId }).from(upstreams).where(eq(upstreams.id, req.params.id));
+    if (owned?.storeId) return reply.code(409).send({ error: 'conflict', message: 'this server belongs to a store; delete the store instead' });
     const [row] = await db.delete(upstreams).where(eq(upstreams.id, req.params.id)).returning({ slug: upstreams.slug });
     if (!row) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
     req.log.info({ upstream: row.slug, upstreamId: req.params.id, by: req.user!.id }, 'upstream deleted');
