@@ -13,6 +13,8 @@ export interface Config {
   upstreamTimeouts: { connectMs: number; listMs: number; callMs: number };
   /** Largest upstream response body the gateway accepts, in bytes (T-08). */
   upstreamMaxResponseBytes: number;
+  /** F-MCP-5: tools taken from one upstream's list; the rest are dropped (an upstream must not flood every client). */
+  maxToolsPerUpstream: number;
   /** BON-04: /mcp tools/call + tools/list per key and per user in each window (0 = off), shared by replicas. */
   mcpRateLimit: { perKey: number; perUser: number; windowMs: number };
   /** Period of the upstream health loop in ms (GW-10). */
@@ -90,6 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       callMs: int('UPSTREAM_CALL_TIMEOUT_MS', env.UPSTREAM_CALL_TIMEOUT_MS, 15_000, 100, 300_000),
     },
     upstreamMaxResponseBytes: int('UPSTREAM_MAX_RESPONSE_BYTES', env.UPSTREAM_MAX_RESPONSE_BYTES, 4 * 1024 * 1024, 64 * 1024, 64 * 1024 * 1024),
+    maxToolsPerUpstream: int('MAX_TOOLS_PER_UPSTREAM', env.MAX_TOOLS_PER_UPSTREAM, 128, 1, 2_000),
     mcpRateLimit: {
       perKey: int('MCP_RATE_LIMIT_PER_APIKEY', env.MCP_RATE_LIMIT_PER_APIKEY, 120, 0, 1_000_000),
       perUser: int('MCP_RATE_LIMIT_PER_USER', env.MCP_RATE_LIMIT_PER_USER, 240, 0, 1_000_000),

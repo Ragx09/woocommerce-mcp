@@ -1,0 +1,51 @@
+PASS  TC-SEC-02a woo-mcp from a random pod in platform → CLOSED
+PASS  TC-SEC-02b woo-mcp from a random pod in store → CLOSED
+PASS  TC-SEC-02c woo-mcp from default namespace → CLOSED
+PASS  TC-SEC-02d woo-mcp from app=gateway in platform → OPEN
+PASS  TC-SEC-03a mariadb from a random pod in store → CLOSED
+PASS  TC-SEC-03b mariadb from the gateway → CLOSED
+PASS  TC-SEC-03c mariadb from app=wordpress → OPEN
+PASS  wordpress from a random pod in platform → CLOSED
+PASS  TC-GW-13-2a everything-mcp from a random pod in platform → CLOSED
+PASS  TC-GW-13-2b everything-mcp from store → CLOSED
+PASS  TC-GW-13-2c everything-mcp from app=gateway in platform → OPEN
+PASS  TC-SEC-10a internet from app=wordpress → CLOSED
+PASS  TC-SEC-10b internet from app=mariadb → CLOSED
+PASS  TC-SEC-10c internet from app=postgres → CLOSED
+PASS  TC-SEC-10d internet from a random pod in platform → CLOSED
+PASS  TC-SEC-10e internet (remote MCP / LLM) from app=gateway → OPEN
+PASS  TC-SEC-10f cloud metadata 169.254.169.254 from app=gateway → CLOSED
+PASS  TC-SEC-10g Kubernetes API 10.43.0.1 from app=gateway → CLOSED
+PASS  TC-SEC-10h mariadb from app=gateway → CLOSED
+PASS  TC-SEC-10i postgres from app=gateway → OPEN
+PASS  TC-SEC-10j internet 443 (WooCommerce download) from app=wp-init → OPEN
+PASS  TC-GW-13-2d everything-mcp egress (API server by IP) → CLOSED
+PASS  TC-UI-20-1a dashboard from a random pod in platform → CLOSED
+PASS  TC-UI-20-1b dashboard from app=gateway in platform → CLOSED
+PASS  TC-UI-20-1c dashboard egress (API server by IP) → CLOSED
+failures: 0
+PASS  TC-SEC-06-3 postgres from a random pod in store → CLOSED
+PASS  TC-SEC-06-3 mariadb from a random pod in store → CLOSED
+PASS  TC-SEC-06-3 woo-mcp from a random pod in store → CLOSED
+PASS  TC-SEC-06-3 gateway pod :8080 directly (no Traefik) from store → CLOSED
+PASS  TC-SEC-06-3 gateway metrics :9464 from store → CLOSED
+PASS  TC-SEC-06-3 Kubernetes API from a random pod in store → CLOSED
+PASS  TC-SEC-06-3 postgres from a random pod in platform → CLOSED
+PASS  TC-SEC-06-3 mariadb from a random pod in platform → CLOSED
+PASS  TC-SEC-06-3 woo-mcp from a random pod in platform → CLOSED
+PASS  TC-SEC-06-3 gateway pod :8080 directly (no Traefik) from platform → CLOSED
+PASS  TC-SEC-06-3 gateway metrics :9464 from platform → CLOSED
+PASS  TC-SEC-06-3 Kubernetes API from a random pod in platform → CLOSED
+PASS  TC-SEC-06-3 postgres from a random pod in default → CLOSED
+PASS  TC-SEC-06-3 mariadb from a random pod in default → CLOSED
+PASS  TC-SEC-06-3 woo-mcp from a random pod in default → CLOSED
+PASS  TC-SEC-06-3 gateway pod :8080 directly (no Traefik) from default → CLOSED
+PASS  TC-SEC-06-3 gateway metrics :9464 from default → CLOSED
+PASS  TC-SEC-06-3 wordpress from a random pod in store → CLOSED
+PASS  TC-SEC-06-3 wordpress from app=woo-mcp (its REST client) → OPEN
+PASS  TC-SEC-06-3 mariadb from app=woo-mcp → CLOSED
+PASS  TC-SEC-06-3 postgres from app=wordpress → CLOSED
+PASS  TC-SEC-06-3 internet from app=woo-mcp → CLOSED
+PASS  TC-SEC-06-3 gateway pod from app=woo-mcp (no calls back) → CLOSED
+PASS  TC-SEC-06-3 gateway metrics from a labelled scraper → OPEN
+failures: 0

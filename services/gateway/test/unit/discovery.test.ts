@@ -122,6 +122,18 @@ describe('ToolDiscovery (GW-05)', () => {
   });
 });
 
+describe('ToolDiscovery tool cap (F-MCP-5)', () => {
+  it('TC-SEC-05-U2: a list longer than maxTools is cut to the first maxTools and paging stops', async () => {
+    const up = await fake({ tools: Array.from({ length: 12 }, (_, i) => `t${i}`), pageSize: 5 });
+    const warns: object[] = [];
+    const { d } = await setup([row({ url: up.url })], { listTimeoutMs: 3_000, maxTools: 7, log: { warn: (o) => warns.push(o) } });
+    const r = await d.discover();
+    expect(names(r.upstreams[0]!)).toEqual(['t0', 't1', 't2', 't3', 't4', 't5', 't6']);
+    expect(up.listCount()).toBe(2); // the third page is never requested
+    expect(warns).toContainEqual(expect.objectContaining({ max: 7, listed: 10, more: true }));
+  });
+});
+
 describe('ToolDiscovery.toolsFor (GW-08)', () => {
   it('TC-GW-08-8: serves the fresh cache without an upstream request; refreshes when stale or changed', async () => {
     const up = await fake({ tools: ['a'] });

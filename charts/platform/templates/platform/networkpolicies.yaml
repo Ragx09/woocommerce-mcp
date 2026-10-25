@@ -38,6 +38,9 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.global.namespaces.store }} } }
           podSelector: { matchLabels: { app: woo-mcp } }
         - podSelector: { matchLabels: { app: everything-mcp } }
+        {{- if .Values.hostileMcp.enabled }}
+        - podSelector: { matchLabels: { app: hostile-mcp } }   # SEC-05 tests only
+        {{- end }}
       ports: [{ port: 8080 }]
     - to:
         - ipBlock:

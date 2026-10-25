@@ -34,6 +34,7 @@ import type { HealthMonitor } from '../upstreams/health.js';
 import {
   isSafeCallRetry, safeReason, UpstreamTimeoutError, UpstreamUnavailableError, withDeadline, type UpstreamPool,
 } from '../upstreams/pool.js';
+import { securityHeaders } from '../app.js';
 import { aggregateTools } from './aggregate.js';
 import { parsePublicName, ToolIndex } from './naming.js';
 
@@ -281,7 +282,9 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
     const p = req.principal!;
     const server = buildServer(deps, req.log, { requestId: req.id, userId: p.userId, keyId: p.keyId, source: p.source ?? 'mcp' }, p.role);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-    reply.raw.setHeader('x-request-id', req.id); // hijacked replies skip Fastify's headers
+    // Hijacked replies skip Fastify's headers: set them on the raw response.
+    reply.raw.setHeader('x-request-id', req.id);
+    for (const [k, v] of Object.entries(securityHeaders(req.protocol === 'https'))) reply.raw.setHeader(k, v);
     reply.hijack(); // the SDK transport writes the raw response
     reply.raw.on('close', () => { void transport.close(); void server.close(); });
     try {

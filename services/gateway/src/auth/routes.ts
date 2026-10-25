@@ -44,7 +44,7 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
 
   app.post<{ Body: { email: string; password: string } }>('/api/auth/login', { config: { access: 'public' }, schema: { body: loginBody } }, async (req, reply) => {
     const email = req.body.email.trim().toLowerCase();
-    const wait = limiter.retryAfter(req.ip, email);
+    const wait = await limiter.retryAfter(req.ip, email);
     if (wait > 0) {
       req.log.warn({ ip: req.ip }, 'login rate limited');
       return reply.code(429).header('retry-after', String(wait))
@@ -54,11 +54,11 @@ export async function registerAuth(app: FastifyInstance, deps: AuthDeps): Promis
     // Same work and the same answer for: unknown email, wrong password, disabled user.
     const ok = await verifyPassword(user?.passwordHash ?? null, req.body.password);
     if (!user || !ok || user.disabledAt) {
-      limiter.fail(req.ip, email);
+      await limiter.fail(req.ip, email);
       req.log.warn({ ip: req.ip, known: Boolean(user) }, 'login failed');
       return reply.code(401).send({ error: 'invalid_credentials', message: 'wrong email or password' });
     }
-    limiter.succeed(req.ip, email);
+    await limiter.succeed(req.ip, email);
     const { token } = await createSession(deps.db, user.id);
     reply.setCookie(SESSION_COOKIE, token, { ...cookieOpts, maxAge: SESSION_TTL_MS / 1000 });
     req.log.info({ userId: user.id, role: user.role }, 'login');

@@ -8,6 +8,7 @@ vi.mock('@node-rs/argon2', async (orig) => {
   return { ...real, verify: verifySpy };
 });
 import { LoginLimiter } from '../../src/auth/limiter.js';
+import { MemoryRateLimiter } from '../../src/ratelimit.js';
 import { hashPassword, passwordProblem, verifyPassword } from '../../src/auth/password.js';
 import { loadAdminSeed } from '../../src/auth/seed-admin.js';
 import { loadConfig } from '../../src/config.js';
@@ -49,23 +50,32 @@ describe('passwords (AUTH-02)', () => {
 });
 
 describe('LoginLimiter (AUTH-02)', () => {
-  it('TC-AUTH-02-U3: 5 failures per IP+email, 20 per IP, sliding 15 min window; success clears the account counter', () => {
+  it('TC-AUTH-02-U3: 5 failures per IP+email, 20 per IP, 15 min window from the first failure; success clears the account counter', async () => {
     const clock = { t: 0 };
     const l = new LoginLimiter({ now: () => clock.t });
-    for (let i = 0; i < 5; i++) { expect(l.retryAfter('1.1.1.1', 'a@x')).toBe(0); l.fail('1.1.1.1', 'a@x'); }
-    expect(l.retryAfter('1.1.1.1', 'a@x')).toBe(900);
-    expect(l.retryAfter('2.2.2.2', 'a@x')).toBe(0); // another client is not locked out by the attacker
-    expect(l.retryAfter('1.1.1.1', 'b@x')).toBe(0);
+    for (let i = 0; i < 5; i++) { expect(await l.retryAfter('1.1.1.1', 'a@x')).toBe(0); await l.fail('1.1.1.1', 'a@x'); }
+    expect(await l.retryAfter('1.1.1.1', 'a@x')).toBe(900);
+    expect(await l.retryAfter('2.2.2.2', 'a@x')).toBe(0); // another client is not locked out by the attacker
+    expect(await l.retryAfter('1.1.1.1', 'b@x')).toBe(0);
     clock.t += 900_001;
-    expect(l.retryAfter('1.1.1.1', 'a@x')).toBe(0);
+    expect(await l.retryAfter('1.1.1.1', 'a@x')).toBe(0);
 
-    for (let i = 0; i < 20; i++) l.fail('3.3.3.3', `user${i}@x`); // spraying many emails from one IP
-    expect(l.retryAfter('3.3.3.3', 'fresh@x')).toBeGreaterThan(0);
+    for (let i = 0; i < 20; i++) await l.fail('3.3.3.3', `user${i}@x`); // spraying many emails from one IP
+    expect(await l.retryAfter('3.3.3.3', 'fresh@x')).toBeGreaterThan(0);
 
-    for (let i = 0; i < 4; i++) l.fail('4.4.4.4', 'c@x');
-    l.succeed('4.4.4.4', 'c@x');
-    l.fail('4.4.4.4', 'c@x');
-    expect(l.retryAfter('4.4.4.4', 'c@x')).toBe(0);
+    for (let i = 0; i < 4; i++) await l.fail('4.4.4.4', 'c@x');
+    await l.succeed('4.4.4.4', 'c@x');
+    await l.fail('4.4.4.4', 'c@x');
+    expect(await l.retryAfter('4.4.4.4', 'c@x')).toBe(0);
+  });
+  it('TC-AUTH-02-U4 (F-AUTH-2): two limiters on one shared store enforce one budget (two replicas)', async () => {
+    const store = new MemoryRateLimiter();
+    const r1 = new LoginLimiter({ store }), r2 = new LoginLimiter({ store });
+    for (let i = 0; i < 5; i++) await (i % 2 ? r2 : r1).fail('1.1.1.1', 'a@x'); // round-robin like Traefik
+    expect(await r1.retryAfter('1.1.1.1', 'a@x')).toBeGreaterThan(0);
+    expect(await r2.retryAfter('1.1.1.1', 'a@x')).toBeGreaterThan(0);
+    await r2.succeed('1.1.1.1', 'a@x');
+    expect(await r1.retryAfter('1.1.1.1', 'a@x')).toBe(0);
   });
 });
 

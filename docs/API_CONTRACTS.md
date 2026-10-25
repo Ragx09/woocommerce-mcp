@@ -2,6 +2,8 @@
 
 > Status: **draft**. Base path `https://app.<domain>`. JSON everywhere. Errors use `{ "error": "<code>", "message": "<human text>" }`. The session cookie is `sid` (httpOnly, SameSite=Strict). Mutating `/api` requests (POST/PUT/PATCH/DELETE) from a browser must carry `Origin` equal to the public origin (or `Sec-Fetch-Site: same-origin`), otherwise 403 `forbidden` "cross-origin request refused" (AUTH-03). Every response carries `X-Request-Id` (a server-generated UUID; a client-sent one is ignored), which appears on every gateway log line of that request — quote it when reporting a problem.
 
+Security headers on every gateway answer, `/mcp` included (SEC-07, F-WEB-9): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`; `Strict-Transport-Security: max-age=31536000` when the request came in over TLS through the trusted proxy.
+
 ## Route table
 | Method | Path | Auth | Role | Purpose |
 |---|---|---|---|---|

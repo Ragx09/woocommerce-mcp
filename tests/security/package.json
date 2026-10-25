@@ -1,0 +1,10 @@
+{
+  "name": "@platform/security-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SEC-04: live auth and business-logic attacks against a running install (k3d or VPS)",
+  "scripts": {
+    "test": "vitest run --no-file-parallelism"
+  }
+}

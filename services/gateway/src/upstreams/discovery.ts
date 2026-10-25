@@ -7,6 +7,8 @@
 // - With a HealthMonitor (GW-10): an upstream marked unreachable is not contacted at all (fails fast
 //   with its last error, no stale tools), and every live list reports its outcome to the monitor.
 // - Concurrent discover() calls share one in-flight list request per upstream.
+// - F-MCP-5: at most maxTools tools per upstream (default 128) are kept; a longer list is cut with a
+//   warning, so one upstream cannot flood every client's (and the chat model's) context.
 // - Tools are returned exactly as the upstream sent them; public names and description caps are GW-07.
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
@@ -23,6 +25,8 @@ export interface DiscoveryOptions {
   maxStaleMs?: number;
   /** Guard against an upstream that pages forever. */
   maxPages?: number;
+  /** Tools kept per upstream (F-MCP-5). */
+  maxTools?: number;
   now?: () => number;
   log?: { warn: (obj: object, msg: string) => void };
   health?: Pick<HealthMonitor, 'get' | 'isUnreachable' | 'reportOk' | 'reportFailure'>;
@@ -61,12 +65,14 @@ export class ToolDiscovery {
   private readonly listTimeoutMs: number;
   private readonly maxStaleMs: number;
   private readonly maxPages: number;
+  private readonly maxTools: number;
   private readonly now: () => number;
 
   constructor(private readonly pool: UpstreamPool, private readonly opts: DiscoveryOptions = {}) {
     this.listTimeoutMs = opts.listTimeoutMs ?? 3_000;
     this.maxStaleMs = opts.maxStaleMs ?? 60_000;
     this.maxPages = opts.maxPages ?? 20;
+    this.maxTools = opts.maxTools ?? 128;
     this.now = opts.now ?? Date.now;
   }
 
@@ -147,6 +153,10 @@ export class ToolDiscovery {
     for (let page = 0; page < this.maxPages; page++) {
       const res = await client.listTools(cursor ? { cursor } : undefined, { signal, timeout: this.listTimeoutMs });
       tools.push(...res.tools);
+      if (tools.length > this.maxTools) {
+        this.opts.log?.warn({ upstream: slug, max: this.maxTools, listed: tools.length, more: Boolean(res.nextCursor) }, 'tool list truncated: too many tools');
+        return tools.slice(0, this.maxTools);
+      }
       cursor = res.nextCursor;
       if (!cursor) return tools;
     }

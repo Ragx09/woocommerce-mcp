@@ -1,0 +1,72 @@
+{{- if .Values.hostileMcp.enabled }}
+{{- $ns := .Values.global.namespaces.platform }}
+{{- $v := .Values.hostileMcp }}
+{{- $ctx := dict "root" . "app" "hostile-mcp" }}
+# SEC-05: test-only hostile upstream. Reachable from the gateway only, no egress, no Secrets, no SA token.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostile-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "platform.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hostile-mcp
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "platform.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "platform.labels" $ctx | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: workload
+      {{- include "platform.pullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: hostile-mcp
+          image: {{ include "platform.image" (dict "root" . "image" $v.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources: {{- include "platform.resources" (dict "name" "hostile-mcp" "resources" $v.resources) | nindent 12 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hostile-mcp-from-gateway
+  namespace: {{ $ns }}
+  labels: {{- include "platform.labels" (dict "root" . "app" "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: hostile-mcp } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+      ports: [{ port: 8080 }]
+  egress: []
+{{- end }}

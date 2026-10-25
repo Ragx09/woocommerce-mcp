@@ -1,57 +1,56 @@
-// Login throttling (AUTH-02): failed attempts are counted per client IP and per IP+email in a sliding
-// window; over the limit → 429 with Retry-After. In memory per replica: with N replicas an attacker gets
-// at most N× the budget, still far too little for guessing; a success clears the IP+email counter.
+// Login throttling (AUTH-02): failed attempts are counted per client IP and per IP+email; over the limit →
+// 429 with Retry-After. The window starts at the first failure (fixed window, ratelimit.ts). The counters
+// live in the shared limiter (Postgres in the gateway, F-AUTH-2), so every replica sees the same failures:
+// with per-process counters two replicas behind Traefik gave an attacker twice the budget.
+// A success clears the IP+email counter.
+import { MemoryRateLimiter, type RateLimiter } from '../ratelimit.js';
+
 export interface LimiterOptions {
   windowMs?: number;
   /** Failures allowed per IP+email in the window. */
   perAccount?: number;
   /** Failures allowed per IP (all emails) in the window. */
   perIp?: number;
+  /** Shared store; default: this process's memory (tests, single replica). */
+  store?: RateLimiter;
+  /** Clock for the default memory store (tests). */
   now?: () => number;
 }
 
 export class LoginLimiter {
-  private readonly fails = new Map<string, number[]>();
+  private readonly store: RateLimiter;
   private readonly windowMs: number;
   private readonly perAccount: number;
   private readonly perIp: number;
-  private readonly now: () => number;
 
   constructor(opts: LimiterOptions = {}) {
     this.windowMs = opts.windowMs ?? 15 * 60_000;
     this.perAccount = opts.perAccount ?? 5;
     this.perIp = opts.perIp ?? 20;
-    this.now = opts.now ?? Date.now;
+    this.store = opts.store ?? new MemoryRateLimiter(opts.now);
   }
 
   /** Seconds to wait, or 0 when an attempt is allowed. */
-  retryAfter(ip: string, email: string): number {
-    const t = this.now();
-    const wait = (key: string, max: number) => {
-      const list = this.recent(key, t);
-      return list.length >= max ? Math.ceil((list[0]! + this.windowMs - t) / 1000) : 0;
-    };
-    return Math.max(wait(`ip:${ip}`, this.perIp), wait(`acct:${ip}:${email}`, this.perAccount));
+  async retryAfter(ip: string, email: string): Promise<number> {
+    const [byIp, byAccount] = await Promise.all([
+      this.store.peek(ipBucket(ip), this.perIp, this.windowMs),
+      this.store.peek(accountBucket(ip, email), this.perAccount, this.windowMs),
+    ]);
+    return Math.max(byIp.retryAfterS, byAccount.retryAfterS);
   }
 
-  fail(ip: string, email: string): void {
-    const t = this.now();
-    for (const key of [`ip:${ip}`, `acct:${ip}:${email}`]) this.fails.set(key, [...this.recent(key, t), t]);
-    if (this.fails.size > 10_000) this.prune(t); // bounded memory under a spray of IPs/emails
+  async fail(ip: string, email: string): Promise<void> {
+    await Promise.all([
+      this.store.hit(ipBucket(ip), this.perIp, this.windowMs),
+      this.store.hit(accountBucket(ip, email), this.perAccount, this.windowMs),
+    ]);
   }
 
-  succeed(ip: string, email: string): void {
-    this.fails.delete(`acct:${ip}:${email}`);
-  }
-
-  private recent(key: string, t: number): number[] {
-    return (this.fails.get(key) ?? []).filter((x) => x > t - this.windowMs);
-  }
-
-  private prune(t: number): void {
-    for (const [key, list] of this.fails) {
-      const kept = list.filter((x) => x > t - this.windowMs);
-      if (kept.length) this.fails.set(key, kept); else this.fails.delete(key);
-    }
+  async succeed(ip: string, email: string): Promise<void> {
+    await this.store.reset(accountBucket(ip, email));
   }
 }
+
+// rate_limits.bucket is at most 200 chars: emails are ≤ 254, so long ones are cut (still per-account in practice).
+const ipBucket = (ip: string) => `login:ip:${ip}`.slice(0, 200);
+const accountBucket = (ip: string, email: string) => `login:acct:${ip}:${email}`.slice(0, 200);

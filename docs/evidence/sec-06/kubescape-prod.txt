@@ -1,0 +1,3 @@
+compliance score 99.67 (frameworks: NSA 99.5, MITRE 99.4)
+TRIAGED C-0012 Applications credentials in configuration files — Deployment/gateway spec.template.spec.containers[0].env[1].name, spec.template.spec.containers[0].env[1].value
+        false positive: env MCP_RATE_LIMIT_PER_APIKEY=120 is a rate limit (the name contains "APIKEY"); every credential comes from a secretKeyRef

@@ -1,0 +1,24 @@
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          192.168.65.254
++ Target Hostname:    store.127.0.0.1.nip.io
++ Target Port:        80
++ Start Time:         2026-10-25 11:59:43 (GMT0)
+---------------------------------------------------------------------------
++ Server: Apache
++ /: Link header found with value: <http://store.127.0.0.1.nip.io/wp-json/>; rel="https://api.w.org/". See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
++ /sEn0TgVg.php#: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ /robots.txt: contains 7 entries which should be manually viewed. See: https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt
++ /: Web Server returns a valid response with junk HTTP methods which may cause false positives.
++ /cart/: This might be interesting.
++ /shop/: This might be interesting.
++ /wp-app.log: Wordpress' wp-app.log may leak application/system details.
++ /wordpress/wp-app.log: Wordpress' wp-app.log may leak application/system details.
++ /: A Wordpress installation was found.
++ /wordpress/: A Wordpress installation was found.
++ ERROR: Host maximum execution time of 600 seconds reached
++ Scan terminated: 0 error(s) and 10 item(s) reported on remote host
++ End Time:           2026-10-25 12:09:44 (GMT0) (601 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested

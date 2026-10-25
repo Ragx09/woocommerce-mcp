@@ -2145,7 +2145,7 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 
 ### SEC-01 — Rules of engagement and findings workflow
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** E2E-14
 - **Requirements:** —
@@ -2154,12 +2154,12 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** Both docs exist; every later SEC task logs into the findings table.
 - **Tests:** TC-SEC-01-1: findings table parses (one row per finding, all columns filled).
 - **Command:** —
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — `docs/SECURITY_TESTING.md` (scope, accounts, severity, workflow, every tool pinned with its command), `docs/SECURITY_FINDINGS.md` (one row per finding, 29 rows). TC-SEC-01-1 `node scripts/sec/findings-check.mjs` → `PASS findings table (total 29, Fixed 22, Accepted 5, False positive 2)`; mutation: a bad severity and an Open row → 2 FAIL lines, exit 1.
 - **Regression risk:** —
 
 ### SEC-02 — Web scanners against the storefront
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** SEC-01
 - **Requirements:** —
@@ -2168,12 +2168,12 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** No open High/Critical; user enumeration and `xmlrpc.php` disabled or justified.
 - **Tests:** TC-SEC-02-1: WPScan → no vulnerable components. TC-SEC-02-2: `GET /wp-json/wp/v2/users` anonymously → no user list.
 - **Command:** `scripts/sec/wp-scan.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — `scripts/sec/wp-scan.sh` (WPScan 3.8.28, nuclei 3.4.10 + templates v10.5.0, nikto 2.5.0 built from its tag, curl). First WPScan run still identified `admin` → **F-WEB-6**; nikto → **F-WEB-7** (versions), **F-WEB-8** (no store headers), F-WEB-14 (Info). After the fixes: curl 31/31 PASS (TC-SEC-02-2 users REST 401, -5 xmlrpc 403, -6 author 404, -7 version files 403, -8 no listings, -10 WC REST 401, -12/13/14/17 no versions, -15/16 no author, -18/19 same answers for real and unknown users); WPScan "identified no users", "WordPress version could not be detected", XML-RPC not reported; nuclei 4857 templates → 0 results (the first nuclei runs loaded no templates — caught by the new templates-loaded check); nikto 10 items, all reviewed (wp-app.log = 404 false positive). WPScan has no API token (vulnerability DB needs a registered account): component CVEs come from Trivy/nuclei instead. WooCommerce REST (woo-mcp) unaffected: e2e orders/tools PASS. Reports `docs/evidence/sec-02/`.
 - **Regression risk:** Disabling REST user endpoints must not break WooCommerce REST used by woo-mcp.
 
 ### SEC-03 — OWASP ZAP scans
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** SEC-01
 - **Requirements:** —
@@ -2182,12 +2182,12 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** No open High; Medium items fixed or accepted with a reason.
 - **Tests:** TC-SEC-03-1: baseline → 0 FAIL. TC-SEC-03-2: API scan → no 5xx with stack traces, no reflected input.
 - **Command:** `scripts/sec/zap.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — `scripts/sec/zap.sh` (zap-stable 2.16.1). Baseline (passive): store → 4 Medium triaged (F-WEB-12 CSRF-token heuristics, F-WEB-13 CSP without script-src), 0 High; dashboard → 0 Medium/High. API scan (active) from `tests/security/zap/openapi.json` as member and as admin against a **throwaway gateway** in Docker (own Postgres, everything-mcp upstream, random secrets): 0 High after triage (one run reported SQLi on login = **F-AUTH-3** false positive caused by the login limiter), 8574 requests, 0 unexpected 5xx (503 chat_disabled expected: no LLM key), no stack trace. Reports and summaries in `docs/evidence/sec-03/`.
 - **Regression risk:** Active scans create junk data; run against a throwaway install.
 
 ### SEC-04 — Manual auth and business-logic tests
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** SEC-01, REL-07
 - **Requirements:** REQ-AUTH-01, REQ-AUTH-04
@@ -2196,12 +2196,12 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** Every case rejected server-side and recorded in the audit log where applicable.
 - **Tests:** TC-SEC-04-1 … one per case above, automated where possible.
 - **Command:** `npm test -w tests/security`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — workspace `tests/security` (vitest, live against k3d): `npm test -w tests/security` → 4 files, 55 passed (+36 hostile, run by SEC-05). TC-SEC-04-1 15 admin routes × (member 403, anonymous 401), no credential in upstream views; -2 revoked key 401 on the next call, 9 malformed keys 401, Basic/query-string keys refused; -3 forged prefix = random key byte-for-byte, timing median diff 0.0 ms; -4 IDOR (keys 404, no minting for others, audit 403, mass assignment 400, forbidden tool audited `rejected/tool_forbidden` under B); -5 invite reuse/withdrawn/guessed/role injection refused; -6 CSRF (foreign, null, look-alike Origin, cross-site, form-encoded) 403; -7 fixation, logout, disabled user (sessions and keys dead at once); -8 brute force → **F-AUTH-2** (10 guesses with 2 replicas) fixed → 429 after 5, XFF/case/space bypasses fail; -9/-10 Store API: client prices ignored, bad quantities refused, fake coupons 400, trashed products refused, tampered checkout (total 1, status completed, set_paid, customer_id 1, forged transaction id) → order #127 at the catalogue price ₹649, not paid, guest, then cancelled through the gateway. Output `docs/evidence/sec-04/`. Regression: the file costs 7 failed logins (the shared per-IP limit is 20 / 15 min; an earlier version used 19 and locked the dashboard tests' admin login once).
 - **Regression risk:** Rate limits must not break the E2E suite (exempt or raise for test keys).
 
 ### SEC-05 — MCP and AI-specific tests
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** SEC-01, REL-08
 - **Requirements:** —
@@ -2209,13 +2209,13 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Output:** Hostile test upstream (test-only chart toggle); findings logged; THREAT_MODEL updated.
 - **Acceptance:** No credential or cross-user leak; hostile upstream cannot break listing or other upstreams; SSRF targets rejected.
 - **Tests:** TC-SEC-05-1 injection; TC-SEC-05-2 oversize/slow; TC-SEC-05-3 name spoof; TC-SEC-05-4 SSRF set (incl. TC-SEC-01); TC-SEC-05-5 chat credential exfiltration attempt.
-- **Command:** `npm test -w services/gateway -- security`
-- **Evidence:** —
+- **Command:** `scripts/sec/hostile.sh`
+- **Evidence:** 2026-10-25 — test-only upstream `services/hostile-mcp` (chart `hostileMcp.enabled`, false in every values file; `check-chart.sh` fails if a values file renders it) + `tests/security/hostile.test.mjs`, run by `scripts/sec/hostile.sh` (on → tests → off) → 36/36 PASS (`docs/evidence/sec-05/`). TC-SEC-05-1 injected descriptions labelled `[hostile]` and ≤ 1024 chars, no client key/cookie reaches the upstream; -2 10 MB result refused (safe error), slow tool times out at 15.0 s while tools/list answers in 0.2 s, hanging/broken/redirecting servers left out, 3000 tools → **F-MCP-5** fixed (128); redirect to 169.254.169.254 not followed; -3 spoofed `woo__list_orders` stays `hostile__woo__list_orders`, the real one still reaches WooCommerce, names unique and ^[a-zA-Z0-9_-]{1,64}$, duplicates dropped; -4 21 SSRF URLs (metadata incl. IPv4-mapped IPv6, loopback forms, cluster services, private/CGNAT, nip.io to 10.x, file/gopher/ftp, userinfo) and a PATCH to metadata → 400; -5 chat (Groq) with injected results and credential / cross-user requests: no secret pattern, no order-status change, no get-env, no system-prompt text (4/4 ran).
 - **Regression risk:** The hostile upstream must be disabled by default in every values file.
 
 ### SEC-06 — Container and Kubernetes scans
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** SEC-01, REL-09
 - **Requirements:** REQ-K8S-09
@@ -2224,7 +2224,7 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** No fixable Critical CVEs; NetworkPolicy blocks all unintended paths; gitleaks clean.
 - **Tests:** TC-SEC-06-1 trivy; TC-SEC-06-2 kubescape; TC-SEC-06-3 rogue-pod matrix (incl. TC-SEC-02); TC-SEC-06-4 gitleaks (TC-SEC-04).
 - **Command:** `scripts/sec/k8s-scan.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — `scripts/sec/k8s-scan.sh all`. TC-SEC-06-1 Trivy (ours + third-party): gateway, woo-mcp, everything-mcp, dashboard, store-assets 0/0; wordpress rebuild 0 CRITICAL / 1 HIGH, wordpress:cli 0/1, mariadb and postgres 0 CRITICAL except gosu (**F-INF-5** accepted: never runs, pods start non-root); **F-INF-6** the pulled tags had 78 HIGH → pinned by digest (D-025). TC-SEC-06-2 kubescape NSA+MITRE on the local and prod renders: 99.67, only failed control C-0012 = **F-INF-7** false positive. TC-SEC-06-3 rogue-pod matrix `k8s-checks.sh netpol` + new `rogue` (random pods in store, platform and default against postgres, mariadb, woo-mcp, the gateway pod directly on 8080 and 9464, the API server; label-specific paths) → 49 probes, 0 failures. TC-SEC-06-4 gitleaks PASS. TC-SEC-06-5 no SA token mounted in any pod. TC-SEC-06-6 (new) no credential pattern in pod logs → found **F-WEB-11** (consumer key in Apache's log) → fixed. Summaries `docs/evidence/sec-06/`.
 - **Regression risk:** Base-image bumps can change behaviour; rerun the full E2E after.
 
 ### SEC-07 — Security headers, cookies and TLS
@@ -2238,7 +2238,7 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** Headers present on every response; testssl grade without High issues.
 - **Tests:** TC-SEC-07-1 headers check; TC-SEC-07-2 cookie flags; TC-SEC-07-3 testssl (VPS).
 - **Command:** `scripts/sec/headers.sh`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — local part Done: `scripts/sec/headers.sh` → 15/15 PASS: TC-SEC-07-1 store (HTML, static, Store API JSON, 404), dashboard (index, route, asset), gateway (/api 401/400, /mcp 401, `no-store`); TC-SEC-07-2 dashboard `sid` HttpOnly + SameSite=Strict, WooCommerce session cookie HttpOnly + SameSite=Lax. Found and fixed **F-WEB-8** (store had none of the headers), **F-WEB-9** (gateway JSON), **F-WEB-10** (cookies without SameSite; the first Apache rule segfaulted, see the row). HSTS is sent only over TLS (verified in the pod with X-Forwarded-Proto https). **Blocked:** testssl.sh, HSTS and the Secure flag on the VPS (REL-04).
 - **Regression risk:** A strict CSP can break WordPress admin and block checkout scripts.
 
 ### SEC-08 — Attacker-LLM loop

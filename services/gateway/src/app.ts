@@ -19,6 +19,22 @@ export interface AppOptions {
 
 const READY_TIMEOUT_MS = 2_000;
 
+/**
+ * SEC-07 / F-WEB-9: headers on every gateway response (JSON only, never rendered): no MIME sniffing, no
+ * framing, no caching (a new API key is in a response body), no referrer. HSTS when the request came in over
+ * TLS (Traefik terminates it and sets X-Forwarded-Proto; trustProxy decides whether we believe it).
+ */
+export function securityHeaders(https: boolean): Record<string, string> {
+  return {
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
+    'referrer-policy': 'no-referrer',
+    'cache-control': 'no-store',
+    ...(https ? { 'strict-transport-security': 'max-age=31536000' } : {}),
+  };
+}
+
 async function runCheck(c: ReadinessCheck): Promise<boolean> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), READY_TIMEOUT_MS); });
@@ -40,7 +56,7 @@ export function buildApp(cfg: Config, opts: AppOptions = {}): FastifyInstance {
     ajv: { customOptions: { removeAdditional: false } },
   });
   // Every response names its request id, so a user can quote it and we can find the log lines.
-  app.addHook('onRequest', async (req, reply) => { reply.header('x-request-id', req.id); });
+  app.addHook('onRequest', async (req, reply) => { reply.header('x-request-id', req.id).headers(securityHeaders(req.protocol === 'https')); });
   const checks = opts.readinessChecks ?? [];
 
   // Probes: cheap, unauthenticated, not routed by the Ingress.

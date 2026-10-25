@@ -1,0 +1,7 @@
+        Low     90004 Insufficient Site Isolation Against Spectre Vulnerability (12 url(s), http://app.127.0.0.1.nip.io)
+        Low     10116 ZAP is Out of Date (1 url(s), http://app.127.0.0.1.nip.io)
+        Info    10027 Information Disclosure - Suspicious Comments (1 url(s), http://app.127.0.0.1.nip.io)
+        Info    10109 Modern Web Application (2 url(s), http://app.127.0.0.1.nip.io)
+        Info    10049 Storable and Cacheable Content (2 url(s), http://app.127.0.0.1.nip.io)
+        Info    10049 Storable but Non-Cacheable Content (4 url(s), http://app.127.0.0.1.nip.io)
+no High, every Medium triaged

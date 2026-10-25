@@ -31,6 +31,22 @@ describe('probes', () => {
   });
 });
 
+describe('security headers (SEC-07, F-WEB-9)', () => {
+  it('TC-SEC-07-U1: every response has nosniff, no framing, no-store, no referrer; HSTS only behind TLS', async () => {
+    const app = buildApp(loadConfig({ LOG_LEVEL: 'silent', TRUST_PROXY_HOPS: '1' }));
+    for (const url of ['/healthz', '/nope']) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.headers).toMatchObject({ 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'cache-control': 'no-store',
+        'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; frame-ancestors 'none'" });
+      expect(res.headers['strict-transport-security']).toBeUndefined();
+    }
+    const tls = await app.inject({ method: 'GET', url: '/healthz', headers: { 'x-forwarded-proto': 'https' } });
+    expect(tls.headers['strict-transport-security']).toBe('max-age=31536000');
+    const direct = buildApp(loadConfig({ LOG_LEVEL: 'silent', TRUST_PROXY_HOPS: '0' })); // no proxy trusted: a client header is ignored
+    expect((await direct.inject({ method: 'GET', url: '/healthz', headers: { 'x-forwarded-proto': 'https' } })).headers['strict-transport-security']).toBeUndefined();
+  });
+});
+
 describe('error shape', () => {
   it('TC-GW-01-3: unknown route → 404 { error: not_found }', async () => {
     const res = await buildApp(cfg).inject({ method: 'GET', url: '/nope?x=1' });

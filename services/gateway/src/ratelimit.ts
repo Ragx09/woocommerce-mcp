@@ -14,12 +14,19 @@ export type Release = () => Promise<void>;
 export interface RateLimiter {
   /** Counts one hit on `bucket`; over `limit` in the current window → allowed=false with seconds to wait. */
   hit(bucket: string, limit: number, windowMs: number): Promise<HitResult>;
+  /** The bucket's state without counting a hit: over `limit` → allowed=false with seconds to wait. */
+  peek(bucket: string, limit: number, windowMs: number): Promise<HitResult>;
+  /** Forgets the bucket (a new window starts at its next hit). */
+  reset(bucket: string): Promise<void>;
   /** Takes `key` for at most `ttlMs`, or null while someone else holds it. */
   lease(key: string, ttlMs: number): Promise<Release | null>;
 }
 
 const result = (hits: number, limit: number, remainingMs: number): HitResult =>
   ({ allowed: hits <= limit, hits, retryAfterS: hits <= limit ? 0 : Math.max(1, Math.ceil(remainingMs / 1000)) });
+// peek: "one more hit would be over the limit" is what a caller checking before the attempt wants to know.
+const peeked = (hits: number, limit: number, remainingMs: number): HitResult =>
+  ({ allowed: hits < limit, hits, retryAfterS: hits < limit ? 0 : Math.max(1, Math.ceil(remainingMs / 1000)) });
 
 export class PgRateLimiter implements RateLimiter {
   constructor(private readonly db: Db) {}
@@ -34,6 +41,18 @@ export class PgRateLimiter implements RateLimiter {
       RETURNING hits, (extract(epoch FROM window_start + make_interval(secs => ${windowMs / 1000}) - now()) * 1000)::float8 AS remaining_ms`);
     const row = res.rows[0]!;
     return result(Number(row.hits), limit, Number(row.remaining_ms));
+  }
+
+  async peek(bucket: string, limit: number, windowMs: number): Promise<HitResult> {
+    const res = await this.db.execute<{ hits: number; remaining_ms: number }>(sql`
+      SELECT hits, (extract(epoch FROM window_start + make_interval(secs => ${windowMs / 1000}) - now()) * 1000)::float8 AS remaining_ms
+      FROM rate_limits WHERE bucket = ${bucket} AND window_start > now() - make_interval(secs => ${windowMs / 1000})`);
+    const row = res.rows[0];
+    return row ? peeked(Number(row.hits), limit, Number(row.remaining_ms)) : peeked(0, limit, 0);
+  }
+
+  async reset(bucket: string): Promise<void> {
+    await this.db.execute(sql`DELETE FROM rate_limits WHERE bucket = ${bucket}`);
   }
 
   async lease(key: string, ttlMs: number): Promise<Release | null> {
@@ -61,6 +80,16 @@ export class MemoryRateLimiter implements RateLimiter {
     w.hits++;
     if (this.windows.size > 10_000) for (const [k, v] of this.windows) if (v.start <= t - windowMs) this.windows.delete(k);
     return result(w.hits, limit, w.start + windowMs - t);
+  }
+
+  async peek(bucket: string, limit: number, windowMs: number): Promise<HitResult> {
+    const t = this.now();
+    const w = this.windows.get(bucket);
+    return w && w.start > t - windowMs ? peeked(w.hits, limit, w.start + windowMs - t) : peeked(0, limit, 0);
+  }
+
+  async reset(bucket: string): Promise<void> {
+    this.windows.delete(bucket);
   }
 
   async lease(key: string, ttlMs: number): Promise<Release | null> {

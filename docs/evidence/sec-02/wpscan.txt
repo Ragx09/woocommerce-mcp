@@ -1,0 +1,104 @@
+[i] It seems like you have not updated the database for some time.
+[?] Do you want to update now? [Y]es [N]o, default: [N][?25l[1G[K[?25h[1G[?25l[?25h[1G 
+[1G[+] URL: http://store.127.0.0.1.nip.io/ [192.168.65.254]
+[+] Started: Sun Oct 25 11:32:35 2026
+
+Interesting Finding(s):
+
+[+] Headers
+ | Interesting Entries:
+ |  - Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
+ |  - Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+ |  - Referrer-Policy: strict-origin-when-cross-origin
+ |  - Server: Apache
+ | Found By: Headers (Passive Detection)
+ | Confidence: 100%
+
+[+] robots.txt found: http://store.127.0.0.1.nip.io/robots.txt
+ | Interesting Entries:
+ |  - /wp-content/uploads/wc-logs/
+ |  - /wp-content/uploads/woocommerce_transient_files/
+ |  - /wp-content/uploads/woocommerce_uploads/
+ |  - /*?add-to-cart=
+ |  - /*?*add-to-cart=
+ |  - /wp-admin/
+ |  - /wp-admin/admin-ajax.php
+ | Found By: Robots Txt (Aggressive Detection)
+ | Confidence: 100%
+
+[+] This site has 'Must Use Plugins': http://store.127.0.0.1.nip.io/wp-content/mu-plugins/
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 80%
+ | Reference: http://codex.wordpress.org/Must_Use_Plugins
+
+[+] The external WP-Cron seems to be enabled: http://store.127.0.0.1.nip.io/wp-cron.php
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 60%
+ | References:
+ |  - https://www.iplocation.net/defend-wordpress-from-ddos
+ |  - https://github.com/wpscanteam/wpscan/issues/1299
+
+
+Fingerprinting the version -: |================================================|
+[i] The WordPress version could not be detected.
+
+[+] WordPress theme in use: tatva
+ | Location: http://store.127.0.0.1.nip.io/wp-content/themes/tatva/
+ | Style URL: http://store.127.0.0.1.nip.io/wp-content/themes/tatva/style.css?ver=1.1.0
+ | Style Name: TATVA
+ | Style URI: https://github.com/Ragx09/woocommerce-mcp
+ | Description: TATVA V1 storefront (current working brand concept, may change). Child theme of Twenty Twenty-Five. ...
+ |
+ | Found By: Css Style In Homepage (Passive Detection)
+ | Confirmed By: Css Style In 404 Page (Passive Detection)
+ |
+ | Version: 1.1.0 (80% confidence)
+ | Found By: Style (Passive Detection)
+ |  - http://store.127.0.0.1.nip.io/wp-content/themes/tatva/style.css?ver=1.1.0, Match: 'Version: 1.1.0'
+
+[+] Enumerating Vulnerable Plugins (via Passive and Aggressive Methods)
+
+ Checking Known Locations -: |=================================================|
+[+] Checking Plugin Versions (via Passive and Aggressive Methods)
+
+[i] No plugins Found.
+
+[+] Enumerating Vulnerable Themes (via Passive and Aggressive Methods)
+
+ Checking Known Locations -: |=================================================|
+[+] Checking Theme Versions (via Passive and Aggressive Methods)
+
+[i] No themes Found.
+
+[+] Enumerating Config Backups (via Passive and Aggressive Methods)
+
+ Checking Config Backups -: |==================================================|
+
+[i] No Config Backups Found.
+
+[+] Enumerating DB Exports (via Passive and Aggressive Methods)
+
+ Checking DB Exports -: |======================================================|
+
+[i] No DB Exports Found.
+
+[+] Enumerating Users (via Passive and Aggressive Methods)
+
+ Brute Forcing Author IDs -: |=================================================|
+
+[i] User(s) Identified:
+
+[+] TATVA
+ | Found By: Rss Generator (Passive Detection)
+ | Confirmed By: Rss Generator (Aggressive Detection)
+
+[!] No WPScan API Token given, as a result vulnerability data has not been output.
+[!] You can get a free API token with 25 daily requests by registering at https://wpscan.com/register
+
+[+] Finished: Sun Oct 25 11:42:13 2026
+[+] Requests Done: 9553
+[+] Cached Requests: 13
+[+] Data Sent: 3.024 MB
+[+] Data Received: 47.468 MB
+[+] Memory used: 357.941 MB
+[+] Elapsed time: 00:09:38

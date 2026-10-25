@@ -15,6 +15,7 @@ import { openAiCompatible } from './chat/llm.js';
 import { registerChatRoutes } from './chat/routes.js';
 import { dbAuditSink } from './audit/audit.js';
 import { registerAuth } from './auth/routes.js';
+import { LoginLimiter } from './auth/limiter.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 import { buildMetricsServer, Metrics } from './metrics.js';
 import { PgRateLimiter } from './ratelimit.js';
@@ -73,9 +74,11 @@ const health = new HealthMonitor(upstreamPool, {
   checkTimeoutMs: cfg.upstreamTimeouts.listMs,
   log: app.log,
 });
-await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin });
+// BON-04: limits in Postgres, so every replica enforces the same budget (login failures too, F-AUTH-2).
+const limiter = new PgRateLimiter(db);
+await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin, limiter: new LoginLimiter({ store: limiter }) });
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
-const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, log: app.log, health });
+const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, maxTools: cfg.maxToolsPerUpstream, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.
 const internalTokens = new InternalTokenSigner();
@@ -87,8 +90,6 @@ metrics.addGauge({ name: 'mcp_upstream_up', help: 'Upstream health as seen by th
     return { labels: { upstream: r.slug, status }, value: status === 'connected' ? 1 : 0 };
   }) });
 const auditToDb = dbAuditSink(db, app.log);
-// BON-04: limits in Postgres, so every replica enforces the same budget.
-const limiter = new PgRateLimiter(db);
 registerMcp(app, {
   rateLimit: { limiter, ...cfg.mcpRateLimit },
   authenticate: mcpAuthenticator(db, internalTokens),

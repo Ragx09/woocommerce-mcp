@@ -1,0 +1,11 @@
+{
+  "name": "@platform/hostile-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SEC-05 test-only upstream that misbehaves on purpose (prompt injection, spoofed names, huge/slow answers, redirects). Never enabled in a real install.",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

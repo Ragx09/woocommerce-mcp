@@ -13,11 +13,19 @@ for env in local prod; do
     if kubeconform -strict -summary -kubernetes-version "$K8S_VERSION" - <"$out" | tail -1; then :; else rc=1; fi
     [ "${PIPESTATUS[0]}" = 0 ] || rc=1
     python3 scripts/lib/chart-policy.py <"$out" || rc=1
+    # SEC-05: the hostile test upstream is never part of a normal install.
+    if grep -q 'name: hostile-mcp' "$out"; then echo "FAIL  hostile-mcp rendered by values-$env.yaml"; rc=1; else echo "PASS  no hostile-mcp ($env)"; fi
   else
     echo "FAIL  helm template ($env)"; rc=1
   fi
   rm -f "$out"
 done
+echo "== hostile-mcp enabled (SEC-05 test run only): same policies"
+out="$(mktemp)"
+helm template platform "$CHART" -f "$CHART/values-local.yaml" --set hostileMcp.enabled=true >"$out" \
+  && python3 scripts/lib/chart-policy.py <"$out" && grep -q 'hostile-mcp.platform.svc.cluster.local' "$out" \
+  && echo "PASS  hostile-mcp render (policy, SSRF allowlist)" || { echo "FAIL  hostile-mcp render"; rc=1; }
+rm -f "$out"
 echo "== values diff (local vs prod: only domain/TLS (incl. the Secure cookie flag)/registry/pull policy/storage/resources may differ)"
 unexpected="$(diff <(helm template platform "$CHART" -f "$CHART/values-local.yaml" --set global.domain=example.test) \
                    <(helm template platform "$CHART" -f "$CHART/values-prod.yaml" --set global.domain=example.test) \

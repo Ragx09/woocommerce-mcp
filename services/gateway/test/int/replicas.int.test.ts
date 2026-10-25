@@ -10,6 +10,7 @@ import { dbAuditSink } from '../../src/audit/audit.js';
 import { createApiKey } from '../../src/auth/api-keys.js';
 import { InternalTokenSigner, mcpAuthenticator } from '../../src/auth/internal-token.js';
 import { hashPassword } from '../../src/auth/password.js';
+import { LoginLimiter } from '../../src/auth/limiter.js';
 import { registerAuth } from '../../src/auth/routes.js';
 import type { ChatCompletion } from '../../src/chat/llm.js';
 import { registerChatRoutes } from '../../src/chat/routes.js';
@@ -48,10 +49,10 @@ const stubLlm: ChatCompletion = async () => {
 
 async function replica(): Promise<void> {
   const app = buildApp(loadConfig({ LOG_LEVEL: 'silent' }));
-  await registerAuth(app, { db, cookieSecure: false, publicOrigin: ORIGIN });
+  const limiter = new PgRateLimiter(db); // each replica its own instance; only the database is shared
+  await registerAuth(app, { db, cookieSecure: false, publicOrigin: ORIGIN, limiter: new LoginLimiter({ store: limiter }) });
   const signer = new InternalTokenSigner();
   const upstreams = new UpstreamPool({ key, connectTimeoutMs: 1_000 });
-  const limiter = new PgRateLimiter(db); // each replica its own instance; only the database is shared
   registerMcp(app, { authenticate: mcpAuthenticator(db, signer), loadUpstreams: () => listUpstreams(db), pool: upstreams,
     discovery: new ToolDiscovery(upstreams, { listTimeoutMs: 2_000 }), audit: dbAuditSink(db, app.log),
     rateLimit: { limiter, perKey: 3, perUser: 5, windowMs: 60_000 } });
@@ -173,5 +174,23 @@ describe('TC-BON-04 limits shared by two replicas', () => {
     expect(over).toMatchObject({ allowed: false, hits: 3, retryAfterS: 1 });
     await new Promise((r) => setTimeout(r, 450));
     expect(await b.hit('t:win', 2, 400)).toMatchObject({ allowed: true, hits: 1 });
+  });
+
+  it('TC-BON-04-1d (F-AUTH-2): failed logins count across replicas; peek does not count; a success resets the account', async () => {
+    const login = (i: number, email: string, password: string) => fetch(`${replicas[i % 2]!.url}/api/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const email = 'nobody@example.test';
+    for (let i = 0; i < 5; i++) expect((await login(i, email, 'wrong')).status).toBe(401); // alternating replicas
+    for (const i of [0, 1]) {
+      const r = await login(i, email, 'wrong');
+      expect(r.status).toBe(429);
+      expect(Number(r.headers.get('retry-after'))).toBeGreaterThan(0);
+    }
+    const p = new PgRateLimiter(db);
+    expect(await p.peek('t:peek', 1, 60_000)).toMatchObject({ allowed: true, hits: 0 });
+    await p.hit('t:peek', 1, 60_000);
+    expect(await p.peek('t:peek', 1, 60_000)).toMatchObject({ allowed: false, hits: 1 });
+    await p.reset('t:peek');
+    expect(await p.peek('t:peek', 1, 60_000)).toMatchObject({ allowed: true, hits: 0 });
   });
 });

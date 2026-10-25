@@ -71,6 +71,10 @@ describe('gateway /mcp (GW-06)', () => {
       expect(res.headers.get('www-authenticate')).toBe('Bearer');
       expect(await res.json()).toEqual({ error: 'invalid_api_key', message: 'missing or invalid API key' });
     }
+    // SEC-07: also on the hijacked (SDK-written) answers.
+    const ok = await fetch(url, { method: 'POST', headers: { ...headers, authorization: `Bearer ${DEV_KEY}` }, body: JSON.stringify(body) });
+    expect(ok.status).toBe(200);
+    expect([ok.headers.get('x-content-type-options'), ok.headers.get('cache-control')]).toEqual(['nosniff', 'no-store']);
     const closed = await gateway({ current: [] }, undefined);
     const res = await fetch(closed, { method: 'POST', headers: { ...headers, authorization: 'Bearer ' }, body: JSON.stringify(body) });
     expect(res.status).toBe(401);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|ingress|killpod|metrics|replicas|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rogue|ingress|killpod|metrics|replicas|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -66,6 +66,32 @@ netpol() {
   out=$(kubectl -n "$PLATFORM" exec deploy/dashboard -- sh -c \
     "nc -z -w 4 $(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}') 443 && echo OPEN || echo CLOSED" 2>/dev/null)
   [ "$out" = CLOSED ] && pass "TC-UI-20-1c dashboard egress (API server by IP) → CLOSED" || fail "TC-UI-20-1c dashboard egress → ${out:-no result} (want CLOSED)"
+}
+
+# SEC-06 (TC-SEC-06-3): rogue pods (no special labels, or a label they should not be able to use for a
+# given path) in every namespace try every internal service and port, incl. the gateway pod directly
+# (bypassing Traefik) and its metrics port. Together with netpol() this is the full NetworkPolicy matrix.
+rogue() {
+  local pg="postgres.$PLATFORM.svc.cluster.local" db="mariadb.$STORE.svc.cluster.local" wp="wordpress.$STORE.svc.cluster.local"
+  local woo="woo-mcp.$STORE.svc.cluster.local" api; api=$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')
+  local gw; gw=$(kubectl -n "$PLATFORM" get pod -l app=gateway -o jsonpath='{.items[0].status.podIP}')
+  local ns
+  for ns in "$STORE" "$PLATFORM" default; do
+    expect CLOSED "TC-SEC-06-3 postgres from a random pod in $ns" "$ns" app=intruder "$pg" 5432
+    expect CLOSED "TC-SEC-06-3 mariadb from a random pod in $ns" "$ns" app=intruder "$db" 3306
+    expect CLOSED "TC-SEC-06-3 woo-mcp from a random pod in $ns" "$ns" app=intruder "$woo" 80
+    expect CLOSED "TC-SEC-06-3 gateway pod :8080 directly (no Traefik) from $ns" "$ns" app=intruder "$gw" 8080
+    expect CLOSED "TC-SEC-06-3 gateway metrics :9464 from $ns" "$ns" app=intruder "$gw" 9464
+    # default is not ours (no workloads, no policies): only our namespaces are held to egress default-deny.
+    [ "$ns" != default ] && expect CLOSED "TC-SEC-06-3 Kubernetes API from a random pod in $ns" "$ns" app=intruder "$api" 443
+  done
+  expect CLOSED "TC-SEC-06-3 wordpress from a random pod in $STORE" "$STORE" app=intruder "$wp" 80
+  expect OPEN   "TC-SEC-06-3 wordpress from app=woo-mcp (its REST client)" "$STORE" app=woo-mcp "$wp" 80
+  expect CLOSED "TC-SEC-06-3 mariadb from app=woo-mcp" "$STORE" app=woo-mcp "$db" 3306
+  expect CLOSED "TC-SEC-06-3 postgres from app=wordpress" "$STORE" app=wordpress "$pg" 5432
+  expect CLOSED "TC-SEC-06-3 internet from app=woo-mcp" "$STORE" app=woo-mcp 1.1.1.1 443
+  expect CLOSED "TC-SEC-06-3 gateway pod from app=woo-mcp (no calls back)" "$STORE" app=woo-mcp "$gw" 8080
+  expect OPEN   "TC-SEC-06-3 gateway metrics from a labelled scraper" "$PLATFORM" "app=intruder,platform.io/metrics-scraper=true" "$gw" 9464
 }
 
 ingress() {
@@ -286,6 +312,7 @@ replicas() {
 
 case "${1:-all}" in
   netpol) netpol ;;
+  rogue) rogue ;;
   ingress) ingress ;;
   killpod) killpod ;;
   metrics) metrics ;;

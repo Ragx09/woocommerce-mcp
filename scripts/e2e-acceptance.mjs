@@ -103,7 +103,8 @@ const steps = {
   async orders() { // E2E-05 / REQ-DOD-06: B asks today's orders (the MCP call Claude Code makes)
     const tz = sql('SELECT option_value FROM wp_options WHERE option_name="timezone_string"') || 'UTC';
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const db = sql(`SELECT ID FROM wp_posts WHERE post_type="shop_order" AND post_status NOT IN ("trash","auto-draft") AND DATE(post_date)="${today}"`)
+    // checkout-draft = a Store API checkout that never completed; WooCommerce hides them from REST and wp-admin.
+    const db = sql(`SELECT ID FROM wp_posts WHERE post_type="shop_order" AND post_status NOT IN ("trash","auto-draft","wc-checkout-draft") AND DATE(post_date)="${today}"`)
       .split('\n').filter(Boolean).map(Number).sort((x, y) => x - y);
     const r = await callTool(B, b.user.id, 'woo__list_orders', { date: 'today', per_page: 50 });
     let got = [];

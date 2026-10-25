@@ -29,7 +29,8 @@
 1. On `tools/list`: load enabled upstreams from the DB (so replicas always agree).
 2. For each one in parallel (`Promise.allSettled`) with one 3 s deadline (covers connect, the single reconnect and all pages; the request is aborted): `client.listTools()` (follow `nextCursor`, max 20 pages). Concurrent `tools/list` requests share one in-flight upstream request.
 3. On success: update the cache `{version, tools, fetchedAt}` (`version` = URL/auth/credential/`updated_at`). On failure: serve the cached list marked `stale` if it is at most 60 s old and the version is unchanged; otherwise omit the upstream and report it (`failed[]`, safe message). An upstream the health monitor has as **unreachable** is not contacted and gets no stale list (GW-10).
-4. Map to public names and return the concatenated list.
+4. Keep at most `MAX_TOOLS_PER_UPSTREAM` (default 128) tools per upstream; a longer list is cut and paging stops, with a warning (F-MCP-5, T-26).
+5. Map to public names and return the concatenated list.
 Implemented in `services/gateway/src/upstreams/discovery.ts` (GW-05).
 
 ## 4a. Upstream health (GW-10)

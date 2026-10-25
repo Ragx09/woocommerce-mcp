@@ -1,0 +1,21 @@
+TRIAGED Medium  10202 Absence of Anti-CSRF Tokens (12 url(s), http://store.127.0.0.1.nip.io)
+          Accepted (F-WEB-12): the flagged forms carry WordPress/WooCommerce nonces under their own names (woocommerce-login-nonce, woocommerce-lost-password-nonce, woocommerce-process-checkout-nonce) that ZAP does not know; add-to-cart only changes a guest cart; store cookies are SameSite=Lax (F-WEB-10).
+TRIAGED Medium  10055 CSP: Wildcard Directive (5 url(s), http://store.127.0.0.1.nip.io)
+          Accepted (F-WEB-13): the store CSP only restricts framing, plugins, <base> and form targets. WordPress block themes and WooCommerce Blocks emit inline scripts and styles, so a script-src/style-src policy would need unsafe-inline and add no XSS protection; nonce-based CSP for WordPress is out of scope (residual risk in SECURITY_REPORT).
+TRIAGED Medium  10055 CSP: script-src unsafe-inline (6 url(s), http://store.127.0.0.1.nip.io)
+          Accepted (F-WEB-13): the store CSP only restricts framing, plugins, <base> and form targets. WordPress block themes and WooCommerce Blocks emit inline scripts and styles, so a script-src/style-src policy would need unsafe-inline and add no XSS protection; nonce-based CSP for WordPress is out of scope (residual risk in SECURITY_REPORT).
+TRIAGED Medium  10055 CSP: style-src unsafe-inline (6 url(s), http://store.127.0.0.1.nip.io)
+          Accepted (F-WEB-13): the store CSP only restricts framing, plugins, <base> and form targets. WordPress block themes and WooCommerce Blocks emit inline scripts and styles, so a script-src/style-src policy would need unsafe-inline and add no XSS protection; nonce-based CSP for WordPress is out of scope (residual risk in SECURITY_REPORT).
+        Low     90004 Insufficient Site Isolation Against Spectre Vulnerability (13 url(s), http://store.127.0.0.1.nip.io)
+        Low     10063 Permissions Policy Header Not Set (12 url(s), http://store.127.0.0.1.nip.io)
+        Low     10096 Timestamp Disclosure - Unix (4 url(s), http://store.127.0.0.1.nip.io)
+        Low     10116 ZAP is Out of Date (1 url(s), http://store.127.0.0.1.nip.io)
+        Info    10111 Authentication Request Identified (1 url(s), http://store.127.0.0.1.nip.io)
+        Info    10019 Content-Type Header Missing (17 url(s), http://store.127.0.0.1.nip.io)
+        Info    10027 Information Disclosure - Suspicious Comments (12 url(s), http://store.127.0.0.1.nip.io)
+        Info    10109 Modern Web Application (11 url(s), http://store.127.0.0.1.nip.io)
+        Info    10049 Non-Storable Content (4 url(s), http://store.127.0.0.1.nip.io)
+        Info    10112 Session Management Response Identified (3 url(s), http://store.127.0.0.1.nip.io)
+        Info    10049 Storable and Cacheable Content (9 url(s), http://store.127.0.0.1.nip.io)
+        Info    10031 User Controllable HTML Element Attribute (Potential XSS) (33 url(s), http://store.127.0.0.1.nip.io)
+no High, every Medium triaged

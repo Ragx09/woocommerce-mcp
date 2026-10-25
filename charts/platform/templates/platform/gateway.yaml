@@ -69,8 +69,11 @@ spec:
             - { name: UPSTREAM_LIST_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.list | quote }} }
             - { name: UPSTREAM_CALL_TIMEOUT_MS, value: {{ $v.upstreamTimeouts.call | quote }} }
             - { name: UPSTREAM_MAX_RESPONSE_BYTES, value: {{ $v.upstreamMaxResponseBytes | int64 | quote }} }   # T-08
+            - { name: MAX_TOOLS_PER_UPSTREAM, value: {{ $v.maxToolsPerUpstream | quote }} }   # F-MCP-5
             - { name: HEALTH_INTERVAL_MS, value: {{ $v.healthIntervalMs | quote }} }
-            - { name: UPSTREAM_ALLOWED_HOSTS, value: {{ join "," $v.upstreamAllowedHosts | quote }} }   # SSRF allowlist (+ seeded hosts)
+            {{- $allowed := $v.upstreamAllowedHosts }}
+            {{- if .Values.hostileMcp.enabled }}{{ $allowed = append $allowed (printf "hostile-mcp.%s.svc.cluster.local" $ns) }}{{ end }}
+            - { name: UPSTREAM_ALLOWED_HOSTS, value: {{ join "," $allowed | quote }} }   # SSRF allowlist (+ seeded hosts)
             - { name: PGHOST, value: "postgres.{{ $ns }}.svc.cluster.local" }
             - { name: PGUSER, value: gateway }
             - { name: PGDATABASE, value: gateway }

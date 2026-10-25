@@ -27,26 +27,11 @@ metadata:
 data:
   ports.conf: |
     Listen 8080
+  # SEC-07: mod_headers (shipped with the image, not enabled) for the security headers below.
+  headers.load: |
+    LoadModule headers_module /usr/lib/apache2/modules/mod_headers.so
   000-default.conf: |
-    # F-WEB-4: no version banner (the image ships no security.conf, so Apache printed its full version).
-    ServerTokens Prod
-    ServerSignature Off
-    <VirtualHost *:8080>
-      DocumentRoot /var/www/html
-      ErrorLog ${APACHE_LOG_DIR}/error.log
-      CustomLog ${APACHE_LOG_DIR}/access.log combined
-      <Directory /var/www/html>
-        Options -Indexes
-      </Directory>
-      # F-WEB-2: XML-RPC is not used (no apps, no pingbacks); system.multicall amplifies password guessing.
-      <Files "xmlrpc.php">
-        Require all denied
-      </Files>
-      # F-WEB-4: files that only reveal the WordPress version.
-      <FilesMatch "^(readme\.html|license\.txt|wp-config-sample\.php)$">
-        Require all denied
-      </FilesMatch>
-    </VirtualHost>
+{{ .Files.Get "files/wp-apache.conf" | indent 4 }}
   # F-WEB-4: no X-Powered-By: PHP/<version>.
   zz-security.ini: |
     expose_php = Off
@@ -82,6 +67,7 @@ spec:
       labels: {{- include "platform.labels" $ctx | nindent 8 }}
       annotations:   # subPath mounts never pick up ConfigMap edits: roll the pod when they change
         checksum/hardening: {{ .Files.Get "files/wp-hardening.php" | sha256sum | trunc 16 }}
+        checksum/apache: {{ .Files.Get "files/wp-apache.conf" | sha256sum | trunc 16 }}
     spec:
       automountServiceAccountToken: false
       serviceAccountName: workload   # F-INF-4: own account, no token, no RBAC
@@ -124,6 +110,7 @@ spec:
           volumeMounts:
             - { name: data, mountPath: /var/www/html }
             - { name: apache, mountPath: /etc/apache2/ports.conf, subPath: ports.conf, readOnly: true }
+            - { name: apache, mountPath: /etc/apache2/mods-enabled/headers.load, subPath: headers.load, readOnly: true }
             - { name: apache, mountPath: /etc/apache2/sites-enabled/000-default.conf, subPath: 000-default.conf, readOnly: true }
             - { name: apache, mountPath: /usr/local/etc/php/conf.d/zz-security.ini, subPath: zz-security.ini, readOnly: true }
             - { name: apache, mountPath: /var/www/html/wp-content/mu-plugins/platform-hardening.php, subPath: platform-hardening.php, readOnly: true }

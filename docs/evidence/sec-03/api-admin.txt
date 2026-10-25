@@ -1,0 +1,9 @@
+        Low    100000 A Server Error response code was returned by the server (1 url(s), http://gateway:8080)
+        Low     90004 Insufficient Site Isolation Against Spectre Vulnerability (7 url(s), http://gateway:8080)
+        Low     10116 ZAP is Out of Date (1 url(s), http://gateway:8080)
+        Info   100000 A Client Error response code was returned by the server (1077 url(s), http://gateway:8080)
+        Info    10111 Authentication Request Identified (1 url(s), http://gateway:8080)
+        Info    10024 Information Disclosure - Sensitive Information in URL (1 url(s), http://gateway:8080)
+        Info    10049 Non-Storable Content (13 url(s), http://gateway:8080)
+no High, every Medium triaged
+throwaway gateway answered 8574 requests, 0 unexpected 5xx (503 chat_disabled on /api/chat expected)
