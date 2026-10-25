@@ -89,6 +89,9 @@ spec:
             - name: PROVISIONER_DB_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ .Values.provisioner.secret }}, key: db-password, optional: true } }
             # BON-12: caps and how a created store's URL is built (<slug>.store.<domain>, same as the provisioner's host value).
+            # BON-10: hosted servers by image — allowed registries and the cap (the gateway refuses everything else).
+            - { name: HOSTED_IMAGE_REGISTRIES, value: {{ join "," .Values.provisioner.hosted.imageRegistries | quote }} }
+            - { name: HOSTED_MAX_SERVERS, value: {{ .Values.provisioner.hosted.maxServers | quote }} }
             - { name: STORE_MAX_PER_MEMBER, value: {{ .Values.provisioner.maxPerMember | quote }} }
             - { name: STORE_MAX_TOTAL, value: {{ .Values.provisioner.maxTotal | quote }} }
             - { name: STORE_HOST_SUFFIX, value: "store.{{ .Values.global.domain }}" }

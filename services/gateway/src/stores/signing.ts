@@ -3,7 +3,7 @@
 // the time, method, path and a hash of the exact body bytes, so a captured request cannot be re-pointed at
 // another store or replayed after the 60-second window. Every handler is idempotent, so a replay inside the
 // window changes nothing. The same function exists in services/provisioner/src/signing.ts.
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';
 
 export const SIGNATURE_HEADER = 'x-platform-signature';
 export const MAX_SKEW_S = 60;
@@ -33,4 +33,13 @@ export function verify(key: Buffer, header: string | undefined, method: string, 
   const expected = Buffer.from(mac(key, t, method, path, body), 'hex');
   const given = Buffer.from(m[2]!, 'hex');
   return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+/**
+ * BON-10 / D-029: hosted servers' secret environment is encrypted by the gateway and opened by the provisioner with
+ * a key derived from the shared signing key (HKDF-SHA256, fixed label), so the provisioner never holds the
+ * gateway's credentials key. Same function in services/provisioner/src/signing.ts.
+ */
+export function hostedEnvKey(signingKey: Buffer): Buffer {
+  return Buffer.from(hkdfSync('sha256', signingKey, Buffer.alloc(0), 'hosted-env-v1', 32));
 }

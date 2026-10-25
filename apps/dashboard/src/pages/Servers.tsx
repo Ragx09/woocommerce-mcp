@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { api, type ToolInfo, type Upstream, type UpstreamStatus } from '../api.js';
 import { useMe } from '../auth.js';
+import { Hosted } from './Hosted.js';
 
 const STATUS: Record<UpstreamStatus, string> = { connected: 'Connected', unreachable: 'Unreachable', disabled: 'Disabled', unknown: 'Checking…' };
 
@@ -45,6 +46,7 @@ export function Servers() {
       {list.isError && <p className="error" role="alert">{list.error.message}</p>}
       {list.data?.length === 0 && <div className="card muted">No servers registered yet.</div>}
       {list.data?.map((u) => <ServerCard key={u.id} u={u} now={now} isAdmin={isAdmin} />)}
+      {isAdmin && <Hosted />}
     </section>
   );
 }
@@ -62,7 +64,7 @@ function ServerCard({ u, now, isAdmin }: { u: Upstream; now: number; isAdmin: bo
     <article className={`card server ${u.status}`} aria-labelledby={`srv-${u.id}`}>
       <div className="row between wrap">
         <div>
-          <h2 id={`srv-${u.id}`}>{u.name} <code className="muted small">{u.slug}</code></h2>
+          <h2 id={`srv-${u.id}`}>{u.name} <code className="muted small">{u.slug}</code>{u.kind === 'hosted' && <> <span className="badge">hosted</span></>}{u.kind === 'store' && <> <span className="badge">store</span></>}</h2>
           <p className="muted small">
             {u.toolCount === null ? 'Tools unknown' : `${u.toolCount} tool${u.toolCount === 1 ? '' : 's'}`} · checked {ago(u.lastCheckedAt, now)}
             {u.status !== 'connected' && u.lastOkAt ? ` · last OK ${ago(u.lastOkAt, now)}` : ''}

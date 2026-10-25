@@ -1,0 +1,34 @@
+{{- if .Values.quota.enabled }}
+{{- $ns := include "hosted.namespace" . }}
+# A hosted image cannot take more of the node than this, whatever it does inside its namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hosted
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  hard:
+    limits.cpu: {{ .Values.quota.limits.cpu | quote }}
+    limits.memory: {{ .Values.quota.limits.memory | quote }}
+    requests.cpu: {{ .Values.quota.requests.cpu | quote }}
+    requests.memory: {{ .Values.quota.requests.memory | quote }}
+    persistentvolumeclaims: "0"
+    pods: "3"
+    services: "2"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: hosted
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default: { cpu: 250m, memory: 128Mi }
+      defaultRequest: { cpu: 50m, memory: 64Mi }
+      max: { cpu: 500m, memory: 256Mi }
+{{- end }}

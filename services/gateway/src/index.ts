@@ -4,9 +4,11 @@ import { loadCredentialKey } from './crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, pingDb, runMigrations } from './db/index.js';
 import { registerMcp } from './mcp/route.js';
 import { registerUpstreamRoutes } from './upstreams/routes.js';
-import { ssrfPolicy, STORE_WOO_MCP_HOST } from './upstreams/ssrf.js';
+import { HOSTED_SERVER_HOST, ssrfPolicy, STORE_WOO_MCP_HOST } from './upstreams/ssrf.js';
 import { registerInternalStoreRoutes } from './stores/internal.js';
 import { registerStoreRoutes } from './stores/routes.js';
+import { registerHostedRoutes } from './hosted/routes.js';
+import { registerInternalHostedRoutes } from './hosted/internal.js';
 import { loadStoreAccess, roleFor } from './authz/store-access.js';
 import { loadSigningKey } from './stores/signing.js';
 import { setProvisionerPassword } from './stores/db-role.js';
@@ -69,7 +71,7 @@ else app.log.warn('LLM_API_KEY not set: the chat agent is disabled');
 
 // SSRF guard (T-06): internal addresses only through allowlisted hosts — the operator's list plus the
 // hosts of the upstreams the chart seeds (woo-mcp, everything-mcp).
-const ssrf = ssrfPolicy([...cfg.upstreamAllowedHosts, ...seedPlan.seeds.map((s) => new URL(s.url).hostname)], [STORE_WOO_MCP_HOST]);
+const ssrf = ssrfPolicy([...cfg.upstreamAllowedHosts, ...seedPlan.seeds.map((s) => new URL(s.url).hostname)], [STORE_WOO_MCP_HOST, HOSTED_SERVER_HOST]);
 app.log.info({ allowedHosts: [...ssrf.allowedHosts] }, 'ssrf allowlist');
 // Upstream MCP clients (GW-04). Connections open lazily on first use.
 const upstreamPool = new UpstreamPool({ key: credentialKey, connectTimeoutMs: cfg.upstreamTimeouts.connectMs, ssrf, log: app.log,
@@ -94,11 +96,14 @@ if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/D
 if (cfg.publicOrigin) registerOAuth(app, { db, issuer: cfg.publicOrigin, limiter });
 else app.log.warn('PUBLIC_ORIGIN not set: OAuth for /mcp is off (API keys only)');
 // D-026: signed provisioner → gateway calls (store ready/failed/deleted). Without the key, multi-store is off.
-if (signingKey) registerInternalStoreRoutes(app, { db, key: credentialKey, signingKey });
+if (signingKey) { registerInternalStoreRoutes(app, { db, key: credentialKey, signingKey }); registerInternalHostedRoutes(app, { db, signingKey }); }
 else app.log.warn('PROVISIONER_SIGNING_KEY not set: created stores cannot be registered');
 const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, maxTools: cfg.maxToolsPerUpstream, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
 // BON-12: /api/stores. Needs the signing key: without the provisioner a created store would never become ready.
+// BON-10: hosted MCP servers by image (admin only; needs the provisioner and at least one allowed registry).
+registerHostedRoutes(app, { db, signingKey, registries: cfg.hosted.imageRegistries, max: cfg.hosted.max,
+  registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
 registerStoreRoutes(app, { db, key: credentialKey, cfg: cfg.stores, enabled: !!signingKey,
   registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.

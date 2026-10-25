@@ -118,6 +118,8 @@ export interface Upstream {
   lastCheckedAt: string | null;
   lastOkAt: string | null;
   toolCount: number | null;
+  /** external (added by URL) · store (a created store's woo-mcp) · hosted (run from an image by the platform). */
+  kind?: 'external' | 'store' | 'hosted';
   // Admin only:
   url?: string;
   authType?: 'none' | 'bearer' | 'header';
@@ -283,4 +285,30 @@ export interface SlugPreview {
   slug: string;
   available: boolean;
   reason: string | null;
+}
+
+// BON-10 hosted MCP servers (GET/POST/DELETE /api/hosted, admin only).
+export interface HostedServerInfo {
+  id: string;
+  slug: string;
+  name: string;
+  image: string;
+  port: number;
+  path: string;
+  env: Record<string, string>;
+  /** Names only: secret values are write-only. */
+  secretEnvNames: string[];
+  allowEgress: boolean;
+  status: StoreStatus;
+  statusReason: string | null;
+  namespace: string;
+  upstreamId: string | null;
+  createdAt: string;
+  readyAt: string | null;
+}
+export interface HostedList {
+  enabled: boolean;
+  registries: string[];
+  max: number;
+  servers: HostedServerInfo[];
 }

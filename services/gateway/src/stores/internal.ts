@@ -29,7 +29,11 @@ export const encryptStorePassword = (key: CredentialKey, slug: string, password:
 
 const SAFE_REASON = /[^\x20-\x7E]/g; // printable ASCII only in stored reasons
 
-export function registerInternalStoreRoutes(app: FastifyInstance, deps: InternalDeps): void {
+/**
+ * A route scope where every request must carry a valid HMAC signature over its exact body (signing.ts). Shared by
+ * the store routes below and the hosted-server routes (hosted/internal.ts): one place decides what "signed" means.
+ */
+export function signedInternalScope(app: FastifyInstance, signingKey: Buffer, register: (scope: FastifyInstance) => void): void {
   void app.register(async (scope) => {
     // The signature is over the raw bytes, so this scope parses JSON itself after verifying.
     scope.removeAllContentTypeParsers();
@@ -37,12 +41,18 @@ export function registerInternalStoreRoutes(app: FastifyInstance, deps: Internal
     scope.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
       const raw = typeof req.body === 'string' ? req.body : '';
       const path = req.url.split('?')[0]!;
-      if (!verify(deps.signingKey, req.headers[SIGNATURE_HEADER] as string | undefined, req.method, path, raw)) {
+      if (!verify(signingKey, req.headers[SIGNATURE_HEADER] as string | undefined, req.method, path, raw)) {
         req.log.warn({ path }, 'internal request with a missing or invalid signature refused');
         return reply.code(401).send({ error: 'invalid_signature', message: 'missing or invalid signature' });
       }
       try { req.body = raw ? JSON.parse(raw) : {}; } catch { return reply.code(400).send({ error: 'bad_request', message: 'invalid JSON' }); }
     });
+    register(scope);
+  }, { prefix: '' });
+}
+
+export function registerInternalStoreRoutes(app: FastifyInstance, deps: InternalDeps): void {
+  signedInternalScope(app, deps.signingKey, (scope) => {
 
     const params = { type: 'object', required: ['id'], properties: { id: { type: 'string', format: 'uuid' } } } as const;
     const load = async (id: string): Promise<Store | undefined> => (await deps.db.select().from(stores).where(eq(stores.id, id)))[0];
@@ -109,5 +119,5 @@ export function registerInternalStoreRoutes(app: FastifyInstance, deps: Internal
       }
       return { status: 'deleted' };
     });
-  }, { prefix: '' });
+  });
 }

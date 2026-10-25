@@ -9,6 +9,11 @@
   "wooMcp" (dict "image" (dict "repository" "woo-mcp" "tag" (dig "wooMcp" "image" "tag" "dev" .Values.store)))
   "init" (dict "brand" (dict "enabled" true "image" (dict "repository" "store-assets" "tag" (dig "init" "brand" "image" "tag" "dev" .Values.store))))
   "quota" $v.storeQuota }}
+{{- $hosted := dict
+  "global" (omit .Values.global "namespaces")
+  "gatewayNamespace" $ns
+  "resources" $v.hosted.resources
+  "quota" $v.hosted.quota }}
 # D-026: the provisioner is the only workload with Kubernetes rights. Its token is projected explicitly (1 h,
 # rotated by the kubelet) instead of automounted, and the account can only do what rbac-provisioner.yaml grants.
 apiVersion: v1
@@ -62,6 +67,8 @@ spec:
             - { name: PROVISION_TIMEOUT_MS, value: {{ mul $v.timeoutMinutes 60000 | quote }} }
             - { name: MAX_CONCURRENT, value: {{ $v.maxConcurrent | quote }} }
             - { name: STORE_BASE_VALUES, value: {{ toJson $base | quote }} }
+            # BON-10: what every hosted server gets (charts/hosted values); the provisioner adds slug, image, port, env.
+            - { name: HOSTED_BASE_VALUES, value: {{ toJson $hosted | quote }} }
             - { name: LOG_LEVEL, value: {{ .Values.gateway.logLevel | quote }} }
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}
           volumeMounts:

@@ -29,6 +29,8 @@ export interface Config {
   llm: LlmConfig;
   /** Multi-store (BON-12, A-11): caps enforced by /api/stores, and how a store's public URL is built. */
   stores: StoresConfig;
+  /** Hosted MCP servers by image (BON-10): which registries an image may come from, and how many may exist. */
+  hosted: { imageRegistries: string[]; max: number };
 }
 
 export interface StoresConfig {
@@ -129,6 +131,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       hostSuffix: hostSuffix('STORE_HOST_SUFFIX', env.STORE_HOST_SUFFIX),
       scheme: env.STORE_SCHEME?.trim() === 'https' ? 'https' : 'http',
       defaultStoreUrl: origin('DEFAULT_STORE_URL', env.DEFAULT_STORE_URL),
+    },
+    hosted: {
+      imageRegistries: (env.HOSTED_IMAGE_REGISTRIES ?? '').split(',').map((r) => r.trim().toLowerCase().replace(/\/+$/, '')).filter(Boolean),
+      max: int('HOSTED_MAX_SERVERS', env.HOSTED_MAX_SERVERS, 5, 0, 50),
     },
     llm: {
       baseUrl: baseUrl('LLM_BASE_URL', env.LLM_BASE_URL, 'https://api.groq.com/openai/v1'),

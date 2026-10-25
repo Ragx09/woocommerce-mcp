@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rbac|stores|rogue|ingress|killpod|metrics|replicas|all
+# Cluster checks with explicit PASS/FAIL lines. Usage: scripts/k8s-checks.sh netpol|rbac|stores|hosted|rogue|ingress|killpod|metrics|replicas|all
 set -uo pipefail
 STORE=store PLATFORM=platform DOMAIN="${DOMAIN:-127.0.0.1.nip.io}"
 fails=0
@@ -74,6 +74,25 @@ rbac() {
   can no  "TC-BON-09-2aa create pods/exec in $t" create pods/exec -n "$t"
   can no  "TC-BON-09-2ab create daemonsets in $t" create daemonsets -n "$t"
   allowed "TC-BON-09-2ac delete $t" delete namespace "$t" --wait=false
+  # BON-10 (D-029): hosted-* namespaces follow the same rules with their own role.
+  local th="hosted-rbactest"
+  can yes "TC-BON-10-3a bind clusterrole/hosted-manager" bind clusterrole/hosted-manager
+  local hns='{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"NAME","labels":{"platform.io/hosted":"SLUG"PSS}}}'
+  echo "${hns/NAME/hosted-nopss}" | sed 's/SLUG/nopss/; s/PSS//' | denied "TC-BON-10-3b hosted namespace without Pod Security restricted" create -f - --dry-run=server
+  echo "${hns/NAME/hosted-mismatch}" | sed 's/SLUG/other/; s/PSS/,"pod-security.kubernetes.io\/enforce":"restricted"/' | denied "TC-BON-10-3c hosted label not matching the name" create -f - --dry-run=server
+  echo "${hns/NAME/hosted-store}" | sed 's/platform.io\/hosted/platform.io\/store/; s/SLUG/store/; s/PSS/,"pod-security.kubernetes.io\/enforce":"restricted"/' | denied "TC-BON-10-3d hosted-* namespace carrying the store label" create -f - --dry-run=server
+  echo "${hns/NAME/$th}" | sed 's/SLUG/rbactest/; s/PSS/,"pod-security.kubernetes.io\/enforce":"restricted"/' | allowed "TC-BON-10-3e labelled hosted namespace $th" create -f -
+  echo "$rb" | sed "s/NAME/x/; s/NS/$th/; s/ROLE/store-manager/; s/SUBJ/provisioner/" | denied "TC-BON-10-3f store-manager bound in a hosted namespace" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/x/; s/NS/$t/; s/ROLE/hosted-manager/; s/SUBJ/provisioner/" | denied "TC-BON-10-3g hosted-manager bound in a store namespace" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/x/; s/NS/$th/; s/ROLE/hosted-manager/; s/SUBJ/gateway/" | denied "TC-BON-10-3h hosted-manager bound to another account" create -f - --dry-run=server
+  echo "$rb" | sed "s/NAME/provisioner-hosted-manager/; s/NS/$th/; s/ROLE/hosted-manager/; s/SUBJ/provisioner/" | allowed "TC-BON-10-3i hosted-manager RoleBinding in $th" create -f -
+  can yes "TC-BON-10-3j create deployments in $th" create deployments -n "$th"
+  can no  "TC-BON-10-3k create statefulsets in $th" create statefulsets -n "$th"
+  can no  "TC-BON-10-3l create jobs in $th" create jobs -n "$th"
+  can no  "TC-BON-10-3m create persistentvolumeclaims in $th" create persistentvolumeclaims -n "$th"
+  can no  "TC-BON-10-3n create ingresses in $th" create ingresses -n "$th"
+  can no  "TC-BON-10-3o create pods/exec in $th" create pods/exec -n "$th"
+  allowed "TC-BON-10-3p delete $th" delete namespace "$th" --wait=false
   # The gateway still mounts no token and has no RBAC account.
   local gw; gw="$(kubectl -n "$PLATFORM" get deploy gateway -o jsonpath='{.spec.template.spec.automountServiceAccountToken}/{.spec.template.spec.serviceAccountName}/{.spec.template.spec.volumes[*].projected}')"
   [ "$gw" = "false/workload/" ] && pass "TC-BON-09-2ad gateway: no token, account workload ($gw)" || fail "TC-BON-09-2ad gateway token/account: $gw"
@@ -174,6 +193,53 @@ stores() {
     out="$(kubectl -n "$ns" get serviceaccount workload -o jsonpath='{.automountServiceAccountToken}' 2>/dev/null)"
     [ "$out" = false ] && pass "TC-BON-14-2e $ns workloads get no service account token" || fail "TC-BON-14-2e $ns workload ServiceAccount automount = ${out:-missing}"
   done
+}
+
+# TC-BON-10-3 (D-029): a hosted MCP server is untrusted. Probes run from pods carrying the hosted label, inside the
+# server's own namespace, so a "CLOSED" means the policies stop exactly what a compromised image could try.
+hosted() {
+  local -a slugs; read -r -a slugs <<<"$(kubectl get ns -l platform.io/hosted -o jsonpath='{.items[*].metadata.labels.platform\.io/hosted}')"
+  if [ "${#slugs[@]}" -lt 1 ]; then fail "TC-BON-10-3 needs one hosted server (found none): add one in the dashboard or run scripts/e2e.sh hosted with KEEP=1"; return; fi
+  local a="${slugs[0]}" na="hosted-${slugs[0]}"
+  local svc="server.$na.svc.cluster.local" port; port="$(kubectl -n "$na" get deploy server -o jsonpath='{.spec.template.spec.containers[0].ports[0].containerPort}')"
+  local api; api="$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')"
+  echo "# checking hosted server: $a ($na, port $port)"
+  expect OPEN   "TC-BON-10-3-1 gateway → hosted server (the one allowed way in)" "$PLATFORM" app=gateway "$svc" 80
+  expect CLOSED "TC-BON-10-3-2 a random pod in $PLATFORM → hosted server" "$PLATFORM" app=intruder "$svc" 80
+  expect CLOSED "TC-BON-10-3-3 the dashboard → hosted server" "$PLATFORM" app=dashboard "$svc" 80
+  expect CLOSED "TC-BON-10-3-4 the provisioner → hosted server" "$PLATFORM" app=provisioner "$svc" 80
+  expect CLOSED "TC-BON-10-3-5 a random pod in the default store → hosted server" "$STORE" app=intruder "$svc" 80
+  expect CLOSED "TC-BON-10-3-6 the default store's woo-mcp → hosted server" "$STORE" app=woo-mcp "$svc" 80
+  expect CLOSED "TC-BON-10-3-7 a random pod in its own namespace → hosted server" "$na" app=intruder "$svc" 80
+  # Outbound: nothing reaches the cluster; the internet only when the admin allowed it.
+  expect CLOSED "TC-BON-10-3-8 hosted → default store woo-mcp" "$na" app=hosted-server "woo-mcp.$STORE.svc.cluster.local" 80
+  expect CLOSED "TC-BON-10-3-9 hosted → default store mariadb" "$na" app=hosted-server "mariadb.$STORE.svc.cluster.local" 3306
+  expect CLOSED "TC-BON-10-3-10 hosted → default store wordpress" "$na" app=hosted-server "wordpress.$STORE.svc.cluster.local" 80
+  expect CLOSED "TC-BON-10-3-11 hosted → postgres" "$na" app=hosted-server "postgres.$PLATFORM.svc.cluster.local" 5432
+  expect CLOSED "TC-BON-10-3-12 hosted → gateway" "$na" app=hosted-server "gateway.$PLATFORM.svc.cluster.local" 80
+  expect CLOSED "TC-BON-10-3-13 hosted → Kubernetes API" "$na" app=hosted-server "$api" 443
+  expect CLOSED "TC-BON-10-3-14 hosted → cloud metadata" "$na" app=hosted-server 169.254.169.254 80
+  local other; for other in "${slugs[@]:1}"; do expect CLOSED "TC-BON-10-3-15 hosted → another hosted server ($other)" "$na" app=hosted-server "server.hosted-$other.svc.cluster.local" 80; done
+  local st; for st in $(kubectl get ns -l platform.io/store -o jsonpath='{.items[*].metadata.name}'); do
+    expect CLOSED "TC-BON-10-3-16 hosted → created store $st (woo-mcp)" "$na" app=hosted-server "woo-mcp.$st.svc.cluster.local" 80
+  done
+  if kubectl -n "$na" get networkpolicy server-egress >/dev/null 2>&1; then
+    expect OPEN   "TC-BON-10-3-17 internet 443 (the admin allowed egress)" "$na" app=hosted-server 1.1.1.1 443
+    expect CLOSED "TC-BON-10-3-18 internet port 80 even with egress allowed" "$na" app=hosted-server 1.1.1.1 80
+  else
+    expect CLOSED "TC-BON-10-3-17 internet 443 (no egress allowed)" "$na" app=hosted-server 1.1.1.1 443
+  fi
+  # The workload itself.
+  local pod; pod="$(kubectl -n "$na" get pod -l app=hosted-server -o json)"
+  local sc; sc="$(echo "$pod" | python3 -c "import json,sys; p=json.load(sys.stdin)['items'][0]; c=p['spec']['containers'][0]; s=c['securityContext']; ps=p['spec']['securityContext']; print(ps.get('runAsNonRoot'), ps.get('runAsUser'), s.get('readOnlyRootFilesystem'), s.get('allowPrivilegeEscalation'), 'ALL' in s['capabilities']['drop'], p['spec'].get('automountServiceAccountToken'), bool(c['resources'].get('limits')))")"
+  [ "$sc" = "True 10001 True False True False True" ] && pass "TC-BON-10-3-19 pod: non-root, read-only fs, no escalation, no capabilities, no token, limits ($sc)" || fail "TC-BON-10-3-19 pod security: $sc"
+  local out
+  out="$(kubectl -n "$na" run root-probe --image=busybox:1.36 --restart=Never --dry-run=server --overrides='{"spec":{"containers":[{"name":"p","image":"busybox:1.36","command":["true"],"securityContext":{"runAsUser":0}}]}}' 2>&1)"
+  echo "$out" | grep -qiE 'violates PodSecurity|forbidden' && pass "TC-BON-10-3-20 $na refuses a root pod (Pod Security restricted)" || fail "TC-BON-10-3-20 $na accepted a root pod: $(echo "$out" | head -1)"
+  out="$(kubectl -n "$na" run quota-probe --image=busybox:1.36 --restart=Never --dry-run=server --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"p","image":"busybox:1.36","command":["true"],"resources":{"limits":{"cpu":"64","memory":"512Mi"},"requests":{"cpu":"64","memory":"64Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' 2>&1)"
+  echo "$out" | grep -qiE 'exceeded quota|maximum cpu usage|forbidden' && pass "TC-BON-10-3-21 $na refuses a pod beyond its quota" || fail "TC-BON-10-3-21 $na accepted an oversized pod: $(echo "$out" | head -1)"
+  out="$(kubectl -n "$PLATFORM" get deploy gateway -o json | python3 -c "import json,sys; print(json.load(sys.stdin)['spec']['template']['spec'].get('automountServiceAccountToken'))")"
+  [ "$out" = False ] && pass "TC-BON-10-3-22 the gateway still mounts no Kubernetes token" || fail "TC-BON-10-3-22 gateway automount = $out"
 }
 
 # SEC-06 (TC-SEC-06-3): rogue pods (no special labels, or a label they should not be able to use for a
@@ -422,6 +488,7 @@ case "${1:-all}" in
   netpol) netpol ;;
   rbac) rbac ;;
   stores) stores ;;
+  hosted) hosted ;;
   rogue) rogue ;;
   ingress) ingress ;;
   killpod) killpod ;;

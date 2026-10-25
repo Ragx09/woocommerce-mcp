@@ -1,0 +1,97 @@
+{{- $ns := include "hosted.namespace" . }}
+{{- $port := required "port is required" .Values.port | int }}
+{{- $image := required "image is required" .Values.image }}
+{{- if lt $port 1 }}{{ fail "port must be 1..65535" }}{{ end }}
+# The only way in is the gateway (networkpolicies.yaml). The workload is untrusted by default: forced non-root,
+# read-only root filesystem, no capabilities, no ServiceAccount token, bounded CPU/memory, no egress unless allowed.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workload
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "hosted.selector" . | nindent 4 }}
+  ports:
+    - { name: mcp, port: 80, targetPort: mcp }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "hosted.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "hosted.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: workload
+      enableServiceLinks: false
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+        runAsUser: {{ .Values.runAsUser }}
+        runAsGroup: {{ .Values.runAsUser }}
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: server
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - { name: mcp, containerPort: {{ $port }} }
+          env:
+            {{- if not (hasKey .Values.env "PORT") }}
+            - { name: PORT, value: {{ $port | quote }} }
+            {{- end }}
+            - { name: HOME, value: /tmp }
+            {{- range $k, $v := .Values.env }}
+            - { name: {{ $k | quote }}, value: {{ $v | toString | quote }} }
+            {{- end }}
+          # Secret values (write-only in the gateway API); the Secret is created by the provisioner before this release.
+          envFrom:
+            - secretRef: { name: server-env, optional: true }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          # TCP only: an arbitrary MCP image has no promised health endpoint. The gateway's own health loop
+          # (initialize + tools/list every 10 s) judges whether it really speaks MCP.
+          startupProbe:
+            tcpSocket: { port: mcp }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            tcpSocket: { port: mcp }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket: { port: mcp }
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources: {{- toYaml (required "resources are required" .Values.resources) | nindent 12 }}
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }

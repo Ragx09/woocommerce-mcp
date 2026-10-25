@@ -26,6 +26,18 @@ helm template platform "$CHART" -f "$CHART/values-local.yaml" --set hostileMcp.e
   && python3 scripts/lib/chart-policy.py <"$out" && grep -q 'hostile-mcp.platform.svc.cluster.local' "$out" \
   && echo "PASS  hostile-mcp render (policy, SSRF allowlist)" || { echo "FAIL  hostile-mcp render"; rc=1; }
 rm -f "$out"
+echo "== charts/hosted (BON-10): lint + render (with and without egress) + same policies"
+for egress in false true; do
+  out="$(mktemp)"
+  helm template hosted-demo charts/hosted -n hosted-demo --set slug=demo --set image=ghcr.io/acme/demo-mcp:1.0.0 --set port=3000 --set env.MODE=demo --set allowEgress=$egress >"$out" \
+    && python3 scripts/lib/chart-policy.py <"$out" \
+    && [ "$(grep -c 'name: server-egress' "$out")" = "$([ "$egress" = true ] && echo 1 || echo 0)" ] \
+    && grep -q 'name: default-deny' "$out" && grep -q 'name: server-from-gateway' "$out" \
+    && echo "PASS  hosted render (policy, default-deny, gateway-only ingress, egress=$egress)" || { echo "FAIL  hosted render (egress=$egress)"; rc=1; }
+  rm -f "$out"
+done
+helm lint charts/hosted --quiet --set slug=demo --set image=ghcr.io/acme/demo-mcp:1.0.0 --set port=3000 >/dev/null && echo "PASS  helm lint (hosted)" || { echo "FAIL  helm lint (hosted)"; rc=1; }
+! helm template x charts/hosted --set slug=demo --set image=a/b:1 >/dev/null 2>&1 && echo "PASS  hosted chart refuses a missing port" || { echo "FAIL  hosted chart accepted a missing port"; rc=1; }
 echo "== values diff (local vs prod: only domain/TLS (incl. the Secure cookie flag)/registry/pull policy/storage/resources may differ)"
 unexpected="$(diff <(helm template platform "$CHART" -f "$CHART/values-local.yaml" --set global.domain=example.test) \
                    <(helm template platform "$CHART" -f "$CHART/values-prod.yaml" --set global.domain=example.test) \

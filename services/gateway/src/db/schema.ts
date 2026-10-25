@@ -36,6 +36,8 @@ export const upstreams = pgTable(
     memberTools: jsonb('member_tools').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** BON-13: set for a created store's woo-mcp (`woo-<slug>`); access then follows the store (owner, access list). */
     storeId: uuid('store_id').references(() => stores.id, { onDelete: 'set null' }),
+    /** BON-10: set for a hosted MCP server (container image run by the provisioner); address and credentials belong to it. */
+    hostedId: uuid('hosted_id').references(() => hostedServers.id, { onDelete: 'set null' }),
     /** The admin who added it; null for rows seeded at startup (or when that user is gone). */
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -391,3 +393,48 @@ export const storeMembers = pgTable(
   },
   (t) => [primaryKey({ columns: [t.storeId, t.userId] }), index('store_members_user_idx').on(t.userId)],
 );
+
+// ---- Hosted MCP servers (BON-10, D-029): an admin adds a server by container image; the provisioner runs it ----
+
+/** One hosted server (namespace `hosted-<slug>`, Helm release `hosted-<slug>`, upstream `<slug>`). */
+export const hostedServers = pgTable(
+  'hosted_servers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Becomes the upstream slug and the tool-name prefix (`<slug>__<tool>`); immutable. */
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    /** Registry/path:tag or @sha256 digest, from an allowed registry (config), never `latest`. */
+    image: text('image').notNull(),
+    port: integer('port').notNull(),
+    path: text('path').notNull().default('/mcp'),
+    /** Plain environment (visible to admins). */
+    env: jsonb('env').$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+    /** Secret environment, one AES-GCM blob of the JSON object, key derived from the gateway↔provisioner key. Write-only. */
+    secretEnvEnc: jsonb('secret_env_enc').$type<EncryptedCredential>(),
+    /** Names of the secret variables (never their values), so the UI can show what is set. */
+    secretEnvNames: jsonb('secret_env_names').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Outbound HTTPS to the public internet (never the cluster). Default: none. */
+    allowEgress: boolean('allow_egress').notNull().default(false),
+    status: text('status', { enum: STORE_STATUSES }).notNull().default('provisioning'),
+    statusReason: text('status_reason'),
+    desired: text('desired', { enum: ['present', 'absent'] }).notNull().default('present'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [
+    check('hosted_slug_format', sql`${t.slug} ~ '^[a-z][a-z0-9-]{1,14}[a-z0-9]$' and ${t.slug} !~ '--'`),
+    check('hosted_name_length', sql`char_length(${t.name}) between 1 and 100`),
+    check('hosted_image_format', sql`char_length(${t.image}) <= 255 and ${t.image} ~ '^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$'`),
+    check('hosted_port', sql`${t.port} between 1 and 65535`),
+    check('hosted_path', sql`${t.path} ~ '^/[A-Za-z0-9._~/-]{0,127}$'`),
+    check('hosted_status', sql`${t.status} in ('provisioning', 'ready', 'failed', 'deleting', 'deleted')`),
+    check('hosted_desired', sql`${t.desired} in ('present', 'absent')`),
+    check('hosted_reason_length', sql`${t.statusReason} is null or char_length(${t.statusReason}) <= 300`),
+    check('hosted_env_object', sql`jsonb_typeof(${t.env}) = 'object'`),
+  ],
+);
+export type HostedServer = typeof hostedServers.$inferSelect;

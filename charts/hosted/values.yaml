@@ -1,0 +1,22 @@
+# One hosted MCP server (BON-10). The provisioner supplies slug, name, image, port, path, env and allowEgress per
+# server from the database; the rest comes from the platform chart (provisioner.hosted in values.yaml).
+global:
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+
+gatewayNamespace: platform        # the only place connections are accepted from (pods labelled app=gateway)
+slug: ""                          # required; namespace is hosted-<slug>, Service is server.hosted-<slug>
+name: ""
+image: ""                         # registry/path:tag or @sha256 digest, from an allowed registry (checked by the gateway)
+port: 0                           # the port the server listens on (Service port 80 forwards to it)
+path: /mcp
+env: {}                           # plain environment (UPPER_CASE names); secrets come from the Secret `server-env`
+allowEgress: false                # true → HTTPS (443) to the public internet only, never the cluster
+runAsUser: 10001                  # forced non-root, whatever the image says
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 500m, memory: 256Mi }
+quota:
+  enabled: true
+  limits: { cpu: "1", memory: 512Mi }
+  requests: { cpu: 200m, memory: 128Mi }

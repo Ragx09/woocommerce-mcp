@@ -36,6 +36,9 @@ export function ssrfPolicy(allowedHosts: Iterable<string> = [], allowedHostPatte
 /** A created store's woo-mcp Service (namespace store-<slug>, D-026). Nothing else in those namespaces is allowed. */
 export const STORE_WOO_MCP_HOST = /^woo-mcp\.store-[a-z][a-z0-9-]{1,14}[a-z0-9]\.svc\.cluster\.local$/;
 
+/** A hosted MCP server's Service (namespace hosted-<slug>, BON-10 / D-029). */
+export const HOSTED_SERVER_HOST = /^server\.hosted-[a-z][a-z0-9-]{1,14}[a-z0-9]\.svc\.cluster\.local$/;
+
 const hostAllowed = (host: string, policy: SsrfPolicy) =>
   policy.allowedHosts.has(host) || (policy.allowedHostPatterns ?? []).some((re) => re.test(host));
 

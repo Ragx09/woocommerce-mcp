@@ -68,6 +68,20 @@ provisioner:
   # A-11 caps, enforced by the gateway API (BON-12): stores per member, and in total (admins count toward the total).
   maxPerMember: 3
   maxTotal: 5
+  # BON-10 (D-029): MCP servers an admin adds by container image. The gateway refuses images outside these
+  # registries (prefix match on `registry/path`), `:latest` and unqualified names; empty list → the feature is off.
+  hosted:
+    maxServers: 5
+    imageRegistries:
+      - ghcr.io/ragx09                       # our own images (e.g. everything-mcp pushed to GHCR)
+      - registry.k8s.io
+    resources:                               # per hosted server (container requests/limits)
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 256Mi }
+    quota:
+      enabled: true
+      limits: { cpu: "1", memory: 512Mi }
+      requests: { cpu: 200m, memory: 128Mi }
   # BON-14: per created store namespace (the default store has none).
   storeQuota:
     enabled: true

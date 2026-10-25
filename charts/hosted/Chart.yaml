@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hosted
+description: One hosted MCP server run from a container image (BON-10, D-029). Installed by the provisioner into its own hosted-<slug> namespace; reachable only from the gateway, no egress unless allowed.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

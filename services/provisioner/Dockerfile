@@ -28,6 +28,7 @@ ENV NODE_ENV=production PORT=8080
 WORKDIR /app
 COPY --from=helm /helm /usr/local/bin/helm
 COPY charts/store /charts/store
+COPY charts/hosted /charts/hosted
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/services/provisioner/package.json ./package.json
 COPY --from=build /app/services/provisioner/dist ./dist

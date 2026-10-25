@@ -132,6 +132,7 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
     const role = effRole ?? (isAdmin ? 'admin' : 'member');
     const base = {
       id: pub.id, name: pub.name, slug: pub.slug, enabled: pub.enabled,
+      kind: row.hostedId ? 'hosted' : row.storeId ? 'store' : 'external',
       // F-API-1: members get a coarse status only. The raw lastError strings and health timing leak
       // internal infrastructure detail (peer hostnames, timeouts), so they stay in the admin view.
       status: h.status,
@@ -224,8 +225,8 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
       if (!prev) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
       const b = req.body;
       // A store's server belongs to the store (BON-13): its address and credential are set by the provisioner.
-      if (prev.storeId && (b.url !== undefined || b.authType !== undefined || b.authHeader !== undefined || b.credential !== undefined || b.name !== undefined)) {
-        return reply.code(409).send({ error: 'conflict', message: 'this server belongs to a store; only enabled and the member rule can be changed here' });
+      if ((prev.storeId || prev.hostedId) && (b.url !== undefined || b.authType !== undefined || b.authHeader !== undefined || b.credential !== undefined || b.name !== undefined)) {
+        return reply.code(409).send({ error: 'conflict', message: 'this server is run by the platform (store or hosted image); only enabled and the member rule can be changed here' });
       }
       const touchesAuth = b.authType !== undefined || b.authHeader !== undefined || b.credential !== undefined;
       const set: Partial<typeof upstreams.$inferInsert> = {};
@@ -251,8 +252,9 @@ export function registerUpstreamRoutes(app: FastifyInstance, deps: UpstreamRoute
   app.delete<{ Params: { id: string } }>('/api/upstreams/:id', {
     config: { access: 'admin' }, schema: { params: idParams },
   }, async (req, reply) => {
-    const [owned] = await db.select({ storeId: upstreams.storeId }).from(upstreams).where(eq(upstreams.id, req.params.id));
+    const [owned] = await db.select({ storeId: upstreams.storeId, hostedId: upstreams.hostedId }).from(upstreams).where(eq(upstreams.id, req.params.id));
     if (owned?.storeId) return reply.code(409).send({ error: 'conflict', message: 'this server belongs to a store; delete the store instead' });
+    if (owned?.hostedId) return reply.code(409).send({ error: 'conflict', message: 'this server is hosted by the platform; delete it from Hosted servers instead' });
     const [row] = await db.delete(upstreams).where(eq(upstreams.id, req.params.id)).returning({ slug: upstreams.slug });
     if (!row) return reply.code(404).send({ error: 'not_found', message: 'no such server' });
     req.log.info({ upstream: row.slug, upstreamId: req.params.id, by: req.user!.id }, 'upstream deleted');

@@ -45,6 +45,11 @@ spec:
         - podSelector: { matchLabels: { app: hostile-mcp } }   # SEC-05 tests only
         {{- end }}
       ports: [{ port: 8080 }]
+    # BON-10: hosted MCP servers — only that pod, only in namespaces the provisioner labelled platform.io/hosted. Any
+    # port (the image chooses it); the server's own namespace admits exactly that one port from the gateway.
+    - to:
+        - namespaceSelector: { matchExpressions: [{ key: platform.io/hosted, operator: Exists }] }
+          podSelector: { matchLabels: { app: hosted-server } }
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

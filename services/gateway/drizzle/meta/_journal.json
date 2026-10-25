@@ -50,6 +50,13 @@
       "when": 1792948785842,
       "tag": "0006_stores",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792962202947,
+      "tag": "0007_hosted",
+      "breakpoints": true
     }
   ]
 }

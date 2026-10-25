@@ -1,0 +1,51 @@
+{{- $ns := include "hosted.namespace" . }}
+# Default deny, both directions: a hosted server accepts and opens nothing unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# The gateway is the only caller (REQ-GW-01: nothing else talks to upstream MCP servers).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: server-from-gateway
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: hosted-server } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.gatewayNamespace }} } }
+          podSelector: { matchLabels: { app: gateway } }
+      ports: [{ port: {{ .Values.port | int }} }]
+{{- if .Values.allowEgress }}
+---
+# Explicitly allowed by the admin: HTTPS to the public internet and DNS. Never the cluster, private networks,
+# CGNAT, loopback or link-local (cloud metadata).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: server-egress
+  namespace: {{ $ns }}
+  labels: {{- include "hosted.labels" . | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app: hosted-server } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16]
+      ports: [{ port: 443 }]
+{{- end }}

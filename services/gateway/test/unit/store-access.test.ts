@@ -6,7 +6,7 @@ import { loadConfig } from '../../src/config.js';
 import { slugFromName } from '../../src/stores/routes.js';
 
 const store = { storeId: 's1' };
-const plain = { storeId: null };
+const plain = { storeId: null, hostedId: null };
 
 describe('roleFor', () => {
   const access: StoreAccess = new Map([['s1', 'owner'], ['s2', 'shared']]);

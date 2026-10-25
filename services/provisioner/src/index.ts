@@ -8,7 +8,8 @@ import { fetch } from 'undici';
 import { helmCli } from './helm.js';
 import { inClusterKube } from './kube.js';
 import { Reconciler, type Gateway, type StoreRow } from './reconcile.js';
-import { SIGNATURE_HEADER, sign } from './signing.js';
+import { HostedReconciler, type HostedGateway, type HostedRow } from './hosted.js';
+import { SIGNATURE_HEADER, hostedEnvKey, sign } from './signing.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info', base: { svc: 'provisioner' } });
 const need = (n: string) => { const v = process.env[n]?.trim(); if (!v) throw new Error(`missing required environment variable ${n}`); return v; };
@@ -34,11 +35,26 @@ const gateway: Gateway = {
   deleted: (id) => post(`/internal/stores/${id}/deleted`, {}),
 };
 
+const hostedGateway: HostedGateway = {
+  ready: (id, b) => post(`/internal/hosted/${id}/ready`, b),
+  failed: (id, reason) => post(`/internal/hosted/${id}/failed`, { reason }),
+  deleted: (id) => post(`/internal/hosted/${id}/deleted`, {}),
+};
+const kube = inClusterKube();
+const serviceAccount = { name: process.env.SERVICE_ACCOUNT ?? 'provisioner', namespace: need('POD_NAMESPACE') };
+const hostedReconciler = new HostedReconciler({
+  kube, helm: helmCli({ chart: process.env.HOSTED_CHART ?? '/charts/hosted' }), gateway: hostedGateway, log,
+  baseValues: JSON.parse(process.env.HOSTED_BASE_VALUES ?? '{}') as Record<string, unknown>,
+  envKey: hostedEnvKey(key),
+  timeoutMs: Number(process.env.HOSTED_TIMEOUT_MS ?? 5 * 60_000),
+  serviceAccount,
+});
+
 const reconciler = new Reconciler({
-  kube: inClusterKube(), helm: helmCli({ chart: process.env.STORE_CHART ?? '/charts/store' }), gateway, log,
+  kube, helm: helmCli({ chart: process.env.STORE_CHART ?? '/charts/store' }), gateway, log,
   baseValues: JSON.parse(need('STORE_BASE_VALUES')) as Record<string, unknown>,
   timeoutMs: Number(process.env.PROVISION_TIMEOUT_MS ?? 15 * 60_000),
-  serviceAccount: { name: process.env.SERVICE_ACCOUNT ?? 'provisioner', namespace: need('POD_NAMESPACE') },
+  serviceAccount,
 });
 
 let leader: pg.PoolClient | null = null;
@@ -49,6 +65,15 @@ async function loadRows(): Promise<StoreRow[]> {
     `SELECT id, slug, name, tagline, niche, niche_text, status, desired, created_at FROM stores
       WHERE (desired = 'present' AND status = 'provisioning') OR (desired = 'absent' AND status = 'deleting') ORDER BY created_at`);
   return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, tagline: r.tagline, niche: r.niche, nicheText: r.niche_text, status: r.status, desired: r.desired, createdAt: r.created_at }));
+}
+
+async function loadHosted(): Promise<HostedRow[]> {
+  const { rows } = await pool.query<{ id: string; slug: string; name: string; image: string; port: number; path: string; env: Record<string, string>;
+    secret_env_enc: HostedRow['secretEnvEnc']; allow_egress: boolean; status: HostedRow['status']; desired: HostedRow['desired']; created_at: Date }>(
+    `SELECT id, slug, name, image, port, path, env, secret_env_enc, allow_egress, status, desired, created_at FROM hosted_servers
+      WHERE (desired = 'present' AND status = 'provisioning') OR (desired = 'absent' AND status = 'deleting') ORDER BY created_at`);
+  return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, image: r.image, port: r.port, path: r.path, env: r.env, secretEnvEnc: r.secret_env_enc,
+    allowEgress: r.allow_egress, status: r.status, desired: r.desired, createdAt: r.created_at }));
 }
 
 async function tick(): Promise<void> {
@@ -64,6 +89,7 @@ async function tick(): Promise<void> {
     // Stores are processed in the background; the next tick picks up whatever is still pending.
     const rows = await loadRows();
     void reconciler.pass(rows, Number(process.env.MAX_CONCURRENT ?? 3));
+    void hostedReconciler.pass(await loadHosted(), Number(process.env.MAX_CONCURRENT ?? 3));
     lastPassOk = Date.now();
   } catch (e) {
     log.warn({ err: (e as Error).message }, 'reconcile tick failed');

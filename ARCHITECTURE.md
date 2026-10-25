@@ -117,3 +117,5 @@ One umbrella chart `charts/platform`, with subcharts or templates per component,
 - Stateless MCP: horizontally scalable, but no server-initiated notifications (we don't need them).
 - Own Helm templates instead of Bitnami: more YAML, but no dependency on deprecated images.
 - Storefront brand as code: theme + catalogue + images ship in a `store-assets` image and are imported idempotently by wp-init (D-016), at the cost of one more image to build and push.
+
+**Hosted MCP servers (D-029, BON-10):** an admin adds a server by container image (`/api/hosted`, allowed registries only). The same `provisioner` runs `charts/hosted` in a `hosted-<slug>` namespace — non-root, read-only, no token, quota, default-deny NetworkPolicy with the gateway as the only caller and no egress unless allowed — and the gateway registers it as upstream `<slug>` (no credential, members none until an admin allows). See `docs/MCP_DESIGN.md` §17.

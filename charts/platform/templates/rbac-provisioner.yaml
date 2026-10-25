@@ -3,8 +3,9 @@
 {{- $ctx := dict "root" . "app" "provisioner" }}
 {{- $sa := printf "system:serviceaccount:%s:provisioner" $ns }}
 # D-026 least privilege. Cluster-wide the provisioner may only manage namespaces and RoleBindings, and may bind
-# nothing but `store-manager`. RBAC cannot restrict `create` by name, so the ValidatingAdmissionPolicy below
-# refuses any namespace or RoleBinding it touches outside labelled `store-*` namespaces.
+# nothing but `store-manager` (store-* namespaces) and `hosted-manager` (hosted-* namespaces, BON-10/D-029). RBAC
+# cannot restrict `create` by name, so the ValidatingAdmissionPolicy below refuses any namespace or RoleBinding it
+# touches outside labelled `store-*` / `hosted-*` namespaces.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -20,7 +21,7 @@ rules:
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterroles]
     verbs: [bind]
-    resourceNames: [store-manager]
+    resourceNames: [store-manager, hosted-manager]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -55,6 +56,27 @@ rules:
     resources: [ingresses, networkpolicies]
     verbs: [get, list, watch, create, update, patch, delete]
 ---
+# BON-10: only the kinds charts/hosted renders. No volumes, no Jobs, no Ingress: a hosted server is a Deployment
+# behind a ClusterIP Service that only the gateway can reach.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hosted-manager
+  labels: {{- include "platform.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [services, configmaps, secrets, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -81,19 +103,25 @@ spec:
     - name: ns
       expression: "request.resource.resource == 'namespaces' ? variables.obj.metadata.name : request.namespace"
   validations:
-    - expression: "variables.ns.startsWith('store-') && variables.ns.size() <= 22"
-      message: "the provisioner may only touch store-<slug> namespaces"
+    - expression: >-
+        (variables.ns.startsWith('store-') && variables.ns.size() <= 22) ||
+        (variables.ns.startsWith('hosted-') && variables.ns.size() <= 23)
+      message: "the provisioner may only touch store-<slug> and hosted-<slug> namespaces"
     - expression: >-
         request.resource.resource != 'namespaces' ||
-        (has(variables.obj.metadata.labels) && 'platform.io/store' in variables.obj.metadata.labels &&
-         'store-' + variables.obj.metadata.labels['platform.io/store'] == variables.obj.metadata.name &&
+        (has(variables.obj.metadata.labels) &&
+         ((variables.obj.metadata.name.startsWith('store-') && 'platform.io/store' in variables.obj.metadata.labels &&
+           'store-' + variables.obj.metadata.labels['platform.io/store'] == variables.obj.metadata.name) ||
+          (variables.obj.metadata.name.startsWith('hosted-') && 'platform.io/hosted' in variables.obj.metadata.labels &&
+           'hosted-' + variables.obj.metadata.labels['platform.io/hosted'] == variables.obj.metadata.name)) &&
          (request.operation == 'DELETE' || variables.obj.metadata.labels[?'pod-security.kubernetes.io/enforce'].orValue('') == 'restricted'))
-      message: "store namespaces must carry platform.io/store=<slug> matching their name and Pod Security restricted"
+      message: "store/hosted namespaces must carry platform.io/store or platform.io/hosted=<slug> matching their name and Pod Security restricted"
     - expression: >-
         request.resource.resource != 'rolebindings' ||
-        (variables.obj.roleRef.kind == 'ClusterRole' && variables.obj.roleRef.name == 'store-manager' &&
+        (variables.obj.roleRef.kind == 'ClusterRole' &&
+         variables.obj.roleRef.name == (variables.ns.startsWith('store-') ? 'store-manager' : 'hosted-manager') &&
          variables.obj.subjects.all(s, s.kind == 'ServiceAccount' && s.name == 'provisioner' && s.namespace == {{ $ns | quote }}))
-      message: "the provisioner may only bind store-manager to itself"
+      message: "the provisioner may only bind store-manager (store-*) or hosted-manager (hosted-*) to itself"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
