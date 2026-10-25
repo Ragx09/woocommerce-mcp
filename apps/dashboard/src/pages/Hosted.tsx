@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { api, type HostedList, type HostedServerInfo } from '../api.js';
 import { when } from '../components.js';
-import { StoreStatusBadge } from './Stores.js';
+import { RuntimeLine, StoreStatusBadge } from './Stores.js';
 
 /** `A=1` per line → { A: '1' }; a line without `=` is an error the form shows. */
 export function parseEnv(text: string): { env: Record<string, string>; error?: string } {
@@ -121,6 +121,7 @@ function HostedCard({ s }: { s: HostedServerInfo }) {
         {s.secretEnvNames.length > 0 && <>Secret variables: {s.secretEnvNames.map((n) => <code key={n}> {n}</code>)} · </>}
         {s.allowEgress ? 'outbound HTTPS allowed' : 'no outbound network'} · namespace <code>{s.namespace}</code>
       </p>
+      {s.runtime && s.status === 'ready' && <RuntimeLine r={s.runtime} />}
       {s.status !== 'deleting' && (
         <>
           <button type="button" className="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Delete…'}</button>

@@ -15,6 +15,8 @@ export interface Kube {
   get(path: string): Promise<Record<string, unknown> | null>; // null on 404
   create(path: string, body: object): Promise<'created' | 'exists'>;
   remove(path: string): Promise<'deleted' | 'absent'>;
+  /** JSON merge patch of an existing object (BON-12: the wp-admin Secret after a password reset). */
+  patch(path: string, body: object): Promise<'patched' | 'absent'>;
 }
 
 export function inClusterKube(env: NodeJS.ProcessEnv = process.env): Kube {
@@ -26,9 +28,9 @@ export function inClusterKube(env: NodeJS.ProcessEnv = process.env): Kube {
   // The token file is rotated by the kubelet (bound tokens): read it per request.
   const headers = () => ({ authorization: `Bearer ${readFileSync(`${SA}/token`, 'utf8').trim()}`, accept: 'application/json' });
 
-  async function call(method: string, path: string, body?: object) {
+  async function call(method: string, path: string, body?: object, contentType = 'application/json') {
     const res = await fetch(`${base}${path}`, { method, dispatcher, signal: AbortSignal.timeout(15_000),
-      headers: { ...headers(), ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+      headers: { ...headers(), ...(body ? { 'content-type': contentType } : {}) }, body: body ? JSON.stringify(body) : undefined });
     const json = await res.json().catch(() => ({})) as Record<string, unknown>;
     return { status: res.status, json };
   }
@@ -47,6 +49,12 @@ export function inClusterKube(env: NodeJS.ProcessEnv = process.env): Kube {
       if (r.status === 409) return 'exists';
       if (r.status >= 300) throw fail('POST', path, r);
       return 'created';
+    },
+    async patch(path, body) {
+      const r = await call('PATCH', path, body, 'application/merge-patch+json');
+      if (r.status === 404) return 'absent';
+      if (r.status >= 300) throw fail('PATCH', path, r);
+      return 'patched';
     },
     async remove(path) {
       const r = await call('DELETE', path, { propagationPolicy: 'Background' });

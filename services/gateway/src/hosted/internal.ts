@@ -8,6 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index.js';
 import { hostedServers, upstreams } from '../db/schema.js';
+import { parseRuntime } from '../runtime.js';
 import { signedInternalScope } from '../stores/internal.js';
 import { HOSTED_SERVER_HOST } from '../upstreams/ssrf.js';
 
@@ -54,6 +55,30 @@ export function registerInternalHostedRoutes(app: FastifyInstance, deps: { db: D
       }
       req.log.warn({ hosted: row.slug, reason }, 'hosted server provisioning failed');
       return { status: 'failed' };
+    });
+
+    scope.post<{ Params: { id: string } }>('/internal/hosted/:id/runtime', { schema: { params } }, async (req, reply) => {
+      const snap = parseRuntime(req.body);
+      if (!snap) return reply.code(400).send({ error: 'bad_request', message: 'pods {ready,total} and optional quota numbers are required' });
+      const [row] = await db.update(hostedServers).set({ runtime: snap, runtimeAt: new Date() })
+        .where(and(eq(hostedServers.id, req.params.id), eq(hostedServers.status, 'ready'))).returning({ id: hostedServers.id });
+      if (!row) { const [h] = await db.select({ id: hostedServers.id }).from(hostedServers).where(eq(hostedServers.id, req.params.id)); if (!h) return reply.code(404).send({ error: 'not_found', message: 'hosted server not found' }); }
+      return { status: row ? 'recorded' : 'ignored' };
+    });
+
+    // BON-14 recovery: the namespace of a ready hosted server is gone. Failed with that reason, server unregistered.
+    scope.post<{ Params: { id: string } }>('/internal/hosted/:id/missing', { schema: { params } }, async (req, reply) => {
+      const out = await db.transaction(async (tx) => {
+        const [h] = await tx.select().from(hostedServers).where(eq(hostedServers.id, req.params.id)).for('update');
+        if (!h) return null;
+        if (h.status !== 'ready' || h.desired !== 'present') return h.status;
+        await tx.delete(upstreams).where(eq(upstreams.hostedId, h.id));
+        await tx.update(hostedServers).set({ status: 'failed', statusReason: 'the server\'s namespace was removed outside the platform; delete the server here to clean up', runtime: null, runtimeAt: null })
+          .where(eq(hostedServers.id, h.id));
+        req.log.warn({ hosted: h.slug }, 'hosted namespace missing: server marked failed, unregistered');
+        return 'failed';
+      });
+      return out ? { status: out } : reply.code(404).send({ error: 'not_found', message: 'hosted server not found' });
     });
 
     scope.post<{ Params: { id: string } }>('/internal/hosted/:id/deleted', { schema: { params } }, async (req, reply) => {

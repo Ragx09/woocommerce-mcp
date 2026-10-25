@@ -333,6 +333,13 @@ export const oauthTokens = pgTable(
 
 // ---- Multi-store (BON-09..15, D-026, SPEC A-11): desired state written by the gateway, reconciled by the provisioner ----
 
+/** What the provisioner last saw in a store's or hosted server's namespace: counts and quota numbers only (BON-12, admin view). */
+export interface RuntimeSnapshot {
+  pods: { ready: number; total: number };
+  /** `used` / `hard` for the namespace ResourceQuota: CPU in cores, memory in MiB. Absent without a quota. */
+  quota?: { cpuLimits: { used: number; hard: number }; memoryLimitsMiB: { used: number; hard: number } };
+}
+
 export const STORE_NICHES = ['stationery', 'tea-coffee', 'home-ceramics', 'bags', 'bike', 'custom'] as const;
 export type StoreNiche = (typeof STORE_NICHES)[number];
 /** provisioning → ready | failed; deleting → deleted. Only the gateway writes (provisioner reports via the signed internal API). */
@@ -361,6 +368,14 @@ export const stores = pgTable(
     /** wp-admin password from the provisioner, encrypted (AAD store:<slug>); wiped after the one view. */
     adminPasswordEnc: jsonb('admin_password_enc').$type<EncryptedCredential>(),
     adminPasswordViewedAt: timestamp('admin_password_viewed_at', { withTimezone: true }),
+    /** BON-12: an admin-requested wp-admin password reset. The new password is sealed with a key derived from the provisioner key. */
+    passwordResetEnc: jsonb('password_reset_enc').$type<EncryptedCredential>(),
+    passwordResetState: text('password_reset_state', { enum: ['pending', 'done', 'failed'] }),
+    passwordResetReason: text('password_reset_reason'),
+    passwordResetAt: timestamp('password_reset_at', { withTimezone: true }),
+    /** BON-12: pods and quota as the provisioner last saw them (numbers only), for the admin view. */
+    runtime: jsonb('runtime').$type<RuntimeSnapshot>(),
+    runtimeAt: timestamp('runtime_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     readyAt: timestamp('ready_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -375,6 +390,8 @@ export const stores = pgTable(
     check('stores_status', sql`${t.status} in ('provisioning', 'ready', 'failed', 'deleting', 'deleted')`),
     check('stores_desired', sql`${t.desired} in ('present', 'absent')`),
     check('stores_reason_length', sql`${t.statusReason} is null or char_length(${t.statusReason}) <= 300`),
+    check('stores_password_reset_state', sql`${t.passwordResetState} is null or ${t.passwordResetState} in ('pending', 'done', 'failed')`),
+    check('stores_password_reset_reason', sql`${t.passwordResetReason} is null or char_length(${t.passwordResetReason}) <= 300`),
     check('stores_request_key', sql`${t.requestKey} ~ '^[A-Za-z0-9_-]{8,64}$'`),
     uniqueIndex('stores_owner_request_idx').on(t.ownerId, t.requestKey),
     index('stores_owner_idx').on(t.ownerId),
@@ -419,6 +436,8 @@ export const hostedServers = pgTable(
     status: text('status', { enum: STORE_STATUSES }).notNull().default('provisioning'),
     statusReason: text('status_reason'),
     desired: text('desired', { enum: ['present', 'absent'] }).notNull().default('present'),
+    runtime: jsonb('runtime').$type<RuntimeSnapshot>(),
+    runtimeAt: timestamp('runtime_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     readyAt: timestamp('ready_at', { withTimezone: true }),

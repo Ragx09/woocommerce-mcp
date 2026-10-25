@@ -43,3 +43,11 @@ export function verify(key: Buffer, header: string | undefined, method: string, 
 export function hostedEnvKey(signingKey: Buffer): Buffer {
   return Buffer.from(hkdfSync('sha256', signingKey, Buffer.alloc(0), 'hosted-env-v1', 32));
 }
+
+/**
+ * BON-12: a wp-admin password reset requested by an admin is sealed by the gateway and opened by the provisioner with
+ * a key derived (HKDF, own label) from the shared signing key. Same function in services/provisioner/src/signing.ts.
+ */
+export function storeResetKey(signingKey: Buffer): Buffer {
+  return Buffer.from(hkdfSync('sha256', signingKey, Buffer.alloc(0), 'store-reset-v1', 32));
+}

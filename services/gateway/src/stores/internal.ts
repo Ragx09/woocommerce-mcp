@@ -13,7 +13,8 @@ import type { Db } from '../db/index.js';
 import { stores, upstreams, type Store } from '../db/schema.js';
 import { decryptCredential, encryptCredential, type CredentialKey } from '../crypto/credentials.js';
 import { STORE_WOO_MCP_HOST } from '../upstreams/ssrf.js';
-import { SIGNATURE_HEADER, verify } from './signing.js';
+import { parseRuntime } from '../runtime.js';
+import { SIGNATURE_HEADER, storeResetKey, verify } from './signing.js';
 
 /** Tools members on a store's access list get by default (A-11: shared read-only). */
 export const STORE_MEMBER_TOOLS = ['list_products', 'list_orders', 'get_order'];
@@ -27,6 +28,7 @@ export const STORE_ADMIN_USER = 'storeadmin';
 export const decryptStorePassword = (key: CredentialKey, slug: string, enc: Parameters<typeof decryptCredential>[2]) => decryptCredential(key, storeAad(slug), enc);
 export const encryptStorePassword = (key: CredentialKey, slug: string, password: string) => encryptCredential(key, storeAad(slug), password);
 
+export const MISSING_REASON = 'the store\'s namespace was removed outside the platform; delete the store here to clean up';
 const SAFE_REASON = /[^\x20-\x7E]/g; // printable ASCII only in stored reasons
 
 /**
@@ -106,6 +108,56 @@ export function registerInternalStoreRoutes(app: FastifyInstance, deps: Internal
       return { status: 'failed' };
     });
 
+
+    // BON-12: pods and quota as the provisioner saw them (numbers only), shown to admins.
+    scope.post<{ Params: { id: string } }>('/internal/stores/:id/runtime', { schema: { params } }, async (req, reply) => {
+      const snap = parseRuntime(req.body);
+      if (!snap) return reply.code(400).send({ error: 'bad_request', message: 'pods {ready,total} and optional quota numbers are required' });
+      const [row] = await deps.db.update(stores).set({ runtime: snap, runtimeAt: new Date() })
+        .where(and(eq(stores.id, req.params.id), eq(stores.status, 'ready'))).returning({ id: stores.id });
+      if (!row && !(await load(req.params.id))) return reply.code(404).send({ error: 'not_found', message: 'store not found' });
+      return { status: row ? 'recorded' : 'ignored' };
+    });
+
+    // BON-14 recovery: the namespace of a ready store is gone (someone ran kubectl delete). The store becomes Failed with
+    // that reason and its MCP server is unregistered; deleting it from the dashboard then cleans up the rest.
+    scope.post<{ Params: { id: string } }>('/internal/stores/:id/missing', { schema: { params } }, async (req, reply) => {
+      const out = await deps.db.transaction(async (tx) => {
+        const [s] = await tx.select().from(stores).where(eq(stores.id, req.params.id)).for('update');
+        if (!s) return null;
+        if (s.status !== 'ready' || s.desired !== 'present') return s.status; // already handled, or being deleted anyway
+        await tx.delete(upstreams).where(eq(upstreams.storeId, s.id));
+        await tx.update(stores).set({ status: 'failed', statusReason: MISSING_REASON, adminPasswordEnc: null, passwordResetEnc: null,
+          passwordResetState: null, runtime: null, runtimeAt: null }).where(eq(stores.id, s.id));
+        req.log.warn({ store: s.slug }, 'store namespace missing: store marked failed, server unregistered');
+        return 'failed';
+      });
+      return out ? { status: out } : reply.code(404).send({ error: 'not_found', message: 'store not found' });
+    });
+
+    // BON-12: the provisioner carried out (or failed) an admin's wp-admin password reset.
+    scope.post<{ Params: { id: string }; Body: { ok?: unknown; reason?: unknown } }>('/internal/stores/:id/password-reset', { schema: { params } }, async (req, reply) => {
+      const ok = req.body.ok === true;
+      const reason = typeof req.body.reason === 'string' ? req.body.reason.replace(SAFE_REASON, ' ').trim().slice(0, 300) : '';
+      if (!ok && !reason) return reply.code(400).send({ error: 'bad_request', message: 'reason is required when ok is false' });
+      const out = await deps.db.transaction(async (tx) => {
+        const [s] = await tx.select().from(stores).where(eq(stores.id, req.params.id)).for('update');
+        if (!s) return null;
+        if (s.passwordResetState !== 'pending' || !s.passwordResetEnc) return s.passwordResetState ?? 'none'; // retried call
+        if (ok) {
+          const pw = decryptCredential(storeResetKey(deps.signingKey) as CredentialKey, `store-reset:${s.slug}`, s.passwordResetEnc);
+          await tx.update(stores).set({ adminPasswordEnc: encryptStorePassword(deps.key, s.slug, pw), adminPasswordViewedAt: null,
+            passwordResetEnc: null, passwordResetState: 'done', passwordResetReason: null }).where(eq(stores.id, s.id));
+          req.log.info({ store: s.slug }, 'wp-admin password reset done');
+          return 'done';
+        }
+        await tx.update(stores).set({ passwordResetEnc: null, passwordResetState: 'failed', passwordResetReason: reason }).where(eq(stores.id, s.id));
+        req.log.warn({ store: s.slug, reason }, 'wp-admin password reset failed');
+        return 'failed';
+      });
+      return out ? { status: out } : reply.code(404).send({ error: 'not_found', message: 'store not found' });
+    });
+
     scope.post<{ Params: { id: string } }>('/internal/stores/:id/deleted', { schema: { params } }, async (req, reply) => {
       const s = await load(req.params.id);
       if (!s) return reply.code(404).send({ error: 'not_found', message: 'store not found' });
@@ -114,7 +166,7 @@ export function registerInternalStoreRoutes(app: FastifyInstance, deps: Internal
       // the slug, so the history stays readable.
       await deps.db.delete(upstreams).where(eq(upstreams.storeId, s.id));
       if (s.status !== 'deleted') {
-        await deps.db.update(stores).set({ status: 'deleted', deletedAt: new Date(), adminPasswordEnc: null }).where(eq(stores.id, s.id));
+        await deps.db.update(stores).set({ status: 'deleted', deletedAt: new Date(), adminPasswordEnc: null, passwordResetEnc: null }).where(eq(stores.id, s.id));
         req.log.info({ store: s.slug }, 'store deleted');
       }
       return { status: 'deleted' };

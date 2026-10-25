@@ -57,6 +57,13 @@
       "when": 1792962202947,
       "tag": "0007_hosted",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792964711822,
+      "tag": "0008_runtime_and_reset",
+      "breakpoints": true
     }
   ]
 }

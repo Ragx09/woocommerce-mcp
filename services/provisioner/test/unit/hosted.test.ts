@@ -25,6 +25,12 @@ class FakeKube implements Kube {
     this.objects.set(key, body);
     return 'created' as const;
   }
+  async patch(path: string, body: Record<string, unknown>) {
+    const cur = this.objects.get(path);
+    if (!cur) return 'absent' as const;
+    this.objects.set(path, { ...cur, data: { ...((cur.data as object) ?? {}), ...((body.data as object) ?? {}) } });
+    return 'patched' as const;
+  }
   async remove(path: string) {
     if (!this.objects.has(path)) return 'absent' as const;
     this.objects.set(path, { ...this.objects.get(path), status: { phase: 'Terminating' } });

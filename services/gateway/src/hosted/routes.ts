@@ -71,6 +71,7 @@ export function registerHostedRoutes(app: FastifyInstance, deps: HostedRouteDeps
     id: h.id, slug: h.slug, name: h.name, image: h.image, port: h.port, path: h.path,
     env: h.env, secretEnvNames: h.secretEnvNames, allowEgress: h.allowEgress,
     status: h.status, statusReason: h.statusReason, namespace: `hosted-${h.slug}`, upstreamId,
+    runtime: h.runtime ? { ...h.runtime, at: h.runtimeAt?.toISOString() ?? null } : null,
     createdAt: h.createdAt.toISOString(), readyAt: h.readyAt?.toISOString() ?? null,
   });
   const listRows = async (id?: string) => {

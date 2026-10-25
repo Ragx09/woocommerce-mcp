@@ -4,7 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  api, type MemberAccess, type SlugPreview, type StoreInfo, type StoreList, type StoreNiche, type StoreStatus,
+  api, type MemberAccess, type RuntimeInfo, type SlugPreview, type StoreInfo, type StoreList, type StoreNiche, type StoreStatus,
 } from '../api.js';
 import { useMe } from '../auth.js';
 import { SecretOnce, when } from '../components.js';
@@ -24,7 +24,21 @@ export function StoreStatusBadge({ status }: { status: StoreStatus }) {
 }
 
 /** Every 4 s while a store is coming up or going away, else every 15 s. */
-const refetch = (d?: StoreList) => (d?.stores.some((s) => s.status === 'provisioning' || s.status === 'deleting') ? 4_000 : 15_000);
+const refetch = (d?: StoreList) => (d?.stores.some((s) => s.status === 'provisioning' || s.status === 'deleting' || s.passwordReset?.state === 'pending') ? 4_000 : 15_000);
+
+/** "Pods 4/4 ready · CPU limits 2.1 of 4 · memory 1.5 of 3 GiB · seen 12 s ago" (admins; numbers from the provisioner). */
+export function RuntimeLine({ r, now = Date.now() }: { r: RuntimeInfo; now?: number }) {
+  const gib = (mib: number) => (mib >= 1024 ? `${Math.round((mib / 1024) * 10) / 10} GiB` : `${Math.round(mib)} MiB`);
+  const age = r.at ? Math.max(0, Math.round((now - Date.parse(r.at)) / 1000)) : null;
+  const allReady = r.pods.ready === r.pods.total;
+  return (
+    <p className="small muted" aria-label="Runtime">
+      <span className={allReady ? '' : 'error'}>Pods {r.pods.ready}/{r.pods.total} ready</span>
+      {r.quota && <> · CPU limits {r.quota.cpuLimits.used} of {r.quota.cpuLimits.hard} · memory limits {gib(r.quota.memoryLimitsMiB.used)} of {gib(r.quota.memoryLimitsMiB.hard)}</>}
+      {age !== null && <> · seen {age < 60 ? `${age} s` : `${Math.round(age / 60)} min`} ago</>}
+    </p>
+  );
+}
 
 export function Stores() {
   const list = useQuery({ queryKey: ['stores'], queryFn: () => api<StoreList>('/api/stores'),
@@ -151,6 +165,7 @@ function StoreCard({ s }: { s: StoreInfo }) {
         {s.role === 'shared' && !s.isDefault && <span className="badge">read-only tools unless the owner widened them</span>}
         {me?.role === 'admin' && s.namespace && <span className="muted">namespace <code>{s.namespace}</code></span>}
       </p>
+      {me?.role === 'admin' && s.runtime && s.status === 'ready' && <RuntimeLine r={s.runtime} />}
       {s.canManage && s.status !== 'deleting' && (
         <>
           <button type="button" className="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide settings' : 'Settings, sharing and delete'}</button>
@@ -179,6 +194,11 @@ function Password({ s }: { s: StoreInfo }) {
     onSuccess: (r) => setShown(r),
     onSettled: () => { void qc.invalidateQueries({ queryKey: ['stores'] }); },
   });
+  const isAdmin = useMe().data?.role === 'admin';
+  const reset = useMutation({
+    mutationFn: () => api<StoreInfo>(`/api/stores/${s.id}/admin-password/reset`, { method: 'POST' }),
+    onSettled: () => { void qc.invalidateQueries({ queryKey: ['stores'] }); },
+  });
   return (
     <div>
       <h3>wp-admin password</h3>
@@ -190,10 +210,20 @@ function Password({ s }: { s: StoreInfo }) {
         </>
       ) : s.passwordAvailable ? (
         <button type="button" onClick={() => reveal.mutate()} disabled={reveal.isPending}>Show the password (once)</button>
+      ) : s.passwordReset?.state === 'pending' ? (
+        <p className="muted small" role="status">Setting a new password in the store…</p>
       ) : (
-        <p className="muted small">Already shown. Use “Lost your password?” on the store's login page to set a new one.</p>
+        <p className="muted small">Already shown. {isAdmin ? 'Reset it below, or use' : 'Ask an admin to reset it, or use'} “Lost your password?” on the store's login page.</p>
       )}
-      {reveal.isError && <p className="error" role="alert">{reveal.error.message}</p>}
+      {isAdmin && s.passwordReset?.state === 'failed' && <p className="error small" role="alert">The last reset failed: {s.passwordReset.reason}</p>}
+      {isAdmin && !shown && s.passwordReset?.state !== 'pending' && (
+        <div className="row wrap" style={{ marginTop: '0.4rem' }}>
+          <button type="button" className="ghost danger" onClick={() => { if (window.confirm('Set a new wp-admin password? The current one stops working and the new one is shown once.')) reset.mutate(); }} disabled={reset.isPending}>
+            {reset.isPending ? 'Requesting…' : 'Reset the password (admin)'}
+          </button>
+        </div>
+      )}
+      {(reveal.isError || reset.isError) && <p className="error" role="alert">{(reveal.error ?? reset.error)?.message}</p>}
     </div>
   );
 }

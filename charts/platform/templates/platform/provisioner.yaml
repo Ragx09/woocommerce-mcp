@@ -68,6 +68,8 @@ spec:
             - { name: MAX_CONCURRENT, value: {{ $v.maxConcurrent | quote }} }
             - { name: STORE_BASE_VALUES, value: {{ toJson $base | quote }} }
             # BON-10: what every hosted server gets (charts/hosted values); the provisioner adds slug, image, port, env.
+            # BON-12: the wp-cli image for an admin's wp-admin password reset (same image as the store's setup Job).
+            - { name: RESET_JOB_IMAGE, value: {{ .Values.store.init.image | quote }} }
             - { name: HOSTED_BASE_VALUES, value: {{ toJson $hosted | quote }} }
             - { name: LOG_LEVEL, value: {{ .Values.gateway.logLevel | quote }} }
           securityContext: {{- include "platform.containerSecurity" . | nindent 12 }}

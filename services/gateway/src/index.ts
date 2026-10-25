@@ -104,7 +104,7 @@ registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: cr
 // BON-10: hosted MCP servers by image (admin only; needs the provisioner and at least one allowed registry).
 registerHostedRoutes(app, { db, signingKey, registries: cfg.hosted.imageRegistries, max: cfg.hosted.max,
   registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
-registerStoreRoutes(app, { db, key: credentialKey, cfg: cfg.stores, enabled: !!signingKey,
+registerStoreRoutes(app, { db, key: credentialKey, signingKey, cfg: cfg.stores, enabled: !!signingKey,
   registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.
 const internalTokens = new InternalTokenSigner();

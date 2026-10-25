@@ -9,7 +9,9 @@ import { helmCli } from './helm.js';
 import { inClusterKube } from './kube.js';
 import { Reconciler, type Gateway, type StoreRow } from './reconcile.js';
 import { HostedReconciler, type HostedGateway, type HostedRow } from './hosted.js';
-import { SIGNATURE_HEADER, hostedEnvKey, sign } from './signing.js';
+import { SIGNATURE_HEADER, hostedEnvKey, sign, storeResetKey } from './signing.js';
+import { Monitor, type MonitorGateway } from './monitor.js';
+import { ResetRunner, type ResetGateway, type ResetRow } from './reset.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info', base: { svc: 'provisioner' } });
 const need = (n: string) => { const v = process.env[n]?.trim(); if (!v) throw new Error(`missing required environment variable ${n}`); return v; };
@@ -41,6 +43,15 @@ const hostedGateway: HostedGateway = {
   deleted: (id) => post(`/internal/hosted/${id}/deleted`, {}),
 };
 const kube = inClusterKube();
+// BON-12 / BON-14: runtime numbers and "namespace is gone" reports (stores and hosted servers), password resets.
+const storeMonitorGw: MonitorGateway = { runtime: (id, snap) => post(`/internal/stores/${id}/runtime`, snap), missing: (id) => post(`/internal/stores/${id}/missing`, {}) };
+const hostedMonitorGw: MonitorGateway = { runtime: (id, snap) => post(`/internal/hosted/${id}/runtime`, snap), missing: (id) => post(`/internal/hosted/${id}/missing`, {}) };
+const resetGw: ResetGateway = { passwordReset: (id, r) => post(`/internal/stores/${id}/password-reset`, r) };
+const storeMonitor = new Monitor({ kube, gateway: storeMonitorGw, log, namespacePrefix: 'store-', quotaName: 'store' });
+const hostedMonitor = new Monitor({ kube, gateway: hostedMonitorGw, log, namespacePrefix: 'hosted-', quotaName: 'hosted' });
+const resets = new ResetRunner({ kube, gateway: resetGw, log, resetKey: storeResetKey(key), image: process.env.RESET_JOB_IMAGE ?? 'wordpress:cli' });
+const MONITOR_EVERY_MS = Number(process.env.MONITOR_INTERVAL_MS ?? 30_000);
+let lastMonitor = 0;
 const serviceAccount = { name: process.env.SERVICE_ACCOUNT ?? 'provisioner', namespace: need('POD_NAMESPACE') };
 const hostedReconciler = new HostedReconciler({
   kube, helm: helmCli({ chart: process.env.HOSTED_CHART ?? '/charts/hosted' }), gateway: hostedGateway, log,
@@ -76,6 +87,19 @@ async function loadHosted(): Promise<HostedRow[]> {
     allowEgress: r.allow_egress, status: r.status, desired: r.desired, createdAt: r.created_at }));
 }
 
+async function loadResets(): Promise<ResetRow[]> {
+  const { rows } = await pool.query<{ id: string; slug: string; password_reset_enc: ResetRow['enc']; password_reset_at: Date }>(
+    `SELECT id, slug, password_reset_enc, password_reset_at FROM stores
+      WHERE password_reset_state = 'pending' AND password_reset_enc IS NOT NULL AND status = 'ready' AND desired = 'present'`);
+  return rows.map((r) => ({ id: r.id, slug: r.slug, enc: r.password_reset_enc, at: r.password_reset_at }));
+}
+
+async function watchReady(): Promise<void> {
+  const s = await pool.query<{ id: string; slug: string }>(`SELECT id, slug FROM stores WHERE status = 'ready' AND desired = 'present'`);
+  const h = await pool.query<{ id: string; slug: string }>(`SELECT id, slug FROM hosted_servers WHERE status = 'ready' AND desired = 'present'`);
+  await Promise.all([storeMonitor.watch(s.rows), hostedMonitor.watch(h.rows)]);
+}
+
 async function tick(): Promise<void> {
   try {
     if (!leader) {
@@ -90,6 +114,8 @@ async function tick(): Promise<void> {
     const rows = await loadRows();
     void reconciler.pass(rows, Number(process.env.MAX_CONCURRENT ?? 3));
     void hostedReconciler.pass(await loadHosted(), Number(process.env.MAX_CONCURRENT ?? 3));
+    void resets.pass(await loadResets());
+    if (Date.now() - lastMonitor >= MONITOR_EVERY_MS) { lastMonitor = Date.now(); void watchReady().catch((e) => log.warn({ err: (e as Error).message }, 'monitor pass failed')); }
     lastPassOk = Date.now();
   } catch (e) {
     log.warn({ err: (e as Error).message }, 'reconcile tick failed');

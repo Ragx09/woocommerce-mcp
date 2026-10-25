@@ -275,6 +275,14 @@ export interface StoreInfo {
   readOnlyTools?: string[];
   // Admin only:
   namespace?: string;
+  passwordReset?: { state: 'pending' | 'done' | 'failed'; reason: string | null; at: string | null } | null;
+  runtime?: RuntimeInfo | null;
+}
+/** Pods and quota as the provisioner last saw them (numbers only, BON-12). */
+export interface RuntimeInfo {
+  pods: { ready: number; total: number };
+  quota?: { cpuLimits: { used: number; hard: number }; memoryLimitsMiB: { used: number; hard: number } };
+  at: string | null;
 }
 export interface StoreList {
   enabled: boolean;
@@ -303,6 +311,7 @@ export interface HostedServerInfo {
   statusReason: string | null;
   namespace: string;
   upstreamId: string | null;
+  runtime?: RuntimeInfo | null;
   createdAt: string;
   readyAt: string | null;
 }

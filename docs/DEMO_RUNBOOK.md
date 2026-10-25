@@ -39,7 +39,8 @@ Scripted version of 2–5 (except Claude Code itself): `scripts/e2e.sh all`.
 3. Chat as A: "How many orders came in today in Chai Corner and how many in Ridgeline? Compare." **Expect:** calls to `woo-<slug>__list_orders` for both; the counts match each store's MariaDB.
 4. Settings → show the wp-admin password (once; the second try is refused). Share the first store with B → B's tool list shows only its read-only tools; remove B → gone on the next request.
 5. Delete the second store (type its name). **Expect:** its tools vanish at once; `kubectl get ns,pv` and `/api/upstreams` show nothing of it; the audit log keeps its rows.
-Scripted: `scripts/e2e.sh stores` (also kills the provisioner mid-create); isolation probes: `scripts/k8s-checks.sh stores`.
+6. As admin: the store card shows "Pods 4/4 ready · CPU limits … · memory limits …" (about every 30 s). Settings → *Reset the password (admin)* → "Setting a new password…" → *Show the password (once)* is back with a different one. `kubectl delete ns store-<slug>` → within about two minutes the store turns Failed ("namespace was removed outside the platform") and its tools disappear; delete it in the dashboard to clean up.
+Scripted: `scripts/e2e.sh stores` (also kills the provisioner mid-create); isolation probes: `scripts/k8s-checks.sh stores`; the page itself: `scripts/dashboard-screens.sh stores` and `hosted`.
 
 ## 9. Hosted MCP server by image — stand-out 5 (REQ-SO-05)
 1. Servers → *Hosted servers* → Add by image: name "Everything (hosted)", image `ghcr.io/ragx09/everything-mcp:<tag>` (the allowed registry), port 8080, environment `GZIP_ALLOWED_DOMAINS=invalid`, a secret variable. **Expect:** "Creating…" → Ready in about a minute; only the secret's *name* is shown afterwards.

@@ -16,6 +16,7 @@ import { registerAuth } from '../../src/auth/routes.js';
 import { seedAdmin } from '../../src/auth/seed-admin.js';
 import { dbAuditSink } from '../../src/audit/audit.js';
 import { loadStoreAccess } from '../../src/authz/store-access.js';
+import { decryptCredential, type CredentialKey } from '../../src/crypto/credentials.js';
 import { loadConfig } from '../../src/config.js';
 import { loadCredentialKey } from '../../src/crypto/credentials.js';
 import { createDb, createPool, loadDbConfig, runMigrations, type Db } from '../../src/db/index.js';
@@ -23,7 +24,7 @@ import { auditLog, stores, upstreams, users } from '../../src/db/schema.js';
 import { registerMcp } from '../../src/mcp/route.js';
 import { registerInternalStoreRoutes } from '../../src/stores/internal.js';
 import { registerStoreRoutes, slugFromName } from '../../src/stores/routes.js';
-import { sign, SIGNATURE_HEADER } from '../../src/stores/signing.js';
+import { sign, SIGNATURE_HEADER, storeResetKey } from '../../src/stores/signing.js';
 import { ToolDiscovery } from '../../src/upstreams/discovery.js';
 import { HealthMonitor } from '../../src/upstreams/health.js';
 import { UpstreamPool } from '../../src/upstreams/pool.js';
@@ -97,7 +98,7 @@ beforeAll(async () => {
   const cfg = loadConfig({ LOG_LEVEL: 'silent', STORE_MAX_PER_MEMBER: '2', STORE_MAX_TOTAL: '4', STORE_HOST_SUFFIX: 'store.test', DEFAULT_STORE_URL: 'http://shop.test' });
   registerUpstreamRoutes(app, { db, pool: upstreamPool, health, discovery, key });
   registerInternalStoreRoutes(app, { db, key, signingKey });
-  registerStoreRoutes(app, { db, key, cfg: cfg.stores, enabled: true, registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
+  registerStoreRoutes(app, { db, key, signingKey, cfg: cfg.stores, enabled: true, registryChanged: async () => { await upstreamPool.sync(await listUpstreams(db)); } });
   registerMcp(app, { authenticate: mcpAuthenticator(db, signer), loadUpstreams: () => listUpstreams(db),
     storeAccess: (id) => loadStoreAccess(db, id), pool: upstreamPool, discovery, health, audit: dbAuditSink(db, app.log) });
   await app.listen({ port: 0, host: '127.0.0.1' });
@@ -393,5 +394,97 @@ describe('TC-BON-14-4 store access in /mcp and /api/upstreams', () => {
     expect(await names('ann')).toEqual([]);
     expect(await names('root')).toHaveLength(5); // the upstream row still exists in this contrived state; admins see servers
     expect((await loadStoreAccess(db, uid.ann!)).size).toBe(0);
+  });
+});
+
+describe('BON-12 admin extras and BON-14 recovery', () => {
+  it('runtime snapshot: numbers only, validated, shown to admins and owners-as-managers only', async () => {
+    const s = await readyStore('ann', 'Ann Tea');
+    const path = `/internal/stores/${s.id}/runtime`;
+    const ok = { pods: { ready: 4, total: 4 }, quota: { cpuLimits: { used: 2.1, hard: 4 }, memoryLimitsMiB: { used: 1500, hard: 3072 } } };
+    expect((await internal(path, ok)).statusCode).toBe(200);
+    const admin = (await api('GET', `/api/stores/${s.id}`, 'root')).json() as Json;
+    expect(admin.runtime).toMatchObject({ pods: { ready: 4, total: 4 }, quota: { cpuLimits: { used: 2.1, hard: 4 } } });
+    expect(typeof admin.runtime.at).toBe('string');
+    expect(((await api('GET', `/api/stores/${s.id}`, 'ann')).json() as Json)).not.toHaveProperty('runtime'); // admin-only detail
+    for (const bad of [{}, { pods: { ready: 5, total: 4 } }, { pods: { ready: 'x', total: 1 } }, { pods: { ready: -1, total: 1 } }, { pods: { ready: 1, total: 1 }, quota: { cpuLimits: { used: 1 } } },
+      { pods: { ready: 1, total: 1 }, note: '<script>' }].slice(0, 5)) {
+      expect((await internal(path, bad)).statusCode, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await app.inject({ method: 'POST', url: path, payload: ok, headers: { 'content-type': 'application/json' } })).statusCode).toBe(401);
+    // Stored as numbers only, whatever else was sent.
+    await internal(path, { ...ok, extra: 'text' });
+    expect(JSON.stringify((await pool.query('SELECT runtime FROM stores')).rows[0])).not.toContain('text');
+  });
+
+  it('a ready store whose namespace vanished becomes Failed with that reason; its server is unregistered; delete still cleans up', async () => {
+    const s = await readyStore('ann', 'Ann Tea');
+    expect((await names('ann')).length).toBe(WOO_TOOLS.length);
+    const path = `/internal/stores/${s.id}/missing`;
+    expect((await app.inject({ method: 'POST', url: path, payload: {}, headers: { 'content-type': 'application/json' } })).statusCode).toBe(401);
+    expect(((await internal(path, {})).json() as Json).status).toBe('failed');
+    expect(((await internal(path, {})).json() as Json).status).toBe('failed'); // idempotent
+    const seen = (await api('GET', `/api/stores/${s.id}`, 'ann')).json() as Json;
+    expect(seen).toMatchObject({ status: 'failed', statusReason: expect.stringMatching(/removed outside the platform/), passwordAvailable: false });
+    expect(await names('ann')).toEqual([]); // tools gone on the next request
+    expect((await pool.query('SELECT count(*)::int AS n FROM upstreams')).rows[0].n).toBe(0);
+    // Not a ready store: nothing changes (a store that is still provisioning, or being deleted, is the provisioner's business).
+    const p = ((await create('ben', tea('Ben Tea'))).json() as Json);
+    expect(((await internal(`/internal/stores/${p.id}/missing`, {})).json() as Json).status).toBe('provisioning');
+    // The owner can delete the failed store; the provisioner finds nothing to remove and confirms.
+    expect((await api('DELETE', `/api/stores/${s.id}?confirm=ann-tea`, 'ann')).statusCode).toBe(202);
+    expect((await internal(`/internal/stores/${s.id}/deleted`, {})).statusCode).toBe(200);
+    expect((await api('GET', `/api/stores/${s.id}`, 'ann')).statusCode).toBe(404);
+  });
+
+  it('admin password reset: admin only, sealed with the derived key, carried out by the provisioner, then viewable once', async () => {
+    const s = await readyStore('ann', 'Ann Tea');
+    const reset = (who: string) => api('POST', `/api/stores/${s.id}/admin-password/reset`, who);
+    expect((await reset('ann')).statusCode).toBe(403); // the owner may view, only admins may reset
+    expect((await reset('ben')).statusCode).toBe(403);
+    expect((await reset('dan')).statusCode).toBe(403);
+    const r = await reset('root');
+    expect(r.statusCode).toBe(202);
+    expect(r.json()).toMatchObject({ passwordAvailable: false, passwordReset: { state: 'pending', reason: null } });
+    expect((await reset('root')).statusCode).toBe(409); // already running
+    const [row] = await db.select().from(stores).where(eq(stores.id, s.id));
+    expect(row!.adminPasswordEnc).toBeNull(); // the old password is not shown any more
+    const fresh = decryptCredential(storeResetKey(signingKey) as CredentialKey, 'store-reset:ann-tea', row!.passwordResetEnc!);
+    expect(fresh).toMatch(/^[A-Za-z0-9]{24}$/);
+    expect(fresh).not.toBe(s.password);
+    expect(() => decryptCredential(key, 'store-reset:ann-tea', row!.passwordResetEnc!)).toThrow(); // not the gateway's own key
+    expect((await api('POST', `/api/stores/${s.id}/admin-password`, 'ann')).statusCode).toBe(410); // nothing to show while pending
+    // Provisioner reports success: the new password becomes viewable once, and the sealed copy is gone.
+    const done = `/internal/stores/${s.id}/password-reset`;
+    expect((await app.inject({ method: 'POST', url: done, payload: { ok: true }, headers: { 'content-type': 'application/json' } })).statusCode).toBe(401);
+    expect(((await internal(done, { ok: true })).json() as Json).status).toBe('done');
+    expect(((await internal(done, { ok: true })).json() as Json).status).toBe('done'); // retried call changes nothing
+    const [after] = await db.select().from(stores).where(eq(stores.id, s.id));
+    expect([after!.passwordResetEnc, after!.passwordResetState]).toEqual([null, 'done']);
+    const shown = await api('POST', `/api/stores/${s.id}/admin-password`, 'ann');
+    expect(shown.json()).toEqual({ username: 'storeadmin', password: fresh });
+    expect((await api('POST', `/api/stores/${s.id}/admin-password`, 'ann')).statusCode).toBe(410);
+    expect(JSON.stringify((await pool.query('SELECT * FROM stores')).rows)).not.toContain(fresh);
+  });
+
+  it('a failed reset keeps its reason, shows no password, and can be retried', async () => {
+    const s = await readyStore('ann', 'Ann Tea');
+    await api('POST', `/api/stores/${s.id}/admin-password/reset`, 'root');
+    const done = `/internal/stores/${s.id}/password-reset`;
+    expect((await internal(done, { ok: false })).statusCode).toBe(400);
+    expect(((await internal(done, { ok: false, reason: 'the wp-cli job failed' })).json() as Json).status).toBe('failed');
+    const admin = (await api('GET', `/api/stores/${s.id}`, 'root')).json() as Json;
+    expect(admin.passwordReset).toMatchObject({ state: 'failed', reason: 'the wp-cli job failed' });
+    expect((await pool.query('SELECT password_reset_enc FROM stores')).rows[0].password_reset_enc).toBeNull();
+    expect((await api('POST', `/api/stores/${s.id}/admin-password/reset`, 'root')).statusCode).toBe(202); // retry
+  });
+
+  it('a reset needs a ready store; deleting a store drops a pending reset', async () => {
+    const p = (await create('ann', tea('Pending Shop'))).json() as Json;
+    expect((await api('POST', `/api/stores/${p.id}/admin-password/reset`, 'root')).statusCode).toBe(409);
+    const s = await readyStore('ben', 'Ben Tea');
+    await api('POST', `/api/stores/${s.id}/admin-password/reset`, 'root');
+    await api('DELETE', `/api/stores/${s.id}?confirm=ben-tea`, 'ben');
+    expect((await pool.query(`SELECT password_reset_enc FROM stores WHERE id = $1`, [s.id])).rows[0].password_reset_enc).toBeNull();
   });
 });

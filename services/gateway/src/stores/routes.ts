@@ -15,6 +15,9 @@ import type { Db } from '../db/index.js';
 import { MEMBER_ACCESS, STORE_NICHES, storeMembers, stores, upstreams, users, type Store, type StoreNiche, type Upstream } from '../db/schema.js';
 import { SLUG_RE } from '../mcp/naming.js';
 import { decryptStorePassword, STORE_ADMIN_USER, STORE_MEMBER_TOOLS, storeUpstreamSlug } from './internal.js';
+import { storeResetKey } from './signing.js';
+import { encryptCredential } from '../crypto/credentials.js';
+import { randomBytes } from 'node:crypto';
 
 /** Every tool woo-mcp offers (services/woo-mcp); a store's tool rule may name only these. */
 export const STORE_TOOLS = ['list_products', 'create_product', 'list_orders', 'get_order', 'update_order_status'] as const;
@@ -24,6 +27,8 @@ const RESERVED_SLUGS = new Set(['default', 'store', 'stores', 'platform', 'admin
 export interface StoreRouteDeps {
   db: Db;
   key: CredentialKey;
+  /** The gateway↔provisioner key, for sealing a password reset; null → resets are off. */
+  signingKey?: Buffer | null;
   cfg: StoresConfig;
   /** Multi-store is usable only with the provisioner wired in (signing key present). */
   enabled: boolean;
@@ -105,7 +110,9 @@ export function registerStoreRoutes(app: FastifyInstance, deps: StoreRouteDeps):
       // The rule people on the access list get for this store's tools; null until the MCP server is registered.
       toolRule: r.upstream ? { memberAccess: r.upstream.memberAccess, memberTools: r.upstream.memberTools } : null,
       tools: STORE_TOOLS, readOnlyTools: STORE_MEMBER_TOOLS,
-      ...(v.role === 'admin' ? { namespace: `store-${s.slug}`, desired: s.desired } : {}),
+      ...(v.role === 'admin' ? { namespace: `store-${s.slug}`, desired: s.desired,
+        passwordReset: s.passwordResetState ? { state: s.passwordResetState, reason: s.passwordResetReason, at: s.passwordResetAt?.toISOString() ?? null } : null,
+        runtime: s.runtime ? { ...s.runtime, at: s.runtimeAt?.toISOString() ?? null } : null } : {}),
     };
   }
 
@@ -223,7 +230,7 @@ export function registerStoreRoutes(app: FastifyInstance, deps: StoreRouteDeps):
       if (req.query.confirm !== r.store.slug) throw new StoreError(400, 'confirmation_mismatch', `type the store's name (${r.store.slug}) to confirm`);
       await db.transaction(async (tx) => {
         await tx.delete(upstreams).where(eq(upstreams.storeId, r.store.id));
-        await tx.update(stores).set({ desired: 'absent', status: 'deleting', statusReason: null, adminPasswordEnc: null })
+        await tx.update(stores).set({ desired: 'absent', status: 'deleting', statusReason: null, adminPasswordEnc: null, passwordResetEnc: null })
           .where(and(eq(stores.id, r.store.id), ne(stores.status, 'deleted')));
       });
       await deps.registryChanged?.();
@@ -296,6 +303,34 @@ export function registerStoreRoutes(app: FastifyInstance, deps: StoreRouteDeps):
       req.log.info({ store: r.store.slug, rule: req.body.memberAccess, by: v.id }, 'store tool rule changed');
       const [after] = await visible(v, r.store.id);
       return await view(v, after!);
+    } catch (e) { return fail(reply, e); }
+  });
+
+
+  // Admin reset of the wp-admin password (BON-12). The gateway picks the new password and seals it; the provisioner carries
+  // it out inside the store (a one-off wp-cli Job), reports back, and the admin then views it once like the first one.
+  app.post<{ Params: { id: string } }>('/api/stores/:id/admin-password/reset', {
+    config: { access: 'admin' }, schema: { params: idParams },
+  }, async (req, reply) => {
+    const v = viewer(req);
+    try {
+      if (!deps.signingKey) throw new StoreError(503, 'stores_unavailable', 'password reset needs the provisioner');
+      const r = await one(v, req.params.id, reply);
+      if (!r) return;
+      const B62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const password = Array.from(randomBytes(24), (b) => B62[b % 62]).join('');
+      const sealed = encryptCredential(storeResetKey(deps.signingKey) as CredentialKey, `store-reset:${r.store.slug}`, password);
+      await db.transaction(async (tx) => {
+        const [s] = await tx.select().from(stores).where(eq(stores.id, r.store.id)).for('update');
+        if (!s || s.status !== 'ready' || s.desired !== 'present') throw new StoreError(409, 'conflict', 'the store must be ready to reset its password');
+        if (s.passwordResetState === 'pending') throw new StoreError(409, 'conflict', 'a password reset is already running');
+        // The old password is no longer shown: whatever the Job does, there is exactly one current password to view.
+        await tx.update(stores).set({ passwordResetEnc: sealed, passwordResetState: 'pending', passwordResetReason: null, passwordResetAt: new Date(),
+          adminPasswordEnc: null }).where(eq(stores.id, s.id));
+      });
+      req.log.info({ store: r.store.slug, by: v.id }, 'wp-admin password reset requested');
+      const [after] = await visible(v, r.store.id);
+      return reply.code(202).send(await view(v, after!));
     } catch (e) { return fail(reply, e); }
   });
 

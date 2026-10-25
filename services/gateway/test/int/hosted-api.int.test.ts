@@ -225,3 +225,22 @@ describe('TC-BON-10-2 hosted servers API', () => {
     await off.close();
   });
 });
+
+describe('BON-12/14 hosted runtime and recovery', () => {
+  it('runtime numbers are shown to admins; a vanished namespace makes a ready server Failed and unregisters it', async () => {
+    const h = (await api('POST', '/api/hosted', 'root', good('echo'))).json() as Json;
+    await internal(`/internal/hosted/${h.id}/ready`, { url: readyUrl('echo') });
+    expect((await internal(`/internal/hosted/${h.id}/runtime`, { pods: { ready: 1, total: 1 }, quota: { cpuLimits: { used: 0.5, hard: 1 }, memoryLimitsMiB: { used: 256, hard: 512 } } })).statusCode).toBe(200);
+    expect((await internal(`/internal/hosted/${h.id}/runtime`, { pods: { ready: 3, total: 1 } })).statusCode).toBe(400);
+    expect(((await api('GET', `/api/hosted/${h.id}`, 'root')).json() as Json).runtime).toMatchObject({ pods: { ready: 1, total: 1 }, quota: { memoryLimitsMiB: { hard: 512 } } });
+    const miss = `/internal/hosted/${h.id}/missing`;
+    expect((await app.inject({ method: 'POST', url: miss, payload: {}, headers: { 'content-type': 'application/json' } })).statusCode).toBe(401);
+    expect(((await internal(miss, {})).json() as Json).status).toBe('failed');
+    expect(((await internal(miss, {})).json() as Json).status).toBe('failed');
+    const after = (await api('GET', `/api/hosted/${h.id}`, 'root')).json() as Json;
+    expect(after).toMatchObject({ status: 'failed', statusReason: expect.stringMatching(/removed outside the platform/), runtime: null, upstreamId: null });
+    expect((await pool.query(`SELECT count(*)::int AS n FROM upstreams WHERE slug = 'echo'`)).rows[0].n).toBe(0);
+    expect((await api('DELETE', `/api/hosted/${h.id}?confirm=echo`, 'root')).statusCode).toBe(202);
+    expect((await internal(`/internal/hosted/${h.id}/deleted`, {})).statusCode).toBe(200);
+  });
+});
