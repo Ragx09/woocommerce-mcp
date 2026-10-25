@@ -4,7 +4,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';
 import { auditLog, type AuditOutcome } from '../db/schema.js';
 
-export type AuditSource = 'mcp' | 'chat';
+export type AuditSource = 'mcp' | 'chat' | 'oauth';
 export type AuditMethod = 'tools/call' | 'tools/list' | 'initialize' | 'other';
 
 /** Who is calling, for this one request (AUTH-11). Built by /mcp auth and passed down explicitly. */

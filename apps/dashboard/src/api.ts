@@ -178,7 +178,7 @@ export interface AuditItem {
   id: string;
   ts: string;
   requestId: string | null;
-  source: 'mcp' | 'chat';
+  source: 'mcp' | 'chat' | 'oauth';
   method: string;
   upstream: string | null;
   tool: string | null;
@@ -216,4 +216,22 @@ export interface ChatReply {
   stopped: ChatStop;
   /** UI-18: enabled servers that could not be reached when the question was asked (their tools were missing). */
   unavailable?: { server: string; name: string }[];
+}
+
+// BON-08 OAuth: consent page and connected apps.
+export interface ConsentInfo {
+  client: string;
+  redirectTo: string;
+  scope: string;
+  resource: string;
+  user: { email: string; name: string };
+}
+export interface OAuthGrant {
+  id: string;
+  client: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  revokedReason: 'user' | 'admin' | 'client' | 'replay' | null;
+  owner: { id: string; email: string; name: string };
 }

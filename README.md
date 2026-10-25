@@ -53,7 +53,7 @@ Open the storefront (local: http://store.127.0.0.1.nip.io), pick a product → *
 `node scripts/seed-demo-users.mjs --key` makes sure user **A** (the seeded admin, Secret `platform/gateway-admin`) and user **B** (a member, invited and accepted through the normal flow; password in Secret `platform/demo-users`) exist, and prints a fresh API key for B **once**. Any user can also create their own key in the dashboard → **API keys**. Keys are shown once and stored only as a hash.
 
 ### Connect an external MCP client
-All a client needs is the gateway URL and a personal key. Local k3d: `http://app.127.0.0.1.nip.io/mcp` (works from WSL and from Windows, nip.io resolves to 127.0.0.1); VPS: `https://app.<domain>/mcp`. Transport: Streamable HTTP. Every tool is named `<server>__<tool>` (e.g. `woo__list_orders`, `github__get_me`).
+All a client needs is the gateway URL and either a personal key or a browser login (OAuth, below). Local k3d: `http://app.127.0.0.1.nip.io/mcp` (works from WSL and from Windows, nip.io resolves to 127.0.0.1); VPS: `https://app.<domain>/mcp`. Transport: Streamable HTTP. Every tool is named `<server>__<tool>` (e.g. `woo__list_orders`, `github__get_me`).
 
 **Claude Code**
 ```bash
@@ -85,6 +85,13 @@ npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp
 npx @modelcontextprotocol/inspector@2.10.1 --cli http://app.127.0.0.1.nip.io/mcp --transport http \
   --header "Authorization: Bearer mgw_…" --method tools/call --tool-name woo__list_orders --tool-arg date=today
 ```
+**Connect with browser login (OAuth, no key)** — clients that support MCP OAuth (Claude Code, MCP Inspector) need only the URL:
+```bash
+claude mcp add --transport http mcp-gateway http://app.127.0.0.1.nip.io/mcp
+claude            # /mcp → mcp-gateway → Authenticate: the browser opens the dashboard; sign in and Approve
+```
+The client registers itself, logs you in with PKCE and keeps a 1-hour token it refreshes on its own. Calls are logged under your name with source `oauth`; **API keys → Connected apps** lists the apps you approved and revokes them (the next call gets 401). Admins see everyone's apps.
+
 Without a key, or with a revoked key, `/mcp` answers 401. Disabled servers' tools are not listed. Every call is in the dashboard → **Audit log** under your name.
 
 ### Chat agent
@@ -120,7 +127,8 @@ Admins choose per server what members may use: dashboard → **Servers** → **E
 | 7) Scaling — replicas and rate limits | Gateway runs 2 replicas (PDB, rolling update, preStop pause: a pod killed under load loses no request); per-key and per-user `/mcp` budgets and the chat's per-user limits are shared through Postgres, so they hold whichever replica answers; login limits per IP+email and per IP | D-022, `services/gateway/src/ratelimit.ts`, `scripts/k8s-checks.sh replicas`, THREAT_MODEL T-13/T-23 |
 | 8) Observability — metrics | Prometheus `/metrics` on an internal port (scraper-label NetworkPolicy, not in the Ingress): calls by server/outcome/source, latency histogram, upstream up; Servers page shows last-hour calls, failure %, p95 and refusals per server from the audit log (all replicas) | `services/gateway/src/metrics.ts`, MCP_DESIGN §14, `scripts/k8s-checks.sh metrics` |
 | 8) Observability — clear failure reasons | Servers page shows Connected/Unreachable/Disabled with the last error; calls fail with readable `upstream_unreachable` / `upstream_timeout` / `upstream_disabled`; audit log with outcome per call | UI-04, MCP_DESIGN §4a/§6 |
+| 3) OAuth | MCP authorization spec on the gateway: discovery metadata, dynamic client registration, code + PKCE S256, consent in the dashboard, rotated refresh tokens, resource-bound tokens, revocable grants; API keys unchanged | D-027, `services/gateway/src/oauth/`, `scripts/e2e.sh oauth` |
 | 9) Upgrades and rollback | Documented and verified on k3d (upgrade → `helm rollback` → data intact) | [DEPLOYMENT.md](docs/DEPLOYMENT.md) §6 |
 | 1) VPS deployment | Prepared (scripts, prod values, policy-checked), **not yet deployed** | DEPLOYMENT §5 |
 
-Not attempted yet: multi-store bonus, 3) OAuth, 5) hosted MCP servers (in progress, TASKS.md Phase 11).
+Not attempted yet: multi-store bonus, 5) hosted MCP servers (in progress, TASKS.md Phase 11).

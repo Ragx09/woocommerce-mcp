@@ -56,6 +56,8 @@ export interface McpDeps {
   callTimeoutMs?: number;
   /** Audit log (AUTH-13): one event per tools/call, tools/list and refused request. Omitted → not audited. */
   audit?: AuditSink;
+  /** BON-08: RFC 9728 metadata URL named in the 401's WWW-Authenticate, so MCP clients can start the OAuth flow. */
+  resourceMetadataUrl?: string;
   /** BON-04: per-key and per-user budgets for tools/call + tools/list (0 = no limit). Omitted → none. */
   rateLimit?: { limiter: RateLimiter; perKey: number; perUser: number; windowMs: number };
 }
@@ -65,6 +67,8 @@ async function overBudget(rl: NonNullable<McpDeps['rateLimit']>, p: Principal): 
   const checks = [];
   if (rl.perUser > 0) checks.push(rl.limiter.hit(`mcp:user:${p.userId}`, rl.perUser, rl.windowMs));
   if (rl.perKey > 0 && p.keyId) checks.push(rl.limiter.hit(`mcp:key:${p.keyId}`, rl.perKey, rl.windowMs));
+  // An OAuth grant has the same per-credential budget as an API key.
+  if (rl.perKey > 0 && p.grantId) checks.push(rl.limiter.hit(`mcp:grant:${p.grantId}`, rl.perKey, rl.windowMs));
   return Math.max(0, ...(await Promise.all(checks)).map((r) => r.retryAfterS));
 }
 
@@ -274,7 +278,10 @@ export function registerMcp(app: FastifyInstance, deps: McpDeps): void {
     // Audited without a user (nobody was authenticated) and without any client-supplied names.
     await deps.audit?.({ requestId: req.id, userId: null, apiKeyId: null, source: 'mcp', method: rpcMethod(req.body),
       upstreamId: null, upstreamSlug: null, tool: null, durationMs: reply.elapsedTime, outcome: 'denied', errorCode: 'invalid_api_key' });
-    return reply.code(401).header('www-authenticate', 'Bearer')
+    // RFC 6750 §3 / RFC 9728 §5.1: say where to get a token, and that a presented one was not accepted.
+    const challenge = deps.resourceMetadataUrl
+      ? `Bearer resource_metadata="${deps.resourceMetadataUrl}", scope="mcp"${token ? ', error="invalid_token"' : ''}` : 'Bearer';
+    return reply.code(401).header('www-authenticate', challenge)
       .send({ error: 'invalid_api_key', message: 'missing or invalid API key' });
   };
 

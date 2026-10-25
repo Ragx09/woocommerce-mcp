@@ -21,6 +21,7 @@
 2. `/mcp` in Claude Code → tools from woo, everything and github.
 3. "What orders came in today in the store?" **Expect:** same orders.
 4. "Summarize today's orders and open a GitHub issue in <throwaway repo>." **Expect:** issue URL. Without the repo (read-only, verified 2026-10-18): "Get today's store orders, then search open GitHub issues in woocommerce/woocommerce that mention 'cash on delivery' and tell me whether any could affect today's orders." **Expect:** `woo__list_orders` + `github__search_issues`, both in the audit under B.
+5. **OAuth (BON-08, TC-BON-08-3):** `claude mcp add --transport http mcp-oauth http://app.127.0.0.1.nip.io/mcp` (no header) → `/mcp` → mcp-oauth → Authenticate → browser opens `/connect` → sign in as B → Approve. **Expect:** Claude Code shows B's tools; Audit log rows under B with source **OAuth**; API keys → Connected apps → Revoke → the next Claude Code call fails with 401.
 ## 5. Team and control — REQ-DOD-08..11
 1. Admin revokes B's key → B retries → **Expect:** 401 / tool error.
 2. Disable `everything` → chat tool list and Inspector list both lack `everything__*`.

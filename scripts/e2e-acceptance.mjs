@@ -76,7 +76,7 @@ const steps = {
   async url() { // E2E-01 / TC-K8S-04
     const none = await rpc(null, 'initialize', {});
     expected.push({ requestId: none.requestId, userId: null, source: 'mcp', outcome: 'denied' });
-    check('TC-K8S-04a /mcp without a key → 401 + WWW-Authenticate', none.status === 401 && none.headers.get('www-authenticate') === 'Bearer', `${none.status}`);
+    check('TC-K8S-04a /mcp without a key → 401 + WWW-Authenticate', none.status === 401 && /^Bearer( |$)/.test(none.headers.get('www-authenticate') ?? '') && (none.headers.get('www-authenticate') ?? '').includes('resource_metadata='), `${none.status}`);
     const bad = await rpc('mgw_' + 'x'.repeat(43), 'tools/list');
     expected.push({ requestId: bad.requestId, userId: null, source: 'mcp', outcome: 'denied' });
     check('TC-K8S-04b /mcp with a forged key → 401', bad.status === 401, `${bad.status}`);
@@ -162,8 +162,10 @@ const steps = {
       check('TC-E2E-10b B still lists woo and github tools', counts.woo > 0 && counts.github > 0 && !counts.everything, desc);
       const w = await callTool(B, b.user.id, 'woo__list_products', { per_page: 1 });
       check('TC-E2E-10c woo__list_products still works', w.status === 200 && !w.json?.result?.isError, `${w.ms} ms`);
-      const g = await callTool(B, b.user.id, 'github__get_me', {});
-      check('TC-E2E-10d github__get_me still works', g.status === 200 && !g.json?.result?.isError, `${g.ms} ms`);
+      // A member-allowed read-only tool (F-MCP-6: members no longer get get_me). `result` must exist: a refused
+      // tool is a JSON-RPC error with HTTP 200 and no result, which the old check let through.
+      const g = await callTool(B, b.user.id, 'github__search_repositories', { query: 'modelcontextprotocol', perPage: 1 });
+      check('TC-E2E-10d github__search_repositories still works', g.status === 200 && !!g.json?.result && !g.json.result.isError, `${g.ms} ms`);
       const e = await callTool(B, b.user.id, 'everything__echo', { message: 'x' }, 'unreachable');
       check('TC-E2E-10e everything__echo fails fast', e.ms < 3000 && /unreachable/i.test(JSON.stringify(e.json)), `${e.ms} ms`);
     } finally {

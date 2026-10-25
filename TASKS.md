@@ -2374,7 +2374,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-08 — OAuth on the gateway
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 16
 - **Depends on:** AUTH-08, AUTH-03
 - **Requirements:** REQ-SO-03
@@ -2383,7 +2383,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** Claude Code (or MCP Inspector) connects to `/mcp` with no key, opens the browser login, and lists the user's tools; calls are audited under that user with `source=oauth`; revoking the grant or disabling the user → next call 401.
 - **Tests:** TC-BON-08-1 (int): full code+PKCE flow, wrong verifier/redirect refused; TC-BON-08-2 (int): token for another resource refused; TC-BON-08-3 (manual): real client login.
 - **Command:** `scripts/gateway-db-int.sh && scripts/e2e.sh oauth`
-- **Evidence:** —
+- **Evidence:** 2026-10-25 (branch `bon-multistore`). Spec checked: SDK 1.32.1 `LATEST_PROTOCOL_VERSION = '2025-11-25'`. `scripts/gateway-db-int.sh` → `Test Files 25 passed (25)`, `Tests 141 passed (141)` incl. `test/int/oauth.int.test.ts` 11 tests: TC-BON-08-1 (SDK `auth()` client: 401 → RFC 9728 → RFC 8414 → DCR → authorize S256 → consent → token → tools/list + tools/call audited `source=oauth`; refresh rotation + replay revokes grant; wrong verifier burns the code, wrong redirect / other client / replayed code refused; revoke and disable → 401, API key still 200; deny → `access_denied`; register refuses non-loopback http, `javascript:`/`data:`, fragments, credentials, confidential clients; unknown client / unregistered redirect → plain 400 with no Location; consent decision without cookie 401, foreign Origin 403; per-IP 429), TC-BON-08-2 (resource `https://other.example/mcp` → `invalid_target` at authorize and token; token refused by an authenticator for another resource and with OAuth off). Unit 112/112, dashboard 25/25, `scripts/check-chart.sh` PASS. k3d (gateway `sha-d945252046cd`, dashboard `sha-76bd6bb2b971`, 2 replicas, via Ingress): `scripts/e2e.sh oauth` → 15 PASS incl. `dynamic registration (mcpc_…)`, `authorize → consent page`, `tools/list as B over OAuth (41 tools)`, `audited as B, source=oauth`, `revoked grant → 401 on next call`, `revoked grant → refresh refused`, `PASS  e2e oauth`. Regression `node scripts/e2e-acceptance.mjs all` → `PASS  e2e all: 26 passed, 0 failed, 1 skipped` (skip = cross, GW-15) after updating two stale checks: TC-K8S-04a now expects `WWW-Authenticate: Bearer resource_metadata=…`; TC-E2E-10d used `github__get_me`, which SEC-08 F-MCP-6 removed from members — it now calls `github__search_repositories` and requires a `result` (the old check passed on a JSON-RPC refusal). **Open:** TC-BON-08-3 (manual: real Claude Code browser login) — step in `docs/DEMO_RUNBOOK.md`, to run at REL-15.
 - **Regression risk:** Open redirect and CSRF on the consent page; must not weaken API-key auth.
 
 ### BON-09 — Provisioner foundation and RBAC

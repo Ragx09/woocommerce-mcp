@@ -69,6 +69,7 @@ export function Audit() {
             <option value="">Any</option>
             <option value="mcp">MCP client</option>
             <option value="chat">Chat</option>
+            <option value="oauth">OAuth</option>
           </select>
         </label>
         {anyFilter && <button type="button" className="ghost" onClick={() => { setUser(''); setUpstream(''); setOutcome(''); setSource(''); }}>Clear</button>}
@@ -88,7 +89,7 @@ export function Audit() {
                   <tr key={a.id}>
                     <td title={a.requestId ? `request id ${a.requestId}` : undefined}>{new Date(a.ts).toLocaleString()}</td>
                     <td title={a.user?.email}>{a.user?.name ?? <span className="muted">unknown key</span>}{a.keyPrefix && <code className="muted small"> {a.keyPrefix}…</code>}</td>
-                    <td>{a.source === 'chat' ? 'Chat' : 'MCP'}</td>
+                    <td>{a.source === 'chat' ? 'Chat' : a.source === 'oauth' ? 'OAuth' : 'MCP'}</td>
                     <td>{a.upstream ?? '—'}</td>
                     <td><code>{a.tool ?? a.method}</code></td>
                     <td className="num">{a.durationMs} ms</td>

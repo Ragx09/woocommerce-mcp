@@ -183,6 +183,16 @@ spec:
           - path: /mcp
             pathType: Prefix
             backend: { service: { name: gateway, port: { name: http } } }
+          # BON-08 OAuth: authorization endpoints and RFC 9728 / RFC 8414 metadata (/connect stays in the dashboard).
+          - path: /oauth
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { name: http } } }
+          - path: /.well-known/oauth-protected-resource
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { name: http } } }
+          - path: /.well-known/oauth-authorization-server
+            pathType: Exact
+            backend: { service: { name: gateway, port: { name: http } } }
           {{- if .Values.dashboard.enabled }}
           - path: /
             pathType: Prefix

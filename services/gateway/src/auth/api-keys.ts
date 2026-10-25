@@ -20,8 +20,8 @@ export function generateApiKey(): string {
   return `mgw_${out}`;
 }
 
-/** The caller of /mcp. `source` is 'chat' for the dashboard agent's internal token (UI-15), else 'mcp'. */
-export interface Principal { userId: string; keyId: string | null; role: Role; email: string; source?: 'mcp' | 'chat' }
+/** The caller of /mcp. `source`: 'chat' for the dashboard agent's internal token (UI-15), 'oauth' for an OAuth access token (BON-08), else 'mcp'. `grantId` is set for OAuth. */
+export interface Principal { userId: string; keyId: string | null; role: Role; email: string; source?: 'mcp' | 'chat' | 'oauth'; grantId?: string }
 
 export class KeyError extends Error {
   constructor(readonly status: 404 | 409, readonly code: string, message: string) { super(message); }

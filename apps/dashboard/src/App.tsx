@@ -2,6 +2,7 @@ import { NavLink, Outlet, Route, Routes } from 'react-router';
 import { RequireAuth, useLogout, useMe, useSessionExpiry } from './auth.js';
 import { Audit } from './pages/Audit.js';
 import { Chat } from './pages/Chat.js';
+import { Connect } from './pages/Connect.js';
 import { Invite } from './pages/Invite.js';
 import { Keys } from './pages/Keys.js';
 import { Login } from './pages/Login.js';
@@ -17,6 +18,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/invite" element={<Invite />} />
+      <Route path="/connect" element={<RequireAuth><Connect /></RequireAuth>} />
       <Route element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<Overview />} />
         <Route path="servers" element={<Servers />} />

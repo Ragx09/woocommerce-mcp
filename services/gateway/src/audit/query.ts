@@ -4,9 +4,10 @@ import { and, desc, eq, gte, lt, lte, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index.js';
 import { apiKeys, AUDIT_OUTCOMES, AUDIT_SOURCES, auditLog, users, type AuditOutcome } from '../db/schema.js';
+import type { AuditSource } from './audit.js';
 
 export interface AuditQuery {
-  user?: string; upstream?: string; outcome?: AuditOutcome; source?: 'mcp' | 'chat';
+  user?: string; upstream?: string; outcome?: AuditOutcome; source?: AuditSource;
   from?: string; to?: string; limit?: number; cursor?: string;
 }
 

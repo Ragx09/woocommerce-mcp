@@ -3,7 +3,7 @@
 // effective on the client's next /mcp request.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { api, type ApiKeyInfo, type CreatedKey, type Member } from '../api.js';
+import { api, type ApiKeyInfo, type CreatedKey, type Member, type OAuthGrant } from '../api.js';
 import { useMe } from '../auth.js';
 import { SecretOnce, when } from '../components.js';
 
@@ -15,12 +15,15 @@ export function Keys() {
         <h1>API keys</h1>
         <p className="muted">
           An MCP client (Claude Code, Cursor, MCP Inspector) connects to <code>{window.location.origin}/mcp</code> with
-          the header <code>Authorization: Bearer &lt;key&gt;</code>. Every call is logged under your name.
+          the header <code>Authorization: Bearer &lt;key&gt;</code>, or with no key at all: clients that support
+          OAuth open this dashboard to sign in and ask for your approval. Every call is logged under your name.
         </p>
       </div>
       <NewKey />
       <KeyTable scope="mine" />
+      <Grants scope="mine" />
       {isAdmin && <AdminKeys />}
+      {isAdmin && <Grants scope="all" />}
     </section>
   );
 }
@@ -144,5 +147,62 @@ function AdminKeys() {
       </form>
       <KeyTable scope="all" />
     </>
+  );
+}
+
+const ENDED: Record<NonNullable<OAuthGrant['revokedReason']>, string> = {
+  user: 'Revoked by the user', admin: 'Revoked by an admin', client: 'Signed out by the app', replay: 'Ended (token reuse detected)',
+};
+
+/** BON-08: apps signed in with OAuth. Revoking ends the grant; the app's next /mcp call gets 401. */
+function Grants({ scope }: { scope: 'mine' | 'all' }) {
+  const qc = useQueryClient();
+  const [showEnded, setShowEnded] = useState(false);
+  const list = useQuery({ queryKey: ['grants', scope], queryFn: () => api<OAuthGrant[]>(scope === 'all' ? '/api/oauth/grants?all=1' : '/api/oauth/grants') });
+  const revoke = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/oauth/grants/${id}`, { method: 'DELETE' }),
+    onSettled: () => { void qc.invalidateQueries({ queryKey: ['grants'] }); },
+  });
+  const rows = (list.data ?? []).filter((g) => showEnded || !g.revokedAt);
+  const ended = (list.data ?? []).filter((g) => g.revokedAt).length;
+  return (
+    <div className="card">
+      <div className="row between wrap">
+        <h2>{scope === 'all' ? 'Connected apps (everyone)' : 'Connected apps'}</h2>
+        {ended > 0 && (
+          <label className="choice small">
+            <input type="checkbox" checked={showEnded} onChange={(e) => setShowEnded(e.target.checked)} /> Show ended ({ended})
+          </label>
+        )}
+      </div>
+      {list.isPending && <p className="muted">Loading…</p>}
+      {list.isError && <p className="error" role="alert">{list.error.message}</p>}
+      {revoke.isError && <p className="error" role="alert">{revoke.error.message}</p>}
+      {list.data && rows.length === 0 && <p className="muted">No app is signed in with OAuth.</p>}
+      {rows.length > 0 && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>{scope === 'all' && <th>User</th>}<th>App</th><th>Approved</th><th>Last used</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>
+              {rows.map((g) => (
+                <tr key={g.id} className={g.revokedAt ? 'dim' : ''}>
+                  {scope === 'all' && <td title={g.owner.email}>{g.owner.name}</td>}
+                  <td>{g.client}</td>
+                  <td>{when(g.createdAt)}</td>
+                  <td>{g.lastUsedAt ? when(g.lastUsedAt) : 'never'}</td>
+                  <td>{g.revokedAt ? `${ENDED[g.revokedReason ?? 'user']} ${when(g.revokedAt)}` : 'Active'}</td>
+                  <td>{!g.revokedAt && (
+                    <button type="button" className="ghost danger" onClick={() => revoke.mutate(g.id)} disabled={revoke.isPending}
+                      aria-label={`Revoke ${g.client}${scope === 'all' ? ` of ${g.owner.name}` : ''}`}>Revoke</button>
+                  )}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

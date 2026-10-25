@@ -169,7 +169,7 @@ export const apiKeys = pgTable(
 );
 export type ApiKey = typeof apiKeys.$inferSelect;
 
-export const AUDIT_SOURCES = ['mcp', 'chat'] as const;
+export const AUDIT_SOURCES = ['mcp', 'chat', 'oauth'] as const;
 /** ok, the tool's own isError, gateway/upstream error, timeout, unreachable, rejected (unknown tool, disabled), denied (auth). */
 export const AUDIT_OUTCOMES = ['ok', 'tool_error', 'error', 'timeout', 'unreachable', 'rejected', 'denied'] as const;
 export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
@@ -200,7 +200,7 @@ export const auditLog = pgTable(
     errorCode: text('error_code'),
   },
   (t) => [
-    check('audit_source', sql`${t.source} in ('mcp', 'chat')`),
+    check('audit_source', sql`${t.source} in ('mcp', 'chat', 'oauth')`),
     check('audit_method', sql`${t.method} in ('tools/call', 'tools/list', 'initialize', 'other')`),
     check('audit_outcome', sql`${t.outcome} in ('ok', 'tool_error', 'error', 'timeout', 'unreachable', 'rejected', 'denied')`),
     check('audit_duration', sql`${t.durationMs} >= 0`),
@@ -238,4 +238,91 @@ export const leases = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (t) => [check('leases_key', sql`char_length(${t.key}) between 1 and 200`)],
+);
+
+// ---- OAuth 2.1 for /mcp (BON-08, D-027): the gateway is its own authorization server ----
+// Public clients only (PKCE S256, no client secrets). Codes, access and refresh tokens are random values of
+// which only the SHA-256 is stored; a grant ties one user to one client and is what users and admins revoke.
+
+/** Dynamically registered clients (RFC 7591). Redirect URIs are matched exactly. */
+export const oauthClients = pgTable(
+  'oauth_clients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Public identifier handed to the client (`mcpc_` + random). Not a secret. */
+    clientId: text('client_id').notNull().unique(),
+    name: text('name').notNull(),
+    redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('oauth_clients_client_id', sql`${t.clientId} ~ '^mcpc_[A-Za-z0-9_-]{22,64}$'`),
+    check('oauth_clients_name_length', sql`char_length(${t.name}) between 1 and 100`),
+    check('oauth_clients_redirects', sql`jsonb_typeof(${t.redirectUris}) = 'array' and jsonb_array_length(${t.redirectUris}) between 1 and 5`),
+  ],
+);
+export type OAuthClient = typeof oauthClients.$inferSelect;
+
+/** A pending /oauth/authorize request waiting for the user's consent in the dashboard (10 min). */
+export const oauthRequests = pgTable(
+  'oauth_requests',
+  {
+    idHash: text('id_hash').primaryKey(),
+    clientId: uuid('client_id').notNull().references(() => oauthClients.id, { onDelete: 'cascade' }),
+    redirectUri: text('redirect_uri').notNull(),
+    codeChallenge: text('code_challenge').notNull(),
+    state: text('state'),
+    resource: text('resource').notNull(),
+    scope: text('scope').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('oauth_requests_id_hash', sha256Hex(t.idHash)), check('oauth_requests_challenge', sql`${t.codeChallenge} ~ '^[A-Za-z0-9_-]{43}$'`)],
+);
+
+/** One user's consent to one client. Revoking it kills every code and token issued under it. */
+export const oauthGrants = pgTable(
+  'oauth_grants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull().references(() => oauthClients.id, { onDelete: 'cascade' }),
+    resource: text('resource').notNull(),
+    scope: text('scope').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedBy: uuid('revoked_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Why it ended: user/admin revoke, client revoke, or a replayed code/refresh token (RFC 9700 §4.14). */
+    revokedReason: text('revoked_reason'),
+  },
+  (t) => [
+    check('oauth_grants_reason', sql`${t.revokedReason} is null or ${t.revokedReason} in ('user', 'admin', 'client', 'replay')`),
+    index('oauth_grants_user_idx').on(t.userId),
+  ],
+);
+
+export const OAUTH_TOKEN_KINDS = ['code', 'access', 'refresh'] as const;
+export type OAuthTokenKind = (typeof OAUTH_TOKEN_KINDS)[number];
+
+/** Authorization codes, access tokens and refresh tokens, by hash. `usedAt` makes codes and refresh tokens single-use. */
+export const oauthTokens = pgTable(
+  'oauth_tokens',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    grantId: uuid('grant_id').notNull().references(() => oauthGrants.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: OAUTH_TOKEN_KINDS }).notNull(),
+    /** Codes only: the PKCE challenge and redirect URI the token request must match. */
+    codeChallenge: text('code_challenge'),
+    redirectUri: text('redirect_uri'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+  },
+  (t) => [
+    check('oauth_tokens_hash', sha256Hex(t.tokenHash)),
+    check('oauth_tokens_kind', sql`${t.kind} in ('code', 'access', 'refresh')`),
+    check('oauth_tokens_code_fields', sql`(${t.kind} = 'code') = (${t.codeChallenge} is not null and ${t.redirectUri} is not null)`),
+    index('oauth_tokens_grant_idx').on(t.grantId),
+    index('oauth_tokens_expires_idx').on(t.expiresAt),
+  ],
 );

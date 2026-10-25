@@ -14,6 +14,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { authenticateApiKey, type Principal } from './api-keys.js';
+import { authenticateAccessToken, isAccessToken } from '../oauth/store.js';
 
 export const INTERNAL_TOKEN_TTL_MS = 5 * 60_000;
 const PREFIX = 'itk_';
@@ -75,10 +76,14 @@ export function isLoopback(remoteAddress: string | undefined): boolean {
   return remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
 }
 
-/** /mcp authentication: API keys from anywhere, internal chat tokens only over loopback. */
-export function mcpAuthenticator(db: Db, signer: InternalTokenSigner) {
+/**
+ * /mcp authentication: API keys from anywhere, internal chat tokens only over loopback, OAuth access tokens
+ * (BON-08) when OAuth is on (`oauthResource` = the /mcp URL the token must have been issued for).
+ */
+export function mcpAuthenticator(db: Db, signer: InternalTokenSigner, oauthResource?: string) {
   return async (bearer: string, conn: { loopback: boolean }): Promise<Principal | null> => {
     if (isInternalToken(bearer)) return conn.loopback ? authenticateInternalToken(db, signer, bearer) : null;
+    if (isAccessToken(bearer)) return oauthResource ? authenticateAccessToken(db, bearer, oauthResource) : null;
     return authenticateApiKey(db, bearer);
   };
 }

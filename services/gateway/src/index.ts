@@ -19,6 +19,7 @@ import { LoginLimiter } from './auth/limiter.js';
 import { loadAdminSeed, seedAdmin } from './auth/seed-admin.js';
 import { buildMetricsServer, Metrics } from './metrics.js';
 import { PgRateLimiter } from './ratelimit.js';
+import { registerOAuth, resourceFor, resourceMetadataUrl } from './oauth/routes.js';
 
 const cfg = loadConfig();
 const dbCfg = loadDbConfig();
@@ -78,6 +79,9 @@ const health = new HealthMonitor(upstreamPool, {
 const limiter = new PgRateLimiter(db);
 await registerAuth(app, { db, cookieSecure: cfg.cookieSecure, publicOrigin: cfg.publicOrigin, limiter: new LoginLimiter({ store: limiter }) });
 if (!cfg.publicOrigin) app.log.warn('PUBLIC_ORIGIN not set: browser POST/PATCH/DELETE on /api are refused');
+// BON-08: OAuth needs the public origin as issuer and resource; without it /mcp takes API keys only.
+if (cfg.publicOrigin) registerOAuth(app, { db, issuer: cfg.publicOrigin, limiter });
+else app.log.warn('PUBLIC_ORIGIN not set: OAuth for /mcp is off (API keys only)');
 const discovery = new ToolDiscovery(upstreamPool, { listTimeoutMs: cfg.upstreamTimeouts.listMs, maxTools: cfg.maxToolsPerUpstream, log: app.log, health });
 registerUpstreamRoutes(app, { db, pool: upstreamPool, discovery, health, key: credentialKey, ssrf });
 // UI-15: the chat agent's tokens; the key lives only in this process's memory.
@@ -92,7 +96,8 @@ metrics.addGauge({ name: 'mcp_upstream_up', help: 'Upstream health as seen by th
 const auditToDb = dbAuditSink(db, app.log);
 registerMcp(app, {
   rateLimit: { limiter, ...cfg.mcpRateLimit },
-  authenticate: mcpAuthenticator(db, internalTokens),
+  authenticate: mcpAuthenticator(db, internalTokens, cfg.publicOrigin && resourceFor(cfg.publicOrigin)),
+  resourceMetadataUrl: cfg.publicOrigin && resourceMetadataUrl(cfg.publicOrigin),
   audit: async (e) => { metrics.record(e); await auditToDb(e); },
   loadUpstreams: () => listUpstreams(db),
   pool: upstreamPool,
