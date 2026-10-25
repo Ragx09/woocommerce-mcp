@@ -20,7 +20,7 @@ import { encryptCredential } from '../crypto/credentials.js';
 import { randomBytes } from 'node:crypto';
 
 /** Every tool woo-mcp offers (services/woo-mcp); a store's tool rule may name only these. */
-export const STORE_TOOLS = ['list_products', 'create_product', 'list_orders', 'get_order', 'update_order_status'] as const;
+export const STORE_TOOLS = ['list_products', 'create_product', 'list_orders', 'get_order', 'update_order_status', 'update_product'] as const;
 export const MAX_SHARED_MEMBERS = 20;
 const RESERVED_SLUGS = new Set(['default', 'store', 'stores', 'platform', 'admin', 'system']);
 

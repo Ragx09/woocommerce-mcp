@@ -6,7 +6,7 @@ A short note for reviewers (REQ-DEL-06). Details: [ARCHITECTURE.md](../ARCHITECT
 | Namespace | Workload | Role | Exposed |
 |---|---|---|---|
 | `store` | `wordpress` (Apache, www-data, PVC) + `mariadb` (StatefulSet, PVC) + `wp-init` Job | WooCommerce store, TATVA theme and catalogue, COD checkout | `store.<domain>` |
-| `store` | `woo-mcp` (Node, own code) | MCP server: 5 tools over WooCommerce REST `/wc/v3` (OAuth 1.0a) | no — gateway only |
+| `store` | `woo-mcp` (Node, own code) | MCP server: 6 tools over WooCommerce REST `/wc/v3` (OAuth 1.0a) | no — gateway only |
 | `platform` | `gateway` (Fastify, own code) | MCP server for clients **and** MCP client to every upstream; REST API for the dashboard; sessions, API keys, audit; chat agent | `app.<domain>/api`, `/mcp` |
 | `platform` | `dashboard` (nginx, static React) | UI only, no secrets, no egress | `app.<domain>/` |
 | `platform` | `postgres` (StatefulSet, PVC) | users, sessions, invites, API key hashes, upstream registry (credentials AES-256-GCM), audit log | no — gateway only |

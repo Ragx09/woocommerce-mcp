@@ -188,7 +188,7 @@ init:
 | Default product slug `urumi-mug` | `tests/e2e/checkout.mjs:7` | Change the default to a new catalogue slug, or always pass `PRODUCT_SLUG` |
 | Old product names | `services/woo-mcp/test/int/woo.int.test.ts:33` | Assert on a few SKUs or names from the new catalogue |
 | Orders filtered with `/Urumi/` on item names | `services/woo-mcp/test/int/woo.int.test.ts:55` | The new product names won't contain "Urumi". Filter on the new names or on SKUs. |
-| Prices assumed in USD | unit fixtures, `docs/DEMO_RUNBOOK.md:16` ("Demo Mug priced 12.50") | Update the demo prompt to a ₹ product; check TC-BRD-05-3 (₹ prices in `list_products`) |
+| Prices assumed in USD | unit fixtures, `docs/DEMO_RUNBOOK.md:16` ("Demo Candle priced 499") | Update the demo prompt to a ₹ product; check TC-BRD-05-3 (₹ prices in `list_products`) |
 | Checkout markup changes with the theme | `scripts/e2e-checkout.sh` | Run BRD-07 after every theme change. The payment method radios must stay visible. |
 | Old content survives redeploys | the `wordpress-data` PVC has `resource-policy: keep` | For a true fresh test (TC-BRD-06-1): `scripts/down.sh`, delete the store PVCs, then `scripts/up.sh` |
 | Seeded upstream display name | `services/gateway/src/upstreams/seed.ts` only sets the name on first seed | Not part of the brand. Leave it as "WooCommerce". |

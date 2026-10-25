@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // UI-19 / TC-E2E-03 + TC-E2E-04: the two DoD chat prompts with the real LLM on a running cluster.
-//   1. "Create a product called Demo Mug <stamp> priced 499" → woo__create_product through the gateway,
+//   1. "Create a product called Demo Candle <stamp> priced 499" → woo__create_product through the gateway,
 //      the product page is live on the storefront (HTTP 200, name + exact price) and in the public Store API.
 //      PRICE may have paise (e.g. 12.50): the store keeps two decimals, so the page, the Store API and the
 //      order total must show the exact price, never a rounded one (SPEC A-09).
@@ -17,7 +17,7 @@ import { adminSession } from './lib/gateway-key.mjs';
 const ORIGIN = process.env.APP_ORIGIN ?? 'http://app.127.0.0.1.nip.io';
 const STORE = process.env.STORE_ORIGIN ?? 'http://store.127.0.0.1.nip.io';
 const stamp = new Date().toISOString().slice(5, 16).replace(/\D/g, ''); // MMDDHHMM, unique per run
-const NAME = `Demo Mug ${stamp}`;
+const NAME = `Demo Candle ${stamp}`;
 const PRICE = process.env.PRICE ?? '499';
 const results = [];
 const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ` (${extra})` : ''}`); return ok; };

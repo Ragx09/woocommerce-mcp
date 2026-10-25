@@ -1,9 +1,10 @@
-// The five WooCommerce tools. Inputs are validated by zod (via the MCP SDK); outputs are compact
+// The six WooCommerce tools. Inputs are validated by zod (via the MCP SDK); outputs are compact
 // summaries so the LLM gets what it needs without raw WooCommerce payloads or payment details.
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { WooClient, WooError } from './woo-client.js';
+import { ImageUrlError, validateImageUrl } from './image-url.js';
 
 export const ORDER_STATUSES = ['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'] as const;
 const PRODUCT_STATUSES = ['publish', 'draft', 'pending', 'private'] as const;
@@ -11,7 +12,7 @@ const PRODUCT_STATUSES = ['publish', 'draft', 'pending', 'private'] as const;
 // ---- WooCommerce payload shapes (only the fields we read) ----
 interface WcProduct {
   id: number; name: string; status: string; price: string; regular_price: string; sale_price: string;
-  stock_status: string; stock_quantity: number | null; permalink: string; sku: string;
+  stock_status: string; stock_quantity: number | null; permalink: string; sku: string; images?: { src: string }[];
 }
 interface WcLineItem { name: string; quantity: number; total: string; product_id: number }
 interface WcAddress { first_name?: string; last_name?: string; email?: string; city?: string; country?: string }
@@ -25,6 +26,7 @@ export const product = (p: WcProduct) => ({
   id: p.id, name: p.name, status: p.status, price: p.price, regular_price: p.regular_price,
   sale_price: p.sale_price || undefined, sku: p.sku || undefined,
   stock_status: p.stock_status, stock_quantity: p.stock_quantity ?? undefined, permalink: p.permalink,
+  image: p.images?.[0]?.src || undefined,
 });
 const customerName = (o: WcOrder) => [o.billing?.first_name, o.billing?.last_name].filter(Boolean).join(' ') || 'Guest';
 export const orderSummary = (o: WcOrder) => ({
@@ -66,6 +68,19 @@ function safe<A>(onError: (e: WooError, args: A) => string | undefined, fn: (arg
   };
 }
 const noOverride = () => undefined;
+const price = z.string().regex(/^\d{1,9}(\.\d{1,2})?$/, 'decimal string such as "19.99"');
+const imageUrl = z.string().max(2048).optional().describe('Public https URL of a .jpg/.jpeg/.png/.gif/.webp image; WooCommerce downloads it as the product image');
+const imageAlt = z.string().max(200).optional().describe('Alt text for the image, describing what is visible');
+const imageError = (e: WooError) => (e.kind === 'invalid_request' ? e.message : undefined);
+/** The `images` field for a create/update body; the URL is checked before WooCommerce is asked to fetch it. */
+async function imagesField(a: { image_url?: string; image_alt?: string }): Promise<{ images?: { src: string; alt?: string }[] }> {
+  if (a.image_url === undefined) return {};
+  try { return { images: [{ src: await validateImageUrl(a.image_url), ...(a.image_alt ? { alt: a.image_alt } : {}) }] }; }
+  catch (e) {
+    if (e instanceof ImageUrlError) throw new WooError('invalid_request', e.message, 400);
+    throw e;
+  }
+}
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/, 'use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS');
 
 export function registerTools(server: McpServer, woo: WooClient, now: () => Date = () => new Date()): void {
@@ -95,15 +110,45 @@ export function registerTools(server: McpServer, woo: WooClient, now: () => Date
       sku: z.string().max(100).optional(),
       stock_quantity: z.number().int().min(0).max(1_000_000).optional().describe('Enables stock management when set'),
       status: z.enum(PRODUCT_STATUSES).default('publish'),
+      image_url: imageUrl,
+      image_alt: imageAlt,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-  }, safe(noOverride, async (a) => {
+  }, safe(imageError, async (a) => {
     const body = {
       type: 'simple', name: a.name, regular_price: a.regular_price, status: a.status,
       description: a.description, short_description: a.short_description, sku: a.sku,
       ...(a.stock_quantity === undefined ? {} : { manage_stock: true, stock_quantity: a.stock_quantity }),
+      ...(await imagesField(a)),
     };
     return product(await woo.request<WcProduct>('POST', '/products', { body }));
+  }));
+
+  server.registerTool('update_product', {
+    title: 'Update product',
+    description: 'Change fields of an existing product (only the fields you pass). image_url replaces the product image: WooCommerce downloads it into the media library.',
+    inputSchema: {
+      product_id: z.number().int().positive(),
+      name: z.string().trim().min(1).max(200).optional(),
+      regular_price: price.optional(),
+      sale_price: z.union([price, z.literal('')]).optional().describe('Empty string removes the sale price'),
+      description: z.string().max(5000).optional(),
+      short_description: z.string().max(1000).optional(),
+      stock_quantity: z.number().int().min(0).max(1_000_000).optional().describe('Enables stock management when set'),
+      status: z.enum(PRODUCT_STATUSES).optional(),
+      image_url: imageUrl,
+      image_alt: imageAlt,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, safe((e, a) => (e.kind === 'not_found' ? `Product ${a.product_id} not found.` : imageError(e)), async (a) => {
+    const { product_id, image_url: _u, image_alt: _a, stock_quantity, ...fields } = a;
+    const body = {
+      ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)),
+      ...(stock_quantity === undefined ? {} : { manage_stock: true, stock_quantity }),
+      ...(await imagesField(a)),
+    };
+    if (Object.keys(body).length === 0) throw new WooError('invalid_request', 'Nothing to update: pass at least one field to change.');
+    return product(await woo.request<WcProduct>('PUT', `/products/${product_id}`, { body }));
   }));
 
   server.registerTool('list_orders', {

@@ -13,7 +13,7 @@
 1. Storefront → add a product → checkout with COD → order received page. **Expect:** order number shown.
 2. wp-admin → WooCommerce → Orders. **Expect:** the order is listed.
 ## 3. Chat as user A — REQ-DOD-03/04
-1. Log in as A → Chat → "Create a product called Demo Mug priced 499". **Expect:** tool card `woo__create_product` ok; product link. (Paise work too, e.g. "priced 12.50" → ₹12.50 on the storefront and in the order, SPEC A-09.) Scripted: `scripts/e2e.sh chat`.
+1. Log in as A → Chat → "Create a product called Demo Candle priced 499". **Expect:** tool card `woo__create_product` ok; product link. (Paise work too, e.g. "priced 12.50" → ₹12.50 on the storefront and in the order, SPEC A-09.) Scripted: `scripts/e2e.sh chat`.
 2. Storefront → the product is visible → order it with COD.
 3. Chat → "What orders came in today?" **Expect:** `woo__list_orders` → includes the new order.
 ## 4. External client as user B — REQ-DOD-05/06/07

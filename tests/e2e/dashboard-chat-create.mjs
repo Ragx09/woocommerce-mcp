@@ -1,12 +1,12 @@
 // UI-19 (TC-E2E-03, browser part): the DoD prompt typed into the dashboard Chat page with the real LLM. The
 // answer shows an ok woo__create_product card, the product link in the reply opens the live storefront page
-// at the asked price. One LLM question; creates one product "Demo Mug <stamp>" (kept, like a demo would).
+// at the asked price. One LLM question; creates one product "Demo Candle <stamp>" (kept, like a demo would).
 import { chromium } from 'playwright';
 
 const APP = process.env.APP_URL ?? 'http://app.127.0.0.1.nip.io';
 const OUT = '/out';
 const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
-const NAME = `Demo Mug ${new Date().toISOString().slice(5, 16).replace(/\D/g, '')}`;
+const NAME = `Demo Candle ${new Date().toISOString().slice(5, 16).replace(/\D/g, '')}`;
 const PRICE = process.env.PRICE ?? '499';
 const results = [];
 const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ` (${extra})` : ''}`); };

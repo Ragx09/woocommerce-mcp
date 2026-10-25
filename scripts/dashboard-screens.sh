@@ -10,7 +10,7 @@
 #   chat     TC-UI-16-1 chat page as the admin with the real LLM (one question; not part of `all`, to
 #            save the LLM free-tier budget)
 #   chat-create  UI-19 the DoD "create a product" prompt on the Chat page with the real LLM, then its storefront
-#            page (creates one product "Demo Mug <stamp>"; not part of `all`)
+#            page (creates one product "Demo Candle <stamp>"; not part of `all`)
 #   chat-errors  TC-UI-18-1 chat error states: stubbed tool failures, then woo-mcp scaled to 0 and one real
 #            question (restored afterwards; not part of `all`)
 #   permissions  TC-BON-01-4 member access per server (woo read-only, everything hidden) set in the form; member

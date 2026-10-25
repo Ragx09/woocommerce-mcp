@@ -47,10 +47,10 @@ const call = async (name: string, args: Record<string, unknown>) => {
 afterEach(async () => { await client?.close(); });
 
 describe('woo-mcp tools', () => {
-  it('TC-WC-07-unit lists exactly the five tools with input schemas', async () => {
+  it('TC-WC-07-unit lists exactly the six tools with input schemas', async () => {
     await connect(() => reply(200, []));
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(['create_product', 'get_order', 'list_orders', 'list_products', 'update_order_status']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['create_product', 'get_order', 'list_orders', 'list_products', 'update_order_status', 'update_product']);
     for (const t of tools) expect(t.inputSchema.type).toBe('object');
   });
 
@@ -73,6 +73,45 @@ describe('woo-mcp tools', () => {
     expect(calls[0]!.method).toBe('POST');
     expect(calls[0]!.body).toMatchObject({ type: 'simple', name: 'Chat Hoodie', regular_price: '9.50', status: 'publish', manage_stock: true, stock_quantity: 3 });
     expect(JSON.parse(r.text)).toMatchObject({ id: 42, permalink: 'http://store.example.test/product/x/' });
+  });
+
+  it('create_product with image_url sends images[] to WooCommerce and returns the stored image', async () => {
+    await connect((_u, init) => reply(201, { id: 43, ...JSON.parse(String(init.body)), price: '9.50', sale_price: '', stock_status: 'instock', stock_quantity: null, permalink: 'http://s/p/', sku: '', images: [{ src: 'https://store.test/wp-content/uploads/hoodie.jpg' }] }));
+    const r = await call('create_product', { name: 'Hoodie', regular_price: '9.50', image_url: 'https://8.8.8.8/hoodie.jpg', image_alt: 'A grey hoodie' });
+    expect(r.isError).toBe(false);
+    expect(calls[0]!.body).toMatchObject({ images: [{ src: 'https://8.8.8.8/hoodie.jpg', alt: 'A grey hoodie' }] });
+    expect(JSON.parse(r.text)).toMatchObject({ id: 43, image: 'https://store.test/wp-content/uploads/hoodie.jpg' });
+  });
+
+  it('image_url is refused before any store call: http, credentials, non-image, internal and metadata hosts', async () => {
+    await connect(() => reply(200, {}));
+    for (const image_url of [
+      'http://8.8.8.8/a.jpg', 'https://user:pw@8.8.8.8/a.jpg', 'https://8.8.8.8/a.html', 'https://127.0.0.1/a.png',
+      'https://169.254.169.254/a.png', 'https://10.43.0.1/a.png', 'https://[::ffff:7f00:1]/a.png', 'https://[::1]/a.png', 'not a url',
+    ]) {
+      for (const [name, args] of [['create_product', { name: 'X', regular_price: '1.00' }], ['update_product', { product_id: 5 }]] as const) {
+        const r = await call(name, { ...args, image_url });
+        expect(r.isError, `${name} ${image_url}`).toBe(true);
+      }
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it('update_product sends only the passed fields with PUT and replaces the image', async () => {
+    await connect((_u, init) => reply(200, { id: 5, name: 'Mug', status: 'publish', price: '15.00', regular_price: '15.00', sale_price: '', stock_status: 'instock', stock_quantity: 4, permalink: 'http://s/p/', sku: '', images: [{ src: 'https://store.test/up/mug.webp' }], ...JSON.parse(String(init.body)).x }));
+    const r = await call('update_product', { product_id: 5, regular_price: '15.00', stock_quantity: 4, image_url: 'https://8.8.8.8/mug.webp' });
+    expect(r.isError).toBe(false);
+    expect(calls[0]!.method).toBe('PUT');
+    expect(calls[0]!.url.pathname).toBe('/wp-json/wc/v3/products/5');
+    expect(calls[0]!.body).toEqual({ regular_price: '15.00', manage_stock: true, stock_quantity: 4, images: [{ src: 'https://8.8.8.8/mug.webp' }] });
+    expect(JSON.parse(r.text)).toMatchObject({ id: 5, image: 'https://store.test/up/mug.webp' });
+  });
+
+  it('update_product: nothing to change, and unknown id, give clear errors', async () => {
+    await connect(() => reply(404, { code: 'woocommerce_rest_product_invalid_id', message: 'Invalid ID.' }));
+    expect(await call('update_product', { product_id: 5 })).toEqual({ isError: true, text: 'Nothing to update: pass at least one field to change.' });
+    expect(calls).toHaveLength(0);
+    expect(await call('update_product', { product_id: 999, name: 'New' })).toEqual({ isError: true, text: 'Product 999 not found.' });
   });
 
   it('TC-UNIT-07a rejects invalid input before calling the store', async () => {

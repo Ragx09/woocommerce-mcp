@@ -40,7 +40,7 @@ const PW = 'stores-api-password';
 const key = loadCredentialKey({ CREDENTIALS_KEY: randomBytes(32).toString('hex') });
 const signingKey = randomBytes(32);
 const signer = new InternalTokenSigner();
-const WOO_TOOLS = ['list_products', 'create_product', 'list_orders', 'get_order', 'update_order_status'];
+const WOO_TOOLS = ['list_products', 'create_product', 'list_orders', 'get_order', 'update_order_status', 'update_product'];
 let pool: pg.Pool;
 let db: Db;
 let app: FastifyInstance;

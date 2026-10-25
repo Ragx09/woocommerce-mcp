@@ -26,7 +26,7 @@ async function cart() {
 
 beforeAll(async () => {
   const list = await (await fetch(`${API}/products?per_page=50`)).json();
-  product = list.find((p) => p.type === 'simple' && p.is_purchasable && p.is_in_stock && !/demo mug/i.test(p.name));
+  product = list.find((p) => p.type === 'simple' && p.is_purchasable && p.is_in_stock && !/demo (mug|candle)/i.test(p.name));
   expect(product).toBeTruthy();
 });
 

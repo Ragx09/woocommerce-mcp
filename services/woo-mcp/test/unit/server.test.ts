@@ -51,12 +51,12 @@ describe('woo-mcp HTTP server', () => {
     expect(r.status).toBe(405);
   });
 
-  it('SDK client lists the five tools over Streamable HTTP with no session id', async () => {
+  it('SDK client lists the six tools over Streamable HTTP with no session id', async () => {
     const transport = new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { Authorization: 'Bearer gateway-token' } } });
     const client = new Client({ name: 't', version: '0' });
     await client.connect(transport);
     expect(transport.sessionId).toBeUndefined();
-    expect((await client.listTools()).tools).toHaveLength(5);
+    expect((await client.listTools()).tools).toHaveLength(6);
     await client.close();
   });
 
