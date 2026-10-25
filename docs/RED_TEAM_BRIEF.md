@@ -3,9 +3,10 @@
 You are testing a system **we own**, running locally. Try to break it; report everything you find. Another session fixes the issues and asks you to retest.
 
 ## Targets (only these)
-- Storefront: `http://store.127.0.0.1.nip.io:<port>/` (WordPress + WooCommerce, COD)
-- Dashboard + API: `http://app.127.0.0.1.nip.io:<port>/`, `/api/*`
-- MCP gateway: `http://app.127.0.0.1.nip.io:<port>/mcp` (Streamable HTTP, bearer API key)
+Local k3d maps Traefik to host port 80, so the URLs carry no explicit port. (On the VPS, same hosts on its domain over https.)
+- Storefront: `http://store.127.0.0.1.nip.io/` (WordPress + WooCommerce, COD)
+- Dashboard + API: `http://app.127.0.0.1.nip.io/`, `/api/*`
+- MCP gateway: `http://app.127.0.0.1.nip.io/mcp` (Streamable HTTP, bearer API key)
 
 Do **not** touch GitHub, Groq, OpenRouter or any other external service, even though the gateway connects to some of them.
 

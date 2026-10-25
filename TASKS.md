@@ -2243,7 +2243,7 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 
 ### SEC-08 — Attacker-LLM loop
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** In Progress
 - **Day:** 7
 - **Depends on:** SEC-02, SEC-03, SEC-04, SEC-05, SEC-06
 - **Requirements:** —
@@ -2252,7 +2252,7 @@ Exit criterion: every scan and manual test in `docs/SECURITY_TESTING.md` has run
 - **Acceptance:** At least 2 rounds; the last round finds no new High/Critical.
 - **Tests:** Regression tests added per finding (TC-SEC-08-n).
 - **Command:** —
-- **Evidence:** —
+- **Evidence:** 2026-10-25 — setup for the attacker session done (this session is the defender, the user runs the attacker). k3d `mcp` up (ns store, platform, 20h); targets live on host port 80 (`http://{store,app}.127.0.0.1.nip.io/`). `RED_TEAM_BRIEF.md` ports resolved to the port-80 URLs. Handoff to the attacker (out of band, not in git): user B logged in via `platform/demo-users` (`/api/me` role=`member`), member API key `62f2f3b6-…` minted through `/api/keys` as B — no admin login, no upstream secrets, no cluster access. Awaiting round-1 findings; rounds logged in `docs/SECURITY_FINDINGS.md` § Attacker-LLM rounds.
 - **Regression risk:** Fixes under time pressure; every fix reruns the E2E suite.
 
 ### SEC-09 — Hardening sign-off and security report
