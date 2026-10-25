@@ -6,6 +6,10 @@
  * changes nothing when the catalogue and images are unchanged. Single source of truth:
  * /assets/catalogue/catalogue.json (services/store-assets/catalogue/catalogue.json in git).
  * Uses the normal WooCommerce data model and media library; no direct SQL.
+ *
+ * BON-11 (A-11) created stores: STORE_NICHE picks catalogue/<niche>.json (stationery, tea-coffee, home-ceramics,
+ * bags, bike); "custom" imports no products and one category named STORE_NICHE_TEXT. STORE_TAGLINE replaces the
+ * catalogue's tagline. Image alt texts come from images/manifest.json plus images/<niche>/manifest.json.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -15,11 +19,27 @@ require_once ABSPATH . 'wp-admin/includes/file.php';
 require_once ABSPATH . 'wp-admin/includes/image.php';
 
 $assets = getenv( 'ASSETS_DIR' ) ?: '/assets';
-$cat    = json_decode( (string) file_get_contents( "$assets/catalogue/catalogue.json" ), true );
-$meta   = json_decode( (string) file_get_contents( "$assets/images/manifest.json" ), true );
-if ( ! is_array( $cat ) || ! is_array( $meta ) ) {
-	WP_CLI::error( 'catalogue.json or manifest.json missing or invalid' );
+$niche  = (string) getenv( 'STORE_NICHE' );
+if ( '' !== $niche && ! preg_match( '/^(stationery|tea-coffee|home-ceramics|bags|bike|custom)$/', $niche ) ) {
+	WP_CLI::error( 'unknown STORE_NICHE' );
 }
+if ( 'custom' === $niche ) {
+	// The owner's niche text becomes the only category; the owner adds products in wp-admin.
+	$text = trim( mb_substr( wp_strip_all_tags( (string) getenv( 'STORE_NICHE_TEXT' ) ), 0, 60 ) );
+	$text = '' !== $text ? $text : 'Products';
+	$cat  = array( 'store' => array( 'tagline' => '' ), 'categories' => array( array( 'slug' => sanitize_title( $text ) ?: 'products', 'name' => $text, 'description' => '' ) ),
+		'brands' => array(), 'collections' => array(), 'products' => array() );
+} else {
+	$cat = json_decode( (string) file_get_contents( "$assets/catalogue/" . ( '' === $niche ? 'catalogue' : $niche ) . '.json' ), true );
+}
+$meta = json_decode( (string) file_get_contents( "$assets/images/manifest.json" ), true );
+if ( '' !== $niche && is_readable( "$assets/images/$niche/manifest.json" ) ) {
+	$meta = array_merge( (array) $meta, (array) json_decode( (string) file_get_contents( "$assets/images/$niche/manifest.json" ), true ) );
+}
+if ( ! is_array( $cat ) || ! is_array( $meta ) ) {
+	WP_CLI::error( 'catalogue or manifest.json missing or invalid' );
+}
+update_option( 'platform_store_niche', $niche ); // the theme's niche copy, accent and images (BON-11)
 if ( ! taxonomy_exists( 'product_brand' ) ) {
 	WP_CLI::error( 'WooCommerce Brands (product_brand) is not available' );
 }
@@ -79,7 +99,8 @@ update_option( 'woocommerce_price_thousand_sep', ',' );
 update_option( 'woocommerce_price_decimal_sep', '.' );
 update_option( 'woocommerce_currency_pos', 'left' );
 update_option( 'woocommerce_enable_reviews', 'no' );
-update_option( 'blogdescription', $cat['store']['tagline'] );
+$tagline = trim( (string) getenv( 'STORE_TAGLINE' ) );
+update_option( 'blogdescription', '' !== $tagline || '' !== $niche ? $tagline : $cat['store']['tagline'] );
 
 // Categories (ordered as in the catalogue; image = editorial category tile).
 $cat_ids = array();
@@ -87,7 +108,7 @@ foreach ( $cat['categories'] as $i => $c ) {
 	$id = tatva_term( 'product_cat', $c['slug'], $c['name'], $c['description'] );
 	update_term_meta( $id, 'order', $i + 1 );
 	$key = 'ed-category-' . $c['slug'];
-	$img = tatva_attachment( $key, "$assets/images/{$c['image']}", $meta[ $key ]['alt'] ?? $c['name'], $stats );
+	$img = isset( $c['image'] ) ? tatva_attachment( $key, "$assets/images/{$c['image']}", $meta[ $key ]['alt'] ?? $c['name'], $stats ) : 0;
 	if ( $img ) {
 		update_term_meta( $id, 'thumbnail_id', $img );
 	}
@@ -108,6 +129,14 @@ foreach ( $cat['brands'] as $b ) {
 $tag_ids = array();
 foreach ( $cat['collections'] as $col ) {
 	$tag_ids[ $col['tag'] ] = tatva_term( 'product_tag', $col['tag'], $col['name'], $col['description'] );
+}
+// Homepage collection: the first collection that has products (the default store: The Morning Table).
+$used = array_merge( array(), ...array_column( $cat['products'], 'tags' ) );
+foreach ( $cat['collections'] as $col ) {
+	if ( in_array( $col['tag'], $used, true ) ) {
+		update_option( 'platform_collection_tag', $col['tag'] );
+		break;
+	}
 }
 
 // Products by SKU.
@@ -165,7 +194,7 @@ $stale = get_posts( array( 'post_type' => 'product', 'post_status' => array( 'pu
 foreach ( $stale as $pid ) {
 	$sku = (string) get_post_meta( $pid, '_sku', true );
 	$old_sample = in_array( get_the_title( $pid ), array( 'Urumi Mug', 'Urumi T-Shirt', 'Urumi Sticker Pack' ), true );
-	if ( $old_sample || ( str_starts_with( $sku, 'TAT-' ) && ! in_array( $sku, $skus, true ) ) ) {
+	if ( $old_sample || ( preg_match( '/^(TAT|RDG)-/', $sku ) && ! in_array( $sku, $skus, true ) ) ) {
 		wp_trash_post( $pid );
 		$stats['trashed']++;
 	}
@@ -187,10 +216,12 @@ foreach ( $pages as $slug => [ $title, $pattern ] ) {
 	}
 }
 
-// Site icon (favicon) from the brand mark.
-$icon = tatva_attachment( 'site-icon', "$assets/images/brand/site-icon.png", 'TATVA', $stats );
-if ( $icon ) {
-	update_option( 'site_icon', $icon );
+// Site icon (favicon) from the TATVA mark: the default store only (created stores carry no TATVA branding).
+if ( '' === $niche ) {
+	$icon = tatva_attachment( 'site-icon', "$assets/images/brand/site-icon.png", 'TATVA', $stats );
+	if ( $icon ) {
+		update_option( 'site_icon', $icon );
+	}
 }
 
 if ( $fields ) {

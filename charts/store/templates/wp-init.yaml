@@ -69,6 +69,10 @@ spec:
             - { name: STORE_TIMEZONE, value: {{ $i.timezone | quote }} }
             - { name: STORE_COUNTRY, value: {{ $i.country | quote }} }
             - { name: BRAND_ENABLED, value: {{ $i.brand.enabled | quote }} }
+            # BON-11: created stores — tagline, niche catalogue and the theme's niche look ("" = the TATVA store).
+            - { name: STORE_TAGLINE, value: {{ $i.tagline | default "" | quote }} }
+            - { name: STORE_NICHE, value: {{ $i.niche | default "" | quote }} }
+            - { name: STORE_NICHE_TEXT, value: {{ $i.nicheText | default "" | quote }} }
             - name: ADMIN_USER
               valueFrom: { secretKeyRef: { name: {{ $i.adminSecret }}, key: admin-user } }
             - name: ADMIN_PASSWORD

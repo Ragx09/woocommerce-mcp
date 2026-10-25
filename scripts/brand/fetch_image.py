@@ -12,7 +12,9 @@ import argparse, datetime, hashlib, io, json, os, sys
 import requests
 from PIL import Image
 
-ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'images')
+# IMAGE_ROOT: a niche's image directory (e.g. services/store-assets/images/bike); MANIFEST: manifest file to update
+# (lets parallel sourcing runs write separate manifests that are merged afterwards).
+ROOT = os.environ.get('IMAGE_ROOT') or os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-assets', 'images')
 UA = {'User-Agent': 'tatva-demo-image-sourcing/0.1 (https://github.com/Ragx09/woocommerce-mcp)'}
 SIZES = {'product': (1000, 1250), 'editorial': (1800, 1200), 'tile': (900, 1125)}  # tile: 4:5 category tiles
 
@@ -54,10 +56,11 @@ def main():
     out = crop(img.convert('RGB'), SIZES[a.role], fx, fy, a.zoom)
     sub = 'products' if a.role == 'product' else 'editorial'
     name = a.slot.removeprefix('ed-') + '.webp'
+    os.makedirs(os.path.join(ROOT, sub), exist_ok=True)
     path = os.path.join(ROOT, sub, name)
     out.save(path, 'WEBP', quality=80, method=6)
     check = Image.open(path); check.verify()
-    mpath = os.path.join(ROOT, 'manifest.json')
+    mpath = os.environ.get('MANIFEST') or os.path.join(ROOT, 'manifest.json')
     manifest = json.load(open(mpath)) if os.path.exists(mpath) else {}
     manifest[a.slot] = {
         'file': f'{sub}/{name}', 'role': a.role, 'alt': a.alt,

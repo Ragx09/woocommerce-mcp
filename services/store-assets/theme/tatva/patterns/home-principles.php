@@ -15,7 +15,7 @@ $points = array(
 <!-- wp:group {"align":"full","backgroundColor":"accent-2","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"1240px"}} -->
 <div class="wp-block-group alignfull has-accent-2-background-color has-background" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
 	<!-- wp:html -->
-	<ul class="tatva-principles" aria-label="How TATVA curates">
+	<ul class="tatva-principles" aria-label="<?php echo esc_attr( 'How ' . get_bloginfo( 'name' ) . ' curates' ); ?>">
 	<?php foreach ( $points as $p ) : ?>
 		<li><strong><?php echo esc_html( $p[0] ); ?></strong><span><?php echo esc_html( $p[1] ); ?></span></li>
 	<?php endforeach; ?>

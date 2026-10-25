@@ -8,13 +8,13 @@
 <!-- wp:group {"layout":{"type":"constrained"}} -->
 <div class="wp-block-group">
 	<!-- wp:paragraph {"fontSize":"large"} -->
-	<p class="has-large-font-size">TATVA is a curated store for Indian lifestyle brands. The name comes from the word <em>tattva</em>, often understood as essence or fundamental nature. We use it as a reminder to choose carefully, not as a claim about any product.</p>
+	<p class="has-large-font-size"><?php if ( tatva_is_default() ) : ?>TATVA is a curated store for Indian lifestyle brands. The name comes from the word <em>tattva</em>, often understood as essence or fundamental nature. We use it as a reminder to choose carefully, not as a claim about any product.<?php else : ?><?php echo esc_html( get_bloginfo( 'name' ) ); ?> is a curated store<?php echo '' !== tatva_copy( 'kicker' ) ? ' — ' . esc_html( tatva_copy( 'kicker' ) ) : ''; ?>. We choose carefully and describe every product as accurately as we can.<?php endif; ?></p>
 	<!-- /wp:paragraph -->
 	<!-- wp:heading -->
 	<h2 class="wp-block-heading">Why this store exists</h2>
 	<!-- /wp:heading -->
 	<!-- wp:paragraph -->
-	<p>Distinctive brands are often spread across separate websites and social profiles, each with its own way of presenting products and its own checkout. TATVA brings a selection of them together, describes products in one consistent way, and lets you buy from several brands in one cart.</p>
+	<p>Distinctive brands are often spread across separate websites and social profiles, each with its own way of presenting products and its own checkout. <?php echo esc_html( get_bloginfo( 'name' ) ); ?> brings a selection of them together, describes products in one consistent way, and lets you buy from several brands in one cart.</p>
 	<!-- /wp:paragraph -->
 	<!-- wp:heading -->
 	<h2 class="wp-block-heading">What “curated” means here</h2>
@@ -32,7 +32,7 @@
 	<h2 class="wp-block-heading">What guides us</h2>
 	<!-- /wp:heading -->
 	<!-- wp:list -->
-	<ul class="wp-block-list"><!-- wp:list-item --><li><strong>Curated, not crowded.</strong></li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>Specific and honest.</strong> No claims such as “sustainable” or “handmade” without evidence.</li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>Premium but approachable.</strong> Clear prices and plain information.</li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>One reliable destination.</strong> Browse, add to cart and check out on TATVA.</li><!-- /wp:list-item --></ul>
+	<ul class="wp-block-list"><!-- wp:list-item --><li><strong>Curated, not crowded.</strong></li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>Specific and honest.</strong> No claims such as “sustainable” or “handmade” without evidence.</li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>Premium but approachable.</strong> Clear prices and plain information.</li><!-- /wp:list-item --><!-- wp:list-item --><li><strong>One reliable destination.</strong> Browse, add to cart and check out on <?php echo esc_html( get_bloginfo( 'name' ) ); ?>.</li><!-- /wp:list-item --></ul>
 	<!-- /wp:list -->
 	<!-- wp:paragraph {"className":"tatva-demo-note"} -->
 	<p class="tatva-demo-note">This is a demonstration store. The brands shown are placeholders and do not represent real businesses or partnerships; products, prices and photos are illustrative.</p>

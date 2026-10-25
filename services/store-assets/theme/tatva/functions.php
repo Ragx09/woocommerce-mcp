@@ -20,12 +20,82 @@ add_action(
 	}
 );
 
-/** Alt text for theme images, shipped with the theme (built from images/manifest.json). */
+/*
+ * BON-11 (A-11): created stores share this theme but are independent shops: their own name (blogname) and
+ * tagline (blogdescription), a niche set by wp-init (option platform_store_niche), the niche's accent colour
+ * and, where the niche has them, its own editorial images. The default store has no niche and stays TATVA.
+ */
+const TATVA_NICHES = array(
+	// accent-1 (headings, buttons) and accent-6 (counters, highlights): dark enough for white button text
+	// and for text on the light base (WCAG AA), from the same muted family as the TATVA palette.
+	'stationery'    => array( 'accent' => '#1F3A5F', 'accent6' => '#A4532F', 'kicker' => 'Stationery & desk', 'title' => 'Tools for a well-kept desk.', 'text' => 'Notebooks, pens and desk objects from independent makers, in one place. Browse by category or brand and check out once.' ),
+	'tea-coffee'    => array( 'accent' => '#5A3A22', 'accent6' => '#8C4A2F', 'kicker' => 'Tea & coffee', 'title' => 'A better cup, every day.', 'text' => 'Teas, coffees and the things you brew them with, from small producers. Browse by category or brand and check out once.' ),
+	'home-ceramics' => array( 'accent' => '#7A3E2B', 'accent6' => '#173D35', 'kicker' => 'Home & ceramics', 'title' => 'Everyday pieces for the home.', 'text' => 'Ceramics, textiles and home objects from independent studios. Browse by category or brand and check out once.' ),
+	'bags'          => array( 'accent' => '#3B3355', 'accent6' => '#A4532F', 'kicker' => 'Bags & accessories', 'title' => 'Carry what matters.', 'text' => 'Bags and everyday accessories from independent labels. Browse by category or brand and check out once.' ),
+	'bike'          => array( 'accent' => '#202820', 'accent6' => '#B75C3B', 'kicker' => 'Ride. Drive. Explore.', 'title' => 'Built for better journeys.', 'text' => 'Riding gear, motorcycle and car accessories and travel essentials, curated in one store. Fitment and specifications are listed only where confirmed.' ),
+	'custom'        => array( 'accent' => '#173D35', 'accent6' => '#A4532F', 'kicker' => '', 'title' => 'Welcome to our store.', 'text' => 'Products are on their way. Browse by category once they are listed, and check out in one cart.' ),
+);
+
+function tatva_niche(): string {
+	$n = (string) get_option( 'platform_store_niche', '' );
+	return isset( TATVA_NICHES[ $n ] ) ? $n : '';
+}
+
+/** True for the original TATVA store (no niche); its copy and images stay exactly as designed. */
+function tatva_is_default(): bool {
+	return '' === tatva_niche();
+}
+
+/** Niche texts for the hero; the kicker falls back to the store's tagline. */
+function tatva_copy( string $key ): string {
+	$n = tatva_niche();
+	if ( '' === $n ) {
+		return '';
+	}
+	$v = TATVA_NICHES[ $n ][ $key ] ?? '';
+	if ( 'kicker' === $key ) {
+		$tagline = trim( (string) get_bloginfo( 'description' ) );
+		return '' !== $tagline ? $tagline : $v;
+	}
+	return $v;
+}
+
+/** An editorial image: the niche's own version when it ships one (assets/images/<niche>/), else TATVA's. */
+function tatva_image_uri( string $file ): string {
+	$n = tatva_niche();
+	if ( '' !== $n && is_readable( get_theme_file_path( "assets/images/$n/$file" ) ) ) {
+		return get_theme_file_uri( "assets/images/$n/$file" );
+	}
+	return get_theme_file_uri( "assets/images/$file" );
+}
+
+/** The niche accent replaces the TATVA greens in the palette variables (presentation only). */
+add_action(
+	'wp_head',
+	static function () {
+		$n = tatva_niche();
+		if ( '' === $n ) {
+			return;
+		}
+		printf( '<style id="tatva-niche">:root{--wp--preset--color--accent-1:%s;--wp--preset--color--accent-6:%s}</style>' . "\n", esc_html( TATVA_NICHES[ $n ]['accent'] ), esc_html( TATVA_NICHES[ $n ]['accent6'] ) );
+	},
+	20
+);
+
+/** Alt text for theme images, shipped with the theme (built from images/manifest.json, plus the niche's own). */
 function tatva_manifest(): array {
 	static $m = null;
 	if ( null === $m ) {
-		$file = get_theme_file_path( 'assets/image-meta.json' );
-		$m    = is_readable( $file ) ? (array) json_decode( (string) file_get_contents( $file ), true ) : array(); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		$m = array();
+		$files = array( get_theme_file_path( 'assets/image-meta.json' ) );
+		if ( '' !== tatva_niche() ) {
+			$files[] = get_theme_file_path( 'assets/images/' . tatva_niche() . '/image-meta.json' );
+		}
+		foreach ( $files as $file ) {
+			if ( is_readable( $file ) ) {
+				$m = array_merge( $m, (array) json_decode( (string) file_get_contents( $file ), true ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			}
+		}
 	}
 	return $m;
 }

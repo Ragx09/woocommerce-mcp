@@ -1,0 +1,788 @@
+{
+ "_note": "Bike accessories (RIDGELINE-inspired) demo catalogue — source: docs/ridgeline-brand-products.md §6. Prices are illustrative INR demo prices; brand labels are placeholders. Descriptions only restate the product name; no fitment, certification or specification is claimed.",
+ "store": {
+  "title": "RIDGELINE",
+  "tagline": "Ride. Drive. Explore.",
+  "currency": "INR"
+ },
+ "categories": [
+  {
+   "slug": "riding-gear",
+   "name": "Riding Gear & Protection",
+   "description": "Helmets, jackets, gloves, boots, rainwear and protective accessories.",
+   "image": "bike/editorial/category-riding-gear.webp"
+  },
+  {
+   "slug": "motorcycle-accessories",
+   "name": "Motorcycle Accessories",
+   "description": "Luggage, phone mounts, lighting, grips, covers and touring accessories.",
+   "image": "bike/editorial/category-motorcycle-accessories.webp"
+  },
+  {
+   "slug": "car-accessories",
+   "name": "Car Accessories",
+   "description": "Dashcams, phone mounts, inflators, organisers, sunshades and car-care items.",
+   "image": "bike/editorial/category-car-accessories.webp"
+  },
+  {
+   "slug": "travel-touring",
+   "name": "Travel & Touring",
+   "description": "Dry bags, backpacks, duffels, headlamps, hydration and travel organisers.",
+   "image": "bike/editorial/category-travel-touring.webp"
+  },
+  {
+   "slug": "maintenance-care",
+   "name": "Maintenance & Care",
+   "description": "Chain care, cleaning brushes, microfiber cloths, pressure gauges and tools.",
+   "image": "bike/editorial/category-maintenance-care.webp"
+  },
+  {
+   "slug": "lifestyle",
+   "name": "Lifestyle & Everyday Carry",
+   "description": "T-shirts, caps, mugs, patches and everyday carry pouches.",
+   "image": "bike/editorial/category-lifestyle.webp"
+  },
+  {
+   "slug": "electronics",
+   "name": "Electronics & Connectivity",
+   "description": "Helmet intercoms, camera mounts and travel power.",
+   "image": "bike/editorial/category-electronics.webp"
+  }
+ ],
+ "brands": [
+  {
+   "slug": "ridgeline-select",
+   "name": "RIDGELINE Select",
+   "description": "Riding gear and protection selected for the store (demo label)."
+  },
+  {
+   "slug": "trailkit",
+   "name": "TrailKit",
+   "description": "Luggage, covers, organisers and travel bags (demo label)."
+  },
+  {
+   "slug": "roadlink",
+   "name": "RoadLink",
+   "description": "Mounts, lighting, charging and electronics (demo label)."
+  },
+  {
+   "slug": "pitstop-works",
+   "name": "PitStop Works",
+   "description": "Cleaning, maintenance and tyre tools (demo label)."
+  },
+  {
+   "slug": "campline",
+   "name": "Campline",
+   "description": "Compact camping and hydration gear (demo label)."
+  },
+  {
+   "slug": "ridgeline",
+   "name": "RIDGELINE",
+   "description": "Store-branded apparel and everyday carry (demo label)."
+  }
+ ],
+ "collections": [
+  {
+   "tag": "everyday-rider",
+   "name": "The Everyday Rider",
+   "description": "Gloves, phone mounts, rainwear and practical commuter accessories."
+  },
+  {
+   "tag": "weekend-escape",
+   "name": "Weekend Escape",
+   "description": "Tail bags, dry bags, organisers, hydration and compact touring gear."
+  },
+  {
+   "tag": "long-distance",
+   "name": "Long-Distance Touring",
+   "description": "Luggage, charging, touring accessories and weather gear."
+  },
+  {
+   "tag": "car-trip",
+   "name": "Car Trip Essentials",
+   "description": "Dashcams, inflators, boot organisers, phone mounts and cleaning kits."
+  },
+  {
+   "tag": "keep-it-running",
+   "name": "Keep It Running",
+   "description": "Maintenance and care products."
+  },
+  {
+   "tag": "the-edit",
+   "name": "The RIDGELINE Edit",
+   "description": "Apparel, patches, mugs and everyday carry."
+  }
+ ],
+ "products": [
+  {
+   "sku": "RDG-001",
+   "name": "Full-face road helmet",
+   "slug": "full-face-road-helmet",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "4999",
+   "short_description": "Full-face road helmet. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "everyday-rider"
+   ],
+   "image": "bike/products/rdg-001.webp"
+  },
+  {
+   "sku": "RDG-002",
+   "name": "Adventure touring jacket",
+   "slug": "adventure-touring-jacket",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "7499",
+   "short_description": "Adventure touring jacket. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-002.webp"
+  },
+  {
+   "sku": "RDG-003",
+   "name": "Protective riding gloves",
+   "slug": "protective-riding-gloves",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "1499",
+   "short_description": "Protective riding gloves. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "everyday-rider"
+   ],
+   "image": "bike/products/rdg-003.webp"
+  },
+  {
+   "sku": "RDG-004",
+   "name": "Touring riding boots",
+   "slug": "touring-riding-boots",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "5499",
+   "short_description": "Touring riding boots. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-004.webp"
+  },
+  {
+   "sku": "RDG-005",
+   "name": "Riding shoes",
+   "slug": "riding-shoes",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "3499",
+   "short_description": "Riding shoes. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-005.webp"
+  },
+  {
+   "sku": "RDG-006",
+   "name": "Waterproof rain suit",
+   "slug": "waterproof-rain-suit",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "1499",
+   "short_description": "Waterproof rain suit. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "everyday-rider"
+   ],
+   "image": "bike/products/rdg-006.webp"
+  },
+  {
+   "sku": "RDG-007",
+   "name": "Riding knee guards",
+   "slug": "riding-knee-guards",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "1199",
+   "short_description": "Riding knee guards. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-007.webp"
+  },
+  {
+   "sku": "RDG-008",
+   "name": "Balaclava riding face cover",
+   "slug": "balaclava-riding-face-cover",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "399",
+   "short_description": "Balaclava riding face cover. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-008.webp"
+  },
+  {
+   "sku": "RDG-009",
+   "name": "Thermal riding base layer",
+   "slug": "thermal-riding-base-layer",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "1299",
+   "short_description": "Thermal riding base layer. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-009.webp"
+  },
+  {
+   "sku": "RDG-010",
+   "name": "High-visibility rain cover",
+   "slug": "high-visibility-rain-cover",
+   "brand": "RIDGELINE Select",
+   "category": "riding-gear",
+   "regular_price": "699",
+   "short_description": "High-visibility rain cover. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-010.webp"
+  },
+  {
+   "sku": "RDG-011",
+   "name": "Strap-on tank bag",
+   "slug": "strap-on-tank-bag",
+   "brand": "TrailKit",
+   "category": "motorcycle-accessories",
+   "regular_price": "2499",
+   "short_description": "Strap-on tank bag. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-011.webp"
+  },
+  {
+   "sku": "RDG-012",
+   "name": "Waterproof tail bag",
+   "slug": "waterproof-tail-bag",
+   "brand": "TrailKit",
+   "category": "motorcycle-accessories",
+   "regular_price": "1999",
+   "short_description": "Waterproof tail bag. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-012.webp"
+  },
+  {
+   "sku": "RDG-013",
+   "name": "Motorcycle phone mount",
+   "slug": "motorcycle-phone-mount",
+   "brand": "RoadLink",
+   "category": "motorcycle-accessories",
+   "regular_price": "999",
+   "short_description": "Motorcycle phone mount. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "everyday-rider"
+   ],
+   "image": "bike/products/rdg-013.webp"
+  },
+  {
+   "sku": "RDG-014",
+   "name": "USB motorcycle charging kit",
+   "slug": "usb-motorcycle-charging-kit",
+   "brand": "RoadLink",
+   "category": "motorcycle-accessories",
+   "regular_price": "1299",
+   "short_description": "USB motorcycle charging kit. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-014.webp"
+  },
+  {
+   "sku": "RDG-015",
+   "name": "Motorcycle cover",
+   "slug": "motorcycle-cover",
+   "brand": "TrailKit",
+   "category": "motorcycle-accessories",
+   "regular_price": "899",
+   "short_description": "Motorcycle cover. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-015.webp"
+  },
+  {
+   "sku": "RDG-016",
+   "name": "Touring top box",
+   "slug": "touring-top-box",
+   "brand": "TrailKit",
+   "category": "motorcycle-accessories",
+   "regular_price": "4999",
+   "short_description": "Touring top box. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-016.webp"
+  },
+  {
+   "sku": "RDG-017",
+   "name": "Auxiliary lights",
+   "slug": "auxiliary-lights",
+   "brand": "RoadLink",
+   "category": "motorcycle-accessories",
+   "regular_price": "2499",
+   "short_description": "Auxiliary lights. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-017.webp"
+  },
+  {
+   "sku": "RDG-018",
+   "name": "Handlebar grip set",
+   "slug": "handlebar-grip-set",
+   "brand": "RoadLink",
+   "category": "motorcycle-accessories",
+   "regular_price": "499",
+   "short_description": "Handlebar grip set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-018.webp"
+  },
+  {
+   "sku": "RDG-019",
+   "name": "Motorcycle cleaning kit",
+   "slug": "motorcycle-cleaning-kit",
+   "brand": "PitStop Works",
+   "category": "motorcycle-accessories",
+   "regular_price": "699",
+   "short_description": "Motorcycle cleaning kit. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "everyday-rider"
+   ],
+   "image": "bike/products/rdg-019.webp"
+  },
+  {
+   "sku": "RDG-020",
+   "name": "Compact tyre-pressure gauge",
+   "slug": "compact-tyre-pressure-gauge",
+   "brand": "PitStop Works",
+   "category": "motorcycle-accessories",
+   "regular_price": "499",
+   "short_description": "Compact tyre-pressure gauge. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-020.webp"
+  },
+  {
+   "sku": "RDG-021",
+   "name": "Dashcam",
+   "slug": "dashcam",
+   "brand": "RoadLink",
+   "category": "car-accessories",
+   "regular_price": "4499",
+   "short_description": "Dashcam. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "car-trip"
+   ],
+   "image": "bike/products/rdg-021.webp"
+  },
+  {
+   "sku": "RDG-022",
+   "name": "Dashboard phone mount",
+   "slug": "dashboard-phone-mount",
+   "brand": "RoadLink",
+   "category": "car-accessories",
+   "regular_price": "699",
+   "short_description": "Dashboard phone mount. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "car-trip"
+   ],
+   "image": "bike/products/rdg-022.webp"
+  },
+  {
+   "sku": "RDG-023",
+   "name": "Portable tyre inflator",
+   "slug": "portable-tyre-inflator",
+   "brand": "PitStop Works",
+   "category": "car-accessories",
+   "regular_price": "1799",
+   "short_description": "Portable tyre inflator. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "car-trip"
+   ],
+   "image": "bike/products/rdg-023.webp"
+  },
+  {
+   "sku": "RDG-024",
+   "name": "Boot organiser",
+   "slug": "boot-organiser",
+   "brand": "TrailKit",
+   "category": "car-accessories",
+   "regular_price": "999",
+   "short_description": "Boot organiser. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "car-trip"
+   ],
+   "image": "bike/products/rdg-024.webp"
+  },
+  {
+   "sku": "RDG-025",
+   "name": "Car sunshade set",
+   "slug": "car-sunshade-set",
+   "brand": "TrailKit",
+   "category": "car-accessories",
+   "regular_price": "599",
+   "short_description": "Car sunshade set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-025.webp"
+  },
+  {
+   "sku": "RDG-026",
+   "name": "Microfiber car-care kit",
+   "slug": "microfiber-car-care-kit",
+   "brand": "PitStop Works",
+   "category": "car-accessories",
+   "regular_price": "799",
+   "short_description": "Microfiber car-care kit. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "car-trip"
+   ],
+   "image": "bike/products/rdg-026.webp"
+  },
+  {
+   "sku": "RDG-027",
+   "name": "Emergency jump starter",
+   "slug": "emergency-jump-starter",
+   "brand": "RoadLink",
+   "category": "car-accessories",
+   "regular_price": "3499",
+   "short_description": "Emergency jump starter. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-027.webp"
+  },
+  {
+   "sku": "RDG-028",
+   "name": "Seat-back organiser",
+   "slug": "seat-back-organiser",
+   "brand": "TrailKit",
+   "category": "car-accessories",
+   "regular_price": "699",
+   "short_description": "Seat-back organiser. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-028.webp"
+  },
+  {
+   "sku": "RDG-029",
+   "name": "Waterproof dry bag",
+   "slug": "waterproof-dry-bag",
+   "brand": "TrailKit",
+   "category": "travel-touring",
+   "regular_price": "1299",
+   "short_description": "Waterproof dry bag. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-029.webp"
+  },
+  {
+   "sku": "RDG-030",
+   "name": "Adventure travel backpack",
+   "slug": "adventure-travel-backpack",
+   "brand": "TrailKit",
+   "category": "travel-touring",
+   "regular_price": "2499",
+   "short_description": "Adventure travel backpack. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-030.webp"
+  },
+  {
+   "sku": "RDG-031",
+   "name": "Compact travel duffel",
+   "slug": "compact-travel-duffel",
+   "brand": "TrailKit",
+   "category": "travel-touring",
+   "regular_price": "1799",
+   "short_description": "Compact travel duffel. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-031.webp"
+  },
+  {
+   "sku": "RDG-032",
+   "name": "Compact camping headlamp",
+   "slug": "compact-camping-headlamp",
+   "brand": "Campline",
+   "category": "travel-touring",
+   "regular_price": "699",
+   "short_description": "Compact camping headlamp. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-032.webp"
+  },
+  {
+   "sku": "RDG-033",
+   "name": "Lightweight travel mat",
+   "slug": "lightweight-travel-mat",
+   "brand": "Campline",
+   "category": "travel-touring",
+   "regular_price": "1499",
+   "short_description": "Lightweight travel mat. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-033.webp"
+  },
+  {
+   "sku": "RDG-034",
+   "name": "Reusable hydration bottle",
+   "slug": "reusable-hydration-bottle",
+   "brand": "Campline",
+   "category": "travel-touring",
+   "regular_price": "699",
+   "short_description": "Reusable hydration bottle. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-034.webp"
+  },
+  {
+   "sku": "RDG-035",
+   "name": "Compact first-aid pouch",
+   "slug": "compact-first-aid-pouch",
+   "brand": "Campline",
+   "category": "travel-touring",
+   "regular_price": "499",
+   "short_description": "Compact first-aid pouch. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-035.webp"
+  },
+  {
+   "sku": "RDG-036",
+   "name": "Travel organiser pouch set",
+   "slug": "travel-organiser-pouch-set",
+   "brand": "TrailKit",
+   "category": "travel-touring",
+   "regular_price": "599",
+   "short_description": "Travel organiser pouch set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "weekend-escape"
+   ],
+   "image": "bike/products/rdg-036.webp"
+  },
+  {
+   "sku": "RDG-037",
+   "name": "Motorcycle chain cleaner",
+   "slug": "motorcycle-chain-cleaner",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "349",
+   "short_description": "Motorcycle chain cleaner. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-037.webp"
+  },
+  {
+   "sku": "RDG-038",
+   "name": "Motorcycle chain lubricant",
+   "slug": "motorcycle-chain-lubricant",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "399",
+   "short_description": "Motorcycle chain lubricant. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-038.webp"
+  },
+  {
+   "sku": "RDG-039",
+   "name": "Detailing brush set",
+   "slug": "detailing-brush-set",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "299",
+   "short_description": "Detailing brush set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-039.webp"
+  },
+  {
+   "sku": "RDG-040",
+   "name": "Microfiber cloth set",
+   "slug": "microfiber-cloth-set",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "249",
+   "short_description": "Microfiber cloth set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-040.webp"
+  },
+  {
+   "sku": "RDG-041",
+   "name": "Tyre-pressure gauge",
+   "slug": "tyre-pressure-gauge",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "499",
+   "short_description": "Tyre-pressure gauge. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-041.webp"
+  },
+  {
+   "sku": "RDG-042",
+   "name": "Compact tool roll",
+   "slug": "compact-tool-roll",
+   "brand": "PitStop Works",
+   "category": "maintenance-care",
+   "regular_price": "999",
+   "short_description": "Compact tool roll. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "keep-it-running"
+   ],
+   "image": "bike/products/rdg-042.webp"
+  },
+  {
+   "sku": "RDG-043",
+   "name": "Graphic riding T-shirt",
+   "slug": "graphic-riding-t-shirt",
+   "brand": "RIDGELINE",
+   "category": "lifestyle",
+   "regular_price": "799",
+   "short_description": "Graphic riding T-shirt. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "the-edit"
+   ],
+   "image": "bike/products/rdg-043.webp"
+  },
+  {
+   "sku": "RDG-044",
+   "name": "Adventure cap",
+   "slug": "adventure-cap",
+   "brand": "RIDGELINE",
+   "category": "lifestyle",
+   "regular_price": "499",
+   "short_description": "Adventure cap. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "the-edit"
+   ],
+   "image": "bike/products/rdg-044.webp"
+  },
+  {
+   "sku": "RDG-045",
+   "name": "Road-trip enamel mug",
+   "slug": "road-trip-enamel-mug",
+   "brand": "RIDGELINE",
+   "category": "lifestyle",
+   "regular_price": "499",
+   "short_description": "Road-trip enamel mug. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "the-edit"
+   ],
+   "image": "bike/products/rdg-045.webp"
+  },
+  {
+   "sku": "RDG-046",
+   "name": "Woven adventure patch set",
+   "slug": "woven-adventure-patch-set",
+   "brand": "RIDGELINE",
+   "category": "lifestyle",
+   "regular_price": "299",
+   "short_description": "Woven adventure patch set. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "the-edit"
+   ],
+   "image": "bike/products/rdg-046.webp"
+  },
+  {
+   "sku": "RDG-047",
+   "name": "Compact everyday carry pouch",
+   "slug": "compact-everyday-carry-pouch",
+   "brand": "RIDGELINE",
+   "category": "lifestyle",
+   "regular_price": "699",
+   "short_description": "Compact everyday carry pouch. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "the-edit"
+   ],
+   "image": "bike/products/rdg-047.webp"
+  },
+  {
+   "sku": "RDG-048",
+   "name": "Bluetooth helmet intercom",
+   "slug": "bluetooth-helmet-intercom",
+   "brand": "RoadLink",
+   "category": "electronics",
+   "regular_price": "3999",
+   "short_description": "Bluetooth helmet intercom. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": true,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-048.webp"
+  },
+  {
+   "sku": "RDG-049",
+   "name": "Action camera mounting kit",
+   "slug": "action-camera-mounting-kit",
+   "brand": "RoadLink",
+   "category": "electronics",
+   "regular_price": "799",
+   "short_description": "Action camera mounting kit. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [],
+   "image": "bike/products/rdg-049.webp"
+  },
+  {
+   "sku": "RDG-050",
+   "name": "USB-C power bank for travel",
+   "slug": "usb-c-power-bank-for-travel",
+   "brand": "RoadLink",
+   "category": "electronics",
+   "regular_price": "1499",
+   "short_description": "USB-C power bank for travel. Demo listing: fitment, sizes and specifications are not verified.",
+   "featured": false,
+   "tags": [
+    "long-distance"
+   ],
+   "image": "bike/products/rdg-050.webp"
+  }
+ ]
+}

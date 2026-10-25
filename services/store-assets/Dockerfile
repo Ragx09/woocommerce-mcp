@@ -10,5 +10,8 @@ COPY services/store-assets/theme /assets/theme
 # Editorial images and alt text used directly by the theme's patterns.
 COPY services/store-assets/images/editorial /assets/theme/tatva/assets/images
 COPY services/store-assets/images/manifest.json /assets/theme/tatva/assets/image-meta.json
+# BON-17: the bike niche's own editorial images and alt texts (the theme picks them by niche).
+COPY services/store-assets/images/bike/editorial /assets/theme/tatva/assets/images/bike
+COPY services/store-assets/images/bike/manifest.json /assets/theme/tatva/assets/images/bike/image-meta.json
 USER 65534:65534
 CMD ["cp", "-r", "/assets/.", "/out/"]

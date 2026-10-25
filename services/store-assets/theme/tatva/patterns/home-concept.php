@@ -4,7 +4,8 @@
  * Slug: tatva/home-concept
  * Inserter: no
  */
-$img = get_theme_file_uri( 'assets/images/concept.webp' );
+$img  = tatva_image_uri( 'concept.webp' );
+$name = get_bloginfo( 'name' );
 ?>
 <!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained","contentSize":"1240px"}} -->
 <div class="wp-block-group" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)">
@@ -26,7 +27,7 @@ $img = get_theme_file_uri( 'assets/images/concept.webp' );
 			<h2 class="wp-block-heading">A more thoughtful way to discover brands.</h2>
 			<!-- /wp:heading -->
 			<!-- wp:paragraph -->
-			<p>Good independent brands are spread across many websites and social profiles. TATVA brings a selection of them into one store, presents each product with clear information, and lets you buy from several brands in a single checkout.</p>
+			<p>Good independent brands are spread across many websites and social profiles. <?php echo esc_html( $name ); ?> brings a selection of them into one store, presents each product with clear information, and lets you buy from several brands in a single checkout.</p>
 			<!-- /wp:paragraph -->
 			<!-- wp:paragraph -->
 			<p><a href="/our-concept/">Read about our concept</a></p>

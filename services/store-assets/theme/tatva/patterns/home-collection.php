@@ -4,11 +4,11 @@
  * Slug: tatva/home-collection
  * Inserter: no
  */
-$tag = get_term_by( 'slug', 'the-morning-table', 'product_tag' );
+$tag = get_term_by( 'slug', (string) get_option( 'platform_collection_tag', 'the-morning-table' ), 'product_tag' );
 if ( ! $tag ) {
 	return; // collection not imported yet: show nothing rather than an empty section
 }
-$img = get_theme_file_uri( 'assets/images/collection.webp' );
+$img = tatva_image_uri( 'collection.webp' );
 ?>
 <!-- wp:group {"align":"full","backgroundColor":"accent-2","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"1240px"}} -->
 <div class="wp-block-group alignfull has-accent-2-background-color has-background" style="padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">

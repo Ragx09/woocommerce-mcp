@@ -44,6 +44,10 @@ add_action(
 				esc_url( get_theme_file_uri( 'assets/images/tatva-wordmark.svg' ) )
 			)
 		);
+		// BON-11: created stores show their own name, never the TATVA wordmark.
+		if ( function_exists( 'tatva_is_default' ) && ! tatva_is_default() ) {
+			wp_add_inline_style( 'tatva-login', '#login h1 a{background-image:none;text-indent:0;width:auto;height:auto;font-size:1.75rem;font-weight:600;line-height:1.3}' );
+		}
 	}
 );
 add_filter( 'login_headerurl', static fn() => home_url( '/' ) );
