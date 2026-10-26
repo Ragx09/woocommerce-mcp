@@ -85,7 +85,7 @@ try {
   const A = await createKey(`e2e-stores ${stamp}`);
   try {
     const aNames = await toolNames(A.key);
-    for (const s of stores) check(`TC-BON-13-1 tools of ${s.slug} appear for the owner with no manual step`, ['list_products', 'list_orders', 'get_order', 'create_product', 'update_order_status'].every((t) => aNames.includes(`woo-${s.slug}__${t}`)));
+    for (const s of stores) check(`TC-BON-13-1 tools of ${s.slug} appear for the owner with no manual step`, ['list_products', 'list_orders', 'get_order', 'create_product', 'update_order_status', 'update_product'].every((t) => aNames.includes(`woo-${s.slug}__${t}`)));
     check('TC-BON-14-4 member B has none of them', !(await toolNames(bKey.body.key)).some((n) => n.startsWith('woo-e2e-')));
     const forbidden = await rpc(bKey.body.key, 'tools/call', { name: `woo-${s1.slug}__list_orders`, arguments: {} });
     check('TC-BON-14-4 B calling a store tool by name is refused', forbidden.json?.error?.data?.code === 'tool_forbidden', JSON.stringify(forbidden.json?.error ?? forbidden.json?.result).slice(0, 100));

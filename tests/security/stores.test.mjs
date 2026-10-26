@@ -265,7 +265,7 @@ describe('TC-SEC-11-7 a store\'s tools: owner, shared member, everyone else', ()
     expect(nc.some((n) => n.startsWith(`woo-${storeB.slug}__`))).toBe(false);
     const na = await names(ka);
     expect(na.some((n) => n.startsWith(`woo-${storeB.slug}__`)) && na.some((n) => n.startsWith(`woo-${storeC.slug}__`))).toBe(true);
-    for (const tool of ['list_orders', 'create_product', 'update_order_status']) {
+    for (const tool of ['list_orders', 'create_product', 'update_order_status', 'update_product']) {
       const r = await mcp(kc.key, 'tools/call', { name: `woo-${storeB.slug}__${tool}`, arguments: {} });
       expect.soft(r.body?.error?.data?.code, tool).toBe('tool_forbidden');
     }
