@@ -30,6 +30,22 @@ MCP client / dashboard chat
 ```
 Rules the design follows: everything goes through the gateway `/mcp`; authorization is enforced on the server, never only in the UI; API keys are stored as hashes; upstream credentials are encrypted at rest and never returned or forwarded; internal services stay internal (default-deny NetworkPolicies). Details: [ARCHITECTURE.md](ARCHITECTURE.md), [SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).
 
+## What is delivered
+The problem statement asks for the items below. This table says where each one is, in plain terms.
+
+| Deliverable | What you get | Where |
+|---|---|---|
+| **A WooCommerce store on Kubernetes** | A real shop (WordPress + WooCommerce + MariaDB) running in the cluster with persistent storage, branded as "TATVA", paid by cash on delivery | `charts/platform`, `charts/store`; see [Place an order](#place-an-order) |
+| **An MCP server I wrote** | Exposes the store's products and orders as tools so an AI client can list products, create a product and read or update orders | `services/woo-mcp` |
+| **Gateway, dashboard and chat agent** | One MCP endpoint for the whole team. Admins register servers and invite people; members get their own API key; a chat page answers questions by calling the same tools; every call is audited | `services/gateway`, `apps/dashboard`; see [Using the system](#using-the-system) |
+| **Helm charts, local and production values** | One set of charts. `values-local.yaml` for a laptop cluster (k3d), `values-prod.yaml` for a VPS (k3s); only domain, TLS, storage and sizes differ | `charts/` |
+| **Local setup and VPS setup instructions** | Step-by-step commands, with a one-command bring-up for each | [Local setup](#local-setup), [VPS setup](#vps-k3s-setup) |
+| **How to order, connect a client and use the chat** | Written walk-throughs for Claude Code, Cursor and MCP Inspector, plus the chat agent | [Using the system](#using-the-system) |
+| **System design and tradeoffs note** | Architecture choices, how tool routing and failure handling work, what changes in production | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) |
+| **Threat model note** | What a member can do with a credential they never see, why client tokens are not passed upstream, untrusted upstreams, member-to-member risks | [THREAT_MODEL.md](THREAT_MODEL.md) |
+| **Bonus and stand-out items** | All nine stand-out items and the multi-store bonus, with an honest status for each | [table at the end](#bonus--stand-out-items-attempted) |
+| **Demo video** | Covers the six required topics (system design, Kubernetes, MCP internals, security, chat agent, local-to-VPS). Recording plan: [docs/VIDEO_PLAN.md](docs/VIDEO_PLAN.md). The link is added here once recorded. | recorded on the VPS, see below |
+
 ## Screenshots
 | | |
 |---|---|
@@ -75,7 +91,7 @@ scripts/down.sh --all    # delete the cluster and ALL data
 More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## VPS (k3s) setup
-> Scripted in [`vps-setup/`](vps-setup/); **not yet run on a real VPS** (JarvisLabs CPU VM chosen, waiting for credits). Specs, costs, setup log: [`vps-setup/VPS.md`](vps-setup/VPS.md).
+> Scripted in [`vps-setup/`](vps-setup/); **not yet run on a real VPS** (JarvisLabs CPU VM chosen, credits added, first session still to do). Specs, costs, setup log: [`vps-setup/VPS.md`](vps-setup/VPS.md).
 
 Needs Ubuntu LTS, x86_64, 2 vCPU / 8 GB (demo: default store + 1 extra; 4 vCPU / 16 GB for more stores), ≥ 100 GB disk; TCP 22/80/443 open (keep 6443 closed).
 ```bash
@@ -85,6 +101,18 @@ vps-setup/ssh.sh status      # VM, tunnel and node
 vps-setup/down.sh            # destroy the VM (stop billing)   ·   --pause to keep the disk
 ```
 What differs from local is only Helm values (`charts/platform/values-prod.yaml`): domain, https + cert-manager issuer (Secure cookies follow), registry prefix, storage sizes and resources. Images are the same content-addressed tags as local, streamed into k3s's containerd over SSH (D-023), so no registry is needed. Upgrade and rollback: `helm history platform` / `helm rollback platform <rev>` ([DEPLOYMENT.md](docs/DEPLOYMENT.md) §6).
+
+### The live demo environment (how I use the VPS)
+The VPS costs money by the hour, so I run it **only while recording the demo and while presenting it**, not continuously:
+
+- **Provider and size:** a JarvisLabs CPU VM, 2 vCPU / 8 GB / 100 GB, about ₹5.3 per hour. It is created by `vps-setup/up.sh` and destroyed with `vps-setup/down.sh` afterwards, so there is no running bill between sessions. The plan is two sessions: one to record the video and one to present.
+- **Address:** a free [DuckDNS](https://www.duckdns.org) name, `woo-commerce-demo.duckdns.org`. The dashboard is at `https://app.woo-commerce-demo.duckdns.org` and the store at `https://store.woo-commerce-demo.duckdns.org`. DuckDNS keeps the **same address** every time: each bring-up creates a new VM with a new IP, and `up.sh` points the name at it. I chose it over `<ip>.sslip.io` because the address stays the same across sessions (so links and screenshots stay valid) and Let's Encrypt limits certificates per domain, which a shared service like sslip.io can exhaust.
+- **HTTPS:** certificates come from Let's Encrypt through cert-manager, so browsers and MCP clients see a normal trusted connection.
+- **Data is not kept between sessions.** Destroying the VM deletes the database, so each session starts from a fresh install with the demo users and sample data created by the scripts. Nothing about the demo depends on data surviving.
+- **Why no always-on link:** outside those sessions the address does not answer. Anyone can reproduce the same thing: the local setup above needs only Docker, and the VPS setup works on any Ubuntu server with a domain name. The screenshots and the video show the running system.
+- **Secrets:** my accounts and keys (LLM key, GitHub token, DuckDNS token) are entered **once**, in a gitignored `.env` file. `up.sh` turns them into Kubernetes Secrets during the run; they are never committed, logged or shown in the dashboard.
+
+Status of the VPS part, stated plainly: the scripts, `values-prod.yaml` and a clean rehearsal on a local cluster are done; **the first run on a real VPS has not happened yet**, so TLS and persistence checks on the VPS are still to be recorded (tasks REL-01 to REL-06 in [TASKS.md](TASKS.md)).
 
 ## Using the system
 
