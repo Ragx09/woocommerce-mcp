@@ -31,20 +31,21 @@ MCP client / dashboard chat
 Rules the design follows: everything goes through the gateway `/mcp`; authorization is enforced on the server, never only in the UI; API keys are stored as hashes; upstream credentials are encrypted at rest and never returned or forwarded; internal services stay internal (default-deny NetworkPolicies). Details: [ARCHITECTURE.md](ARCHITECTURE.md), [SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).
 
 ## What is delivered
-The problem statement asks for the items below. This table says where each one is, in plain terms.
+This follows the deliverables list in the problem statement, in the same order, and says where each item is.
 
-| Deliverable | What you get | Where |
+| Deliverable (as asked) | What you get | Where |
 |---|---|---|
-| **A WooCommerce store on Kubernetes** | A real shop (WordPress + WooCommerce + MariaDB) running in the cluster with persistent storage, branded as "TATVA", paid by cash on delivery | `charts/platform`, `charts/store`; see [Place an order](#place-an-order) |
-| **An MCP server I wrote** | Exposes the store's products and orders as tools so an AI client can list products, create a product and read or update orders | `services/woo-mcp` |
-| **Gateway, dashboard and chat agent** | One MCP endpoint for the whole team. Admins register servers and invite people; members get their own API key; a chat page answers questions by calling the same tools; every call is audited | `services/gateway`, `apps/dashboard`; see [Using the system](#using-the-system) |
-| **Helm charts, local and production values** | One set of charts. `values-local.yaml` for a laptop cluster (k3d), `values-prod.yaml` for a VPS (k3s); only domain, TLS, storage and sizes differ | `charts/` |
-| **Local setup and VPS setup instructions** | Step-by-step commands, with a one-command bring-up for each | [Local setup](#local-setup), [VPS setup](#vps-k3s-setup) |
-| **How to order, connect a client and use the chat** | Written walk-throughs for Claude Code, Cursor and MCP Inspector, plus the chat agent | [Using the system](#using-the-system) |
-| **System design and tradeoffs note** | Architecture choices, how tool routing and failure handling work, what changes in production | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) |
-| **Threat model note** | What a member can do with a credential they never see, why client tokens are not passed upstream, untrusted upstreams, member-to-member risks | [THREAT_MODEL.md](THREAT_MODEL.md) |
-| **Bonus and stand-out items** | All nine stand-out items and the multi-store bonus, with an honest status for each | [table at the end](#bonus--stand-out-items-attempted) |
-| **Demo video** | Covers the six required topics (system design, Kubernetes, MCP internals, security, chat agent, local-to-VPS). Recording plan: [docs/VIDEO_PLAN.md](docs/VIDEO_PLAN.md). The link is added here once recorded. | recorded on the VPS, see below |
+| **README: local setup instructions** | Prerequisites and a one-command bring-up on a laptop Kubernetes cluster (k3d), with URLs and how to find the passwords | [Local setup](#local-setup) |
+| **README: VPS or production-like setup instructions (k3s)** | Scripted bring-up on a k3s VPS with HTTPS, plus how I use the VM only while recording and presenting | [VPS setup](#vps-k3s-setup), [live demo environment](#the-live-demo-environment-how-i-use-the-vps) |
+| **README: how to place an order, connect an external MCP client, and use the chat agent** | Step-by-step for the storefront checkout; Claude Code, Cursor and MCP Inspector (API key or browser login); the chat agent | [Place an order](#place-an-order), [Connect an external MCP client](#connect-an-external-mcp-client), [Chat agent](#chat-agent) |
+| **Source code: dashboard, backend and gateway, WooCommerce MCP server, chat agent** | React dashboard, the gateway (MCP client to every upstream, MCP server to the team, REST API, auth, audit, chat agent), my own WooCommerce MCP server, plus the provisioner for extra stores | `apps/dashboard`, `services/gateway` (chat agent in `src/chat`), `services/woo-mcp`, `services/provisioner` |
+| **Helm charts and values files (local and production)** | One set of charts; `values-local.yaml` for k3d and `values-prod.yaml` for the VPS (only domain, TLS, storage and sizes differ) | `charts/platform` (`values.yaml`, `values-local.yaml`, `values-prod.yaml`), `charts/store`, `charts/hosted` |
+| **"System design and tradeoffs" note** | Covers the three asked points: architecture choices and their costs (§2); how tool aggregation, routing and failure handling work (§3); what changes for production, i.e. DNS, ingress, storage class and secrets (§4) | [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) |
+| **Threat model note** | Answers the four asked questions: shared upstream credentials a member never sees; why client tokens are not passed through to upstreams; untrusted upstreams and tool descriptions written to manipulate the model; what one member can do to another | [THREAT_MODEL.md](THREAT_MODEL.md) (§4, "Required threat-model questions") |
+| **Bonus and stand-out items attempted, and where to find them** | All nine stand-out items and the multi-store bonus, each with an honest status and file pointers | [table at the end](#bonus--stand-out-items-attempted) |
+| **Demo video** (separate requirement of the pitch) | Covers the six required topics: system design, Kubernetes, MCP internals, security posture, chat agent, local-to-VPS. Recording plan: [docs/VIDEO_PLAN.md](docs/VIDEO_PLAN.md). The link is added here once it is recorded. | recorded on the VPS |
+
+The system itself: a WooCommerce store on Kubernetes; an MCP server I wrote that exposes its products and orders; and a team gateway with a dashboard, API keys, an audit log and a chat agent. See [What it is](#what-it-is).
 
 ## Screenshots
 | | |
