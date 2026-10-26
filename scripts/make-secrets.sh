@@ -48,7 +48,7 @@ EOF
 secret "$STORE_NS" wordpress-admin <<EOF
 admin-user=admin
 admin-password=$(rand 24)
-admin-email=admin@example.invalid
+admin-email=admin@tatva.shop
 EOF
 secret "$STORE_NS" woo-api <<EOF
 consumer-key=ck_$(hex 40)
@@ -82,7 +82,7 @@ EOF
 
 # First dashboard admin (AUTH-02): seeded only while the gateway DB has no admin; never overwritten.
 secret "$PLATFORM_NS" gateway-admin <<EOF
-admin-email=${GATEWAY_ADMIN_EMAIL:-admin@example.invalid}
+admin-email=${GATEWAY_ADMIN_EMAIL:-admin@tatva.shop}
 admin-password=$(rand 24)
 EOF
 

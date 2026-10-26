@@ -1,10 +1,52 @@
 # WooCommerce Hosting + Team MCP Gateway
 
-A WooCommerce store on Kubernetes, a self-written WooCommerce MCP server, and a **team MCP gateway**. An admin registers MCP servers once; every team member then uses all of them through one MCP endpoint (with a personal API key) or through a chat agent in the dashboard. Every call is audited.
+A WooCommerce store on Kubernetes, a self-written WooCommerce MCP server, and a **team MCP gateway**. An admin registers MCP servers once; every team member then uses all of them through **one MCP endpoint** (a personal API key or a browser login) or through a **chat agent** in the dashboard. Every call is attributed to a person and audited. The same Helm charts deploy to a local k3d cluster and to a k3s VPS.
 
-> **Status (2026-10-18):** complete and verified on local k3d — every Definition-of-Done check passes (`scripts/e2e.sh all`). VPS deployment is prepared (scripts + `values-prod.yaml`) but not yet run on a real VPS. Progress: [`docs/PROGRESS.md`](docs/PROGRESS.md), tracker [`tracker/index.html`](tracker/index.html).
-> Short design note for reviewers: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) · threat model: [`THREAT_MODEL.md`](THREAT_MODEL.md)
-> Requirements: [`problem-statement.md`](problem-statement.md) · Spec: [`SPEC.md`](SPEC.md) · Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+![The gateway's Servers page: three MCP servers, 64 tools, per-server status and member access](docs/screenshots/05-servers.jpg)
+
+> **Status (2026-10-26):** complete and verified on local k3d: every Definition-of-Done check passes (`scripts/e2e.sh all`), and all nine stand-out items plus the multi-store bonus are built and verified on k3d (table at the end). The VPS deployment is scripted (`vps-setup/`, `values-prod.yaml`) but **not yet run on a real VPS**; nothing in this README claims otherwise.
+> Reviewer shortcuts: [System design and tradeoffs](docs/SYSTEM_DESIGN.md) · [Threat model](THREAT_MODEL.md) · [Security report](docs/SECURITY_REPORT.md) · [Demo runbook](docs/DEMO_RUNBOOK.md) · [How this was built](my-approach/README.md)
+
+## What it is
+| # | Layer | What it does | Code |
+|---|---|---|---|
+| 1 | **Store** | WordPress + WooCommerce + MariaDB on persistent volumes (INR store, branded TATVA theme, 50-product catalogue) | `charts/platform`, `charts/store`, `services/store-assets` |
+| 2 | **WooCommerce MCP server** | Our own MCP server: products and orders as tools over the WooCommerce REST API (OAuth 1.0a signing); internal only | `services/woo-mcp` |
+| 3 | **Gateway + dashboard** | One `/mcp` endpoint for the team: auth (API keys, OAuth), per-server tool permissions, credential injection, audit log, REST API, React dashboard with no secrets in the browser | `services/gateway`, `apps/dashboard` |
+| 4 | **Chat agent** | An LLM tool loop that calls the gateway's own `/mcp` as the signed-in user, so it has exactly that user's tools | `services/gateway` (chat) |
+
+```
+MCP client / dashboard chat
+        │  Authorization: Bearer mgw_… (or OAuth)
+        ▼
+  Traefik Ingress ──► gateway  ── key hash + role (Postgres) ── tool permission check
+                         │         splits "woo__list_orders" → server "woo", tool "list_orders"
+                         │         injects the upstream's own credential (the client never sees it)
+                         ├──► woo-mcp (internal) ──► WooCommerce REST ──► MariaDB
+                         ├──► everything-mcp (internal reference server)
+                         ├──► GitHub remote MCP (internet; only the gateway has egress)
+                         └──► hosted servers and extra stores (own namespaces, via the provisioner)
+                      every call → one audit_log row (who, server, tool, duration, outcome)
+```
+Rules the design follows: everything goes through the gateway `/mcp`; authorization is enforced on the server, never only in the UI; API keys are stored as hashes; upstream credentials are encrypted at rest and never returned or forwarded; internal services stay internal (default-deny NetworkPolicies). Details: [ARCHITECTURE.md](ARCHITECTURE.md), [SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).
+
+## Screenshots
+| | |
+|---|---|
+| ![Storefront home](docs/screenshots/01-storefront-home.jpg) **Storefront** (TATVA, INR, 5 categories) | ![Chat agent calling woo__list_orders](docs/screenshots/06-chat-agent.jpg) **Chat agent**: a tool call through the gateway, shown with arguments and result |
+| ![Audit log](docs/screenshots/07-audit-log.jpg) **Audit log**: every MCP call attributed to a user and key | ![Tool permissions](docs/screenshots/08-tool-permissions.jpg) **Tool permissions**: members get read-only tools on `woo` |
+| ![Stores page](docs/screenshots/09-stores.jpg) **Multi-store**: each store has its own namespace, database and MCP tools | ![Order received](docs/screenshots/03-order-received.jpg) **Order placed** on the storefront (cash on delivery) |
+
+More: [dashboard overview](docs/screenshots/04-dashboard-overview.jpg), [hosted MCP servers](docs/screenshots/10-hosted-servers.jpg), [product page](docs/screenshots/02-storefront-product.jpg), [mobile dashboard](docs/screenshots/11-mobile-dashboard.jpg). Captured from the local k3d cluster with `scripts/dashboard-screens.sh` and `scripts/storefront-screens.sh`; all data is synthetic and no secrets are shown.
+
+## Quick start (local)
+```bash
+cp .env.example .env     # add LLM_API_KEY (Groq or OpenRouter) and, optionally, GITHUB_MCP_PAT
+scripts/up.sh            # k3d cluster → Secrets → images → Helm → wait (6–12 min first time)
+node scripts/seed-demo-users.mjs --key     # demo users A (admin) and B (member) + one API key for B
+scripts/e2e.sh all       # every automatable Definition-of-Done check (PASS/FAIL lines)
+```
+Then open http://store.127.0.0.1.nip.io (storefront) and http://app.127.0.0.1.nip.io (dashboard). Full steps, URLs and passwords are in **Local setup** below. Tests that need no cluster: `npm run typecheck` and, per workspace, `npm test` (woo-mcp 30, gateway 122, dashboard 30 unit tests, last run 2026-10-26).
 
 ## Project tracker
 ```bash
@@ -27,7 +69,7 @@ scripts/down.sh --all    # delete the cluster and ALL data
 |---|---|
 | Storefront | http://store.127.0.0.1.nip.io |
 | WP admin (user `admin`) | http://store.127.0.0.1.nip.io/wp-admin — password: `kubectl -n store get secret wordpress-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
-| Dashboard | http://app.127.0.0.1.nip.io — admin `admin@example.invalid`, password: `kubectl -n platform get secret gateway-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| Dashboard | http://app.127.0.0.1.nip.io — admin `admin@tatva.shop`, password: `kubectl -n platform get secret gateway-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
 | Gateway MCP endpoint | http://app.127.0.0.1.nip.io/mcp — personal API key: `node scripts/lib/gateway-key.mjs create my-laptop` (prints `<id> <key>`; see docs/DEPLOYMENT.md) |
 
 More detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
@@ -123,6 +165,8 @@ Dashboard → **Servers** → *Hosted servers* → **Add by image** (admins): im
 | [docs/](docs) | MCP design, API contracts, deployment, demo runbook, traceability, security testing ([rules](docs/SECURITY_TESTING.md), [findings](docs/SECURITY_FINDINGS.md), [red-team brief](docs/RED_TEAM_BRIEF.md)) |
 | [brand/](brand) | Storefront brand material (current working concept: TATVA) |
 | [knowledge/](knowledge) | learning notes |
+| [docs/screenshots/](docs/screenshots) | the screenshots used above |
+| [my-approach/](my-approach/README.md) | how this project was built: working method, use of AI agents, personal notes |
 
 ## Bonus / stand-out items attempted
 Status words: **verified on k3d** = scripted check passed on a real cluster (evidence in TASKS.md); **built, cluster run pending** = code, unit/integration tests and a real-browser run exist, the cluster script is written but has not been run yet; **prepared** = scripts and values ready, nothing deployed.

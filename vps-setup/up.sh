@@ -108,7 +108,7 @@ log "images"
 NO_K3D=1 "$REPO/scripts/build-images.sh"
 . "$REPO/.images.env"
 REGISTRY="$(sed -n 's/^  imageRegistry: *//p' "$REPO/charts/platform/values-prod.yaml")"
-for svc in woo-mcp gateway store-assets everything-mcp dashboard; do
+for svc in woo-mcp gateway store-assets everything-mcp dashboard provisioner; do
   var="${svc//-/_}_tag"; tag="${!var}"; ref="$REGISTRY$svc:$tag"
   if vssh "sudo k3s ctr -n k8s.io images ls -q name==$ref" | grep -q .; then echo "image $ref present"; continue; fi
   docker tag "$svc:$tag" "$ref"

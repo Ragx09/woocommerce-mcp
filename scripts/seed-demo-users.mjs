@@ -9,7 +9,7 @@
 //   node scripts/seed-demo-users.mjs          # ensure A and B exist and can sign in
 //   node scripts/seed-demo-users.mjs --key    # also create a key for B and print it ONCE (for Claude Code / Inspector)
 //
-// Env: APP_ORIGIN (default http://app.127.0.0.1.nip.io), DEMO_B_EMAIL (default demo-b@example.invalid),
+// Env: APP_ORIGIN (default http://app.127.0.0.1.nip.io), DEMO_B_EMAIL (default priya@tatva.shop),
 //      DEMO_B_PASSWORD (only used when the Secret does not exist yet), KUBECTL_CONTEXT (optional).
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -37,7 +37,7 @@ function userBSecret() {
   } catch (e) {
     if (!/NotFound/.test(String(e.stderr ?? e.message))) throw e;
   }
-  const email = process.env.DEMO_B_EMAIL ?? 'demo-b@example.invalid';
+  const email = process.env.DEMO_B_EMAIL ?? 'priya@tatva.shop';
   const password = process.env.DEMO_B_PASSWORD ?? randomBytes(18).toString('base64url');
   const manifest = { apiVersion: 'v1', kind: 'Secret', type: 'Opaque', metadata: { name: 'demo-users', namespace: 'platform' },
     stringData: { 'b-email': email, 'b-password': password } };
@@ -57,7 +57,7 @@ export async function ensureDemoUsers() {
     const inv = await api('POST', '/api/invites', { cookie: aCookie, body: { email, role: 'member' } });
     if (inv.status !== 201) throw new Error(`invite for B → ${inv.status} ${JSON.stringify(inv.body)}`);
     const token = new URL(inv.body.inviteUrl).hash.slice(1);
-    const acc = await api('POST', '/api/invites/accept', { body: { token, name: 'User B (demo)', password } });
+    const acc = await api('POST', '/api/invites/accept', { body: { token, name: 'Priya Nair', password } });
     if (acc.status !== 201) throw new Error(`B accepting the invite → ${acc.status} ${JSON.stringify(acc.body)}`);
     console.log(`created  user B ${email} (member) through the invite flow`);
     bUser = (await api('GET', '/api/users', { cookie: aCookie })).body.find((u) => u.email === email);
