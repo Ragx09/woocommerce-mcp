@@ -148,7 +148,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     // Only with its own key (Secret llm-secrets, key fallback-api-key); timeout and output limit as the first provider.
     llmFallback: env.LLM_FALLBACK_API_KEY?.trim() ? {
       baseUrl: baseUrl('LLM_FALLBACK_BASE_URL', env.LLM_FALLBACK_BASE_URL, 'https://openrouter.ai/api/v1'),
-      model: env.LLM_FALLBACK_MODEL?.trim() || 'openai/gpt-oss-120b:free',
+      model: env.LLM_FALLBACK_MODEL?.trim() || 'nvidia/nemotron-3-ultra-550b-a55b:free',
       apiKey: env.LLM_FALLBACK_API_KEY.trim(),
       timeoutMs: int('LLM_TIMEOUT_MS', env.LLM_TIMEOUT_MS, 30_000, 1_000, 120_000),
       maxTokens: int('LLM_MAX_OUTPUT', env.LLM_MAX_OUTPUT, 1_024, 64, 16_384),

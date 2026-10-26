@@ -7,7 +7,7 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 
 const PROVIDERS = {
   groq: { baseUrl: 'https://api.groq.com/openai/v1', key: process.env.LLM_API_KEY, model: process.env.LLM_MODEL || 'openai/gpt-oss-120b' },
-  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', key: process.env.OPENROUTER_API_KEY, model: process.env.OPENROUTER_MODEL || 'openai/gpt-oss-120b:free' },
+  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', key: process.env.OPENROUTER_API_KEY, model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free' },
 };
 const name = process.argv[2] || process.env.LLM_PROVIDER || 'groq';
 const p = PROVIDERS[name];

@@ -151,3 +151,16 @@ img.tatva-img-missing {
 /* BON-11: Ridgeline mark before the store name (bike niche only; the filter adds it). */
 .tatva-site-mark { display: inline-block; width: 40px; height: 25px; margin-right: 0.55rem; vertical-align: -0.2em; }
 .wp-block-site-title a:has(.tatva-site-mark) { display: inline-flex; align-items: center; text-transform: uppercase; letter-spacing: 0.12em; }
+
+/* After the BON-11 mark rules above, so these win on phones. */
+@media (max-width: 600px) {
+	/* Header fits a 360 px phone with a longer store name (BON-17: "RIDGELINE" + mark overflowed by 84 px):
+	   narrower gutters and gaps, a compact search button, a smaller mark; a long name wraps, it is never clipped. */
+	header.wp-block-group { padding-left: 1rem !important; padding-right: 1rem !important; }
+	header .wp-block-group { gap: 0.5rem; }
+	header .wp-block-search__button { padding: 0.4rem; min-height: 0; }
+	.wp-block-site-title { flex-shrink: 1; min-width: 0; }
+	.wp-block-site-title a { white-space: normal; line-height: 1.15; }   /* a long store name wraps instead of pushing the icons off-screen */
+	.tatva-site-mark { width: 26px; height: 17px; margin-right: 0.35rem; }
+	.wp-block-site-title a:has(.tatva-site-mark) { letter-spacing: 0.04em; }
+}

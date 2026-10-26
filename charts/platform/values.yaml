@@ -152,7 +152,7 @@ gateway:
         list_tags, pull_request_read, search_code, search_commits, search_issues, search_pull_requests,
         search_repositories, search_users, ui_get]
   # UI-13 / D-012: chat agent LLM, any OpenAI-compatible chat-completions API. Switching provider is a
-  # values change: OpenRouter → baseUrl https://openrouter.ai/api/v1, model openai/gpt-oss-120b:free.
+  # values change: OpenRouter → baseUrl https://openrouter.ai/api/v1, model nvidia/nemotron-3-ultra-550b-a55b:free (the free gpt-oss-120b was withdrawn 2026-10).
   # The key lives only in the Secret (key api-key, from .env LLM_API_KEY); missing → chat disabled.
   llm:
     baseUrl: https://api.groq.com/openai/v1
@@ -164,7 +164,7 @@ gateway:
     # in the same Secret (from .env OPENROUTER_API_KEY), otherwise off.
     fallback:
       baseUrl: https://openrouter.ai/api/v1
-      model: openai/gpt-oss-120b:free
+      model: nvidia/nemotron-3-ultra-550b-a55b:free
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 1000m, memory: 384Mi }

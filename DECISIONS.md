@@ -226,6 +226,6 @@ Format: each decision has an ID, date, context, options, choice, reasons, trade-
 ## D-031 — Chat LLM fallback provider
 - **Date:** 2026-10-26
 - **Status:** Accepted (UI-13, user request)
-- **Choice:** A second OpenAI-compatible provider (default OpenRouter `openai/gpt-oss-120b:free`, same model family as the Groq default) gets the **same** completion request once when the first answers 429, 5xx, times out or 413 (free-tier limits differ per provider). Other 4xx refusals are not retried elsewhere. Its key is `fallback-api-key` in `llm-secrets`; without it the fallback is off.
+- **Choice:** A second OpenAI-compatible provider (default OpenRouter `nvidia/nemotron-3-ultra-550b-a55b:free`: OpenRouter withdrew the free `openai/gpt-oss-120b:free` (404, paid only); of the free models with tool support, this one passed the tool-call smoke twice at ~400 ms, others were rate-limited, 404 at the provider or harness-only) gets the **same** completion request once when the first answers 429, 5xx, times out or 413 (free-tier limits differ per provider). Other 4xx refusals are not retried elsewhere. Its key is `fallback-api-key` in `llm-secrets`; without it the fallback is off.
 - **Why:** Groq's free tier allows about two chat questions per minute; a fallback keeps the demo answering instead of showing Retry-After.
 - **Trade-offs:** a fallback answer may differ slightly in quality; one more external endpoint the gateway's egress reaches (public internet only, as already allowed); if both fail, the user sees the first provider's error.
