@@ -57,7 +57,7 @@ export async function ensureDemoUsers() {
     const inv = await api('POST', '/api/invites', { cookie: aCookie, body: { email, role: 'member' } });
     if (inv.status !== 201) throw new Error(`invite for B → ${inv.status} ${JSON.stringify(inv.body)}`);
     const token = new URL(inv.body.inviteUrl).hash.slice(1);
-    const acc = await api('POST', '/api/invites/accept', { body: { token, name: 'Priya Nair', password } });
+    const acc = await api('POST', '/api/invites/accept', { body: { token, name: 'Rajini', password } });
     if (acc.status !== 201) throw new Error(`B accepting the invite → ${acc.status} ${JSON.stringify(acc.body)}`);
     console.log(`created  user B ${email} (member) through the invite flow`);
     bUser = (await api('GET', '/api/users', { cookie: aCookie })).body.find((u) => u.email === email);
