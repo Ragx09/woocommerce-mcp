@@ -96,10 +96,9 @@ unset WOO_MCP_TOKEN
 
 # Chat agent LLM key (UI-13, REQ-CHAT-04). Only created when .env has one; the gateway runs without it
 # (chat disabled). To change it later: edit .env, then --rotate platform/llm-secrets.
+# OPENROUTER_API_KEY (optional) becomes fallback-api-key: the chat's fallback provider (gateway.llm.fallback).
 if [ -n "${LLM_API_KEY:-}" ]; then
-  secret "$PLATFORM_NS" llm-secrets <<EOF
-api-key=$LLM_API_KEY
-EOF
+  { echo "api-key=$LLM_API_KEY"; [ -z "${OPENROUTER_API_KEY:-}" ] || echo "fallback-api-key=$OPENROUTER_API_KEY"; } | secret "$PLATFORM_NS" llm-secrets
 else
   echo "secret $PLATFORM_NS/llm-secrets: skipped (LLM_API_KEY not set in .env; chat disabled)"
 fi

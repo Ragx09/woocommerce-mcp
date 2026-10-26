@@ -27,6 +27,8 @@ export interface Config {
   upstreamAllowedHosts: string[];
   /** Chat agent LLM (UI-13, D-012): any OpenAI-compatible chat-completions endpoint. */
   llm: LlmConfig;
+  /** Second provider (e.g. OpenRouter's free model), tried once when the first is rate-limited, down, slow or over its size limit. */
+  llmFallback: LlmConfig | undefined;
   /** Multi-store (BON-12, A-11): caps enforced by /api/stores, and how a store's public URL is built. */
   stores: StoresConfig;
   /** Hosted MCP servers by image (BON-10): which registries an image may come from, and how many may exist. */
@@ -143,5 +145,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       timeoutMs: int('LLM_TIMEOUT_MS', env.LLM_TIMEOUT_MS, 30_000, 1_000, 120_000),
       maxTokens: int('LLM_MAX_OUTPUT', env.LLM_MAX_OUTPUT, 1_024, 64, 16_384),
     },
+    // Only with its own key (Secret llm-secrets, key fallback-api-key); timeout and output limit as the first provider.
+    llmFallback: env.LLM_FALLBACK_API_KEY?.trim() ? {
+      baseUrl: baseUrl('LLM_FALLBACK_BASE_URL', env.LLM_FALLBACK_BASE_URL, 'https://openrouter.ai/api/v1'),
+      model: env.LLM_FALLBACK_MODEL?.trim() || 'openai/gpt-oss-120b:free',
+      apiKey: env.LLM_FALLBACK_API_KEY.trim(),
+      timeoutMs: int('LLM_TIMEOUT_MS', env.LLM_TIMEOUT_MS, 30_000, 1_000, 120_000),
+      maxTokens: int('LLM_MAX_OUTPUT', env.LLM_MAX_OUTPUT, 1_024, 64, 16_384),
+    } : undefined,
   };
 }

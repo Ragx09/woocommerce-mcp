@@ -1,9 +1,10 @@
-gateway:sha-debbc00acbfa                   fixable CRITICAL   0  HIGH   0
-woo-mcp:sha-5b4993bd389a                   fixable CRITICAL   0  HIGH   0
-everything-mcp:sha-716a595901e4            fixable CRITICAL   0  HIGH   0
-dashboard:sha-c802911ea4db                 fixable CRITICAL   0  HIGH   0
-store-assets:sha-7c3c4297e9f3              fixable CRITICAL   0  HIGH   0
-mariadb:11.8.9                             fixable CRITICAL   1  HIGH  25
-postgres:16.15-alpine3.24                  fixable CRITICAL   1  HIGH  25
-wordpress:7.1.3-php8.3-apache              fixable CRITICAL   0  HIGH   1
-wordpress:cli-2.12.0-php8.3                fixable CRITICAL   0  HIGH   1
+gateway:sha-e0e3eb1ddae6           fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)   0
+woo-mcp:sha-6ea3adafba0d           fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)   0
+everything-mcp:sha-58d4e6b082dd    fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)   0
+dashboard:sha-e76c97ab483b         fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)   0
+store-assets:sha-afe101bf313b      fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)   0
+provisioner:sha-385a282c7769       fixable CRITICAL   0  HIGH   5  accepted (gosu, F-INF-5)   0
+mariadb:11.8.9                     fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)  26
+postgres:16.15-alpine3.24          fixable CRITICAL   0  HIGH   0  accepted (gosu, F-INF-5)  26
+wordpress:7.1.3-php8.3-apache      fixable CRITICAL   0  HIGH   1  accepted (gosu, F-INF-5)   0
+wordpress:cli-2.12.0-php8.3        fixable CRITICAL   0  HIGH   1  accepted (gosu, F-INF-5)   0

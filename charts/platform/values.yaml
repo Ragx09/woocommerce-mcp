@@ -160,6 +160,11 @@ gateway:
     existingSecret: llm-secrets
     timeoutMs: 30000
     maxTokens: 1024
+    # Tried once when the provider above is rate-limited, down, slow or over its size limit; needs key fallback-api-key
+    # in the same Secret (from .env OPENROUTER_API_KEY), otherwise off.
+    fallback:
+      baseUrl: https://openrouter.ai/api/v1
+      model: openai/gpt-oss-120b:free
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 1000m, memory: 384Mi }

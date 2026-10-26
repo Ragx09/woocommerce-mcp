@@ -2,7 +2,7 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 import { FIND_TOOLS, keywords, leaksSystemPrompt, PROMPT_LEAK_REPLY, RESULT_LIMIT, resultText, runAgent, selectTools, systemPrompt, toLlmTool, type McpSession } from '../../src/chat/agent.js';
-import { LlmError, openAiCompatible, type ChatCompletion, type ChatMessage, type Completion } from '../../src/chat/llm.js';
+import { LlmError, openAiCompatible, withFallback, type ChatCompletion, type ChatMessage, type Completion } from '../../src/chat/llm.js';
 import type { LlmConfig } from '../../src/config.js';
 
 const KEY = 'gsk_unit_test_key_0123456789abcdef';
@@ -17,6 +17,49 @@ function stubFetch(res: () => Response | Promise<Response>) {
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 const fail = async (p: Promise<unknown>) => { try { await p; } catch (e) { return e as LlmError; } throw new Error('expected a rejection'); };
+
+describe('TC-UI-13-U2 LLM fallback provider', () => {
+  const ok = () => json(200, { choices: [{ message: { content: 'from fallback' }, finish_reason: 'stop' }] });
+  const FB_KEY = 'sk-or-unit-fallback-key-0123456789';
+  const fbCfg: LlmConfig = { ...cfg, baseUrl: 'https://fallback.example.test/v1', apiKey: FB_KEY };
+  const req = { messages: [{ role: 'user' as const, content: 'hi' }], tools: [] };
+
+  it('the same request goes to the fallback, with its own key and URL, when the primary is rate-limited, down, slow or too small', async () => {
+    const failures: (() => Response)[] = [
+      () => json(429, { error: { message: 'slow down' } }, { 'retry-after': '7' }),
+      () => json(503, { error: { message: 'down' } }),
+      () => { throw Object.assign(new Error('t'), { name: 'TimeoutError' }); },
+      () => json(413, { error: { code: 'rate_limit_exceeded' } }),
+    ];
+    for (const primaryRes of failures) {
+      const p = stubFetch(primaryRes); const fb = stubFetch(ok); const seen: string[] = [];
+      const out = await withFallback(openAiCompatible(cfg, p.f), openAiCompatible(fbCfg, fb.f), (c) => seen.push(c))(req);
+      expect(out.content).toBe('from fallback');
+      const sent = fb.seen[0]!;
+      expect(sent.url).toBe('https://fallback.example.test/v1/chat/completions');
+      expect((sent.init.headers as Record<string, string>).authorization).toBe(`Bearer ${FB_KEY}`);
+      expect(JSON.parse(sent.init.body as string).messages).toEqual(req.messages);
+      expect(seen).toHaveLength(1);
+    }
+  });
+
+  it('a refused request (4xx other than 413/429) is not sent to the fallback; if the fallback fails too, the primary error is reported', async () => {
+    const fb = stubFetch(ok);
+    const e = await fail(withFallback(openAiCompatible(cfg, stubFetch(() => json(401, { error: { message: 'bad key' } })).f), openAiCompatible(fbCfg, fb.f))(req));
+    expect(e.message).toMatch(/HTTP 401/);
+    expect(fb.seen).toHaveLength(0);
+    const both = await fail(withFallback(openAiCompatible(cfg, stubFetch(() => json(429, {}, { 'retry-after': '9' })).f),
+      openAiCompatible(fbCfg, stubFetch(() => json(503, {})).f))(req));
+    expect(both.code).toBe('llm_rate_limited');
+    expect(both.retryAfterS).toBe(9);
+  });
+
+  it('without a fallback the primary is used as is', async () => {
+    const p = stubFetch(ok);
+    const primary = openAiCompatible(cfg, p.f);
+    expect(withFallback(primary, null)).toBe(primary);
+  });
+});
 
 describe('TC-UI-14-U1 LLM client', () => {
   it('sends model, messages, tools and the key only in the Authorization header; parses tool calls', async () => {

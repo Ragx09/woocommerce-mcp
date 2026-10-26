@@ -43,16 +43,13 @@ High: F-INF-1 (images with critical/high CVEs), F-INF-6 (WordPress images), F-MC
 6. One attacker-LLM round (decision A-12) and no external penetration test; no bug bounty; the LLM provider's free tier is a rate limit, not a control.
 7. The default store keeps its original wp-admin credentials from the Secret created by `make-secrets.sh`; rotation is by changing that Secret.
 
-## 5. Not yet proven (needs a cluster or a VPS)
+## 5. Not yet proven (needs a VPS)
+Everything that needed a cluster was run on k3d on 2026-10-26 (SEC-09 evidence in TASKS.md): full acceptance, the stores/hosted/isolation checks, all live security suites, static checks with every tool, and Trivy on all ten images (F-INF-10 fixed, F-INF-11 accepted until the WordPress images are rebuilt upstream).
+
 | Item | Needs | Command |
 |---|---|---|
-| Cross-store and hosted-pod network isolation, quota and Pod Security in created namespaces | k3d | `scripts/k8s-checks.sh stores` and `hosted` |
-| RBAC and admission policy for `hosted-*` namespaces | k3d | `scripts/k8s-checks.sh rbac` |
-| Live security suite on the real cluster (store tools through `/mcp` for owner/shared/other, real provisioner) | k3d, about 10 minutes | `npm test -w tests/security -- stores` |
-| The three environment-dependent checks of `authz.test.mjs` (they need the real woo and GitHub upstreams) and the rest of the earlier suites after the fastify/vite upgrade | k3d | `npm test -w tests/security` |
-| Full acceptance run after all fixes (TC-SEC-09-1) | k3d | `scripts/e2e.sh all && scripts/e2e.sh stores && scripts/e2e.sh hosted` |
-| Image CVE scan of the rebuilt gateway/provisioner/dashboard images | Docker | `scripts/sec/k8s-scan.sh trivy` |
 | TLS grade, HSTS, `Secure` cookies on a real domain | VPS | testssl.sh (SEC-07) |
+| Re-pin the WordPress digests once upstream ships the brotli fix (F-INF-11) | upstream rebuild | `scripts/sec/k8s-scan.sh trivy` |
 
 ## 6. How to re-run
 ```

@@ -18,9 +18,9 @@ fail() { echo "FAIL  $*"; fails=$((fails+1)); }
 
 images() {
   [ -f .images.env ] && . ./.images.env
-  echo "gateway:${gateway_tag:-dev} woo-mcp:${woo_mcp_tag:-dev} everything-mcp:${everything_mcp_tag:-dev} dashboard:${dashboard_tag:-dev} store-assets:${store_assets_tag:-dev}"
+  echo "gateway:${gateway_tag:-dev} woo-mcp:${woo_mcp_tag:-dev} everything-mcp:${everything_mcp_tag:-dev} dashboard:${dashboard_tag:-dev} store-assets:${store_assets_tag:-dev} provisioner:${provisioner_tag:-dev}"
   helm template platform charts/platform -f charts/platform/values-local.yaml 2>/dev/null \
-    | awk '/^ +image: /{print $2}' | grep -E '[:/]' | grep -vE '^(gateway|woo-mcp|everything-mcp|dashboard|store-assets|hostile-mcp):' | sort -u | tr '\n' ' '
+    | awk '/^ +image: /{print $2}' | grep -E '[:/]' | grep -vE '^(gateway|woo-mcp|everything-mcp|dashboard|store-assets|provisioner|hostile-mcp):' | sort -u | tr '\n' ' '
 }
 
 trivy() {

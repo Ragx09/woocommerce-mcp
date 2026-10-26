@@ -122,6 +122,11 @@ spec:
             - { name: LLM_MAX_OUTPUT, value: {{ $v.llm.maxTokens | quote }} }
             - name: LLM_API_KEY
               valueFrom: { secretKeyRef: { name: {{ $v.llm.existingSecret }}, key: api-key, optional: true } }
+            # Fallback provider, used only when the Secret has fallback-api-key (from .env OPENROUTER_API_KEY).
+            - { name: LLM_FALLBACK_BASE_URL, value: {{ $v.llm.fallback.baseUrl | quote }} }
+            - { name: LLM_FALLBACK_MODEL, value: {{ $v.llm.fallback.model | quote }} }
+            - name: LLM_FALLBACK_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ $v.llm.existingSecret }}, key: fallback-api-key, optional: true } }
             - name: CREDENTIALS_KEY   # AES-256-GCM key for upstream credentials at rest (D-009)
               valueFrom: { secretKeyRef: { name: {{ $v.secrets }}, key: credentials-key } }
             {{- if and $v.seed.woo.enabled .Values.store.enabled (dig "wooMcp" "enabled" true .Values.store) }}

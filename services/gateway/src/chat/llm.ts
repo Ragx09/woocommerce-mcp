@@ -22,6 +22,7 @@ export class LlmError extends Error {
     readonly code: LlmErrorCode, message: string, readonly retryAfterS?: number, readonly providerCode?: string,
     /** For the model only (never logged or returned): why the provider refused its tool call. */
     readonly modelHint?: string,
+    readonly httpStatus?: number,
   ) { super(message); }
 }
 
@@ -51,6 +52,24 @@ export function openAiCompatible(cfg: LlmConfig, fetchImpl: typeof fetch = fetch
       const why = e.modelHint ? `: ${e.modelHint}` : '';
       return once({ ...req, messages: [...req.messages, { role: 'system', content:
         `Your previous tool call was rejected by the tool's input schema${why}. Call the tool again with arguments that follow its schema exactly (types, minimum/maximum, enum, pattern), or answer without it.` }] });
+    }
+  };
+}
+
+/**
+ * Primary first; the fallback gets the same request once when the primary is rate-limited, down, slow or says the request
+ * is too large for it (free tiers differ in limits). Refusals of the request itself (other 4xx) are not retried elsewhere.
+ * If the fallback fails too, the primary's error is reported (its Retry-After is the useful one).
+ */
+export function withFallback(primary: ChatCompletion, fallback: ChatCompletion | null, onFallback?: (code: string) => void): ChatCompletion {
+  if (!fallback) return primary;
+  return async (req) => {
+    try {
+      return await primary(req);
+    } catch (e) {
+      if (!(e instanceof LlmError) || !(e.code !== 'llm_error' || e.httpStatus === 413)) throw e;
+      onFallback?.(e.code);
+      try { return await fallback(req); } catch { throw e; }
     }
   };
 }
@@ -98,7 +117,7 @@ function completeOnce(cfg: LlmConfig, fetchImpl: typeof fetch): ChatCompletion {
       }
       if (res.status >= 500) throw new LlmError('llm_unavailable', `the LLM provider failed (HTTP ${res.status})`);
       if (res.status === 413) {
-        throw new LlmError('llm_error', `the conversation is too large for the LLM provider's limits (HTTP 413${code ? `, ${code}` : ''}); start a new chat or ask a narrower question`);
+        throw new LlmError('llm_error', `the conversation is too large for the LLM provider's limits (HTTP 413${code ? `, ${code}` : ''}); start a new chat or ask a narrower question`, undefined, code || undefined, undefined, 413);
       }
       throw new LlmError('llm_error', `the LLM request was refused (HTTP ${res.status}${code ? `, ${code}` : ''})`, undefined, code || undefined, hint);
     }

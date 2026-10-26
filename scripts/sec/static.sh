@@ -31,7 +31,13 @@ npm audit --omit=dev >/dev/null 2>&1 && pass "npm audit --omit=dev: 0 vulnerabil
 echo "== gitleaks"
 if have gitleaks; then
   gitleaks detect --source . --no-banner --redact >/dev/null 2>&1 && pass "gitleaks: no secrets in the history" || fail "gitleaks found something in the history"
-  gitleaks detect --source . --no-git --no-banner --redact >/dev/null 2>&1 && pass "gitleaks: no secrets in the working tree" || fail "gitleaks found something in the working tree"
+  # The tree scan reads ignored files too; the local .env holds the real credentials by design (gitignored, never committed),
+  # so it is skipped here only while git ignores it. The history scan above keeps the plain config and would catch a committed .env.
+  tree_cfg="$(mktemp /tmp/gitleaks-tree.XXXXXX)"
+  printf '[extend]\npath = "%s/.gitleaks.toml"\n' "$PWD" >"$tree_cfg"
+  git check-ignore -q .env && printf "[allowlist]\ndescription = \"gitignored local secrets file\"\npaths = ['''^(\\\\./)?\\\\.env\$''']\n" >>"$tree_cfg"
+  gitleaks detect --source . --no-git --no-banner --redact --config "$tree_cfg" >/dev/null 2>&1 && pass "gitleaks: no secrets in the working tree (gitignored .env skipped)" || fail "gitleaks found something in the working tree"
+  rm -f "$tree_cfg"
 else skip gitleaks; fi
 
 echo "== semgrep"
