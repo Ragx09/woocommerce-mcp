@@ -69,6 +69,9 @@ export function Stores() {
   );
 }
 
+// crypto.randomUUID exists only in secure contexts (https/localhost); the local k3d dashboard is plain http.
+const newIdempotencyKey = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+
 function NewStore({ atLimit }: { atLimit: boolean }) {
   const qc = useQueryClient();
   const [name, setName] = useState('');
@@ -76,7 +79,7 @@ function NewStore({ atLimit }: { atLimit: boolean }) {
   const [nicheText, setNicheText] = useState('');
   const [tagline, setTagline] = useState('');
   // One key per form fill: a double click or a retry after a network error cannot create two stores.
-  const idem = useRef(crypto.randomUUID());
+  const idem = useRef(newIdempotencyKey());
   const preview = useQuery({
     queryKey: ['store-slug', name.trim()],
     queryFn: () => api<SlugPreview>(`/api/stores/slug?name=${encodeURIComponent(name.trim())}`),
@@ -89,7 +92,7 @@ function NewStore({ atLimit }: { atLimit: boolean }) {
       body: { name: name.trim(), niche, ...(tagline.trim() ? { tagline: tagline.trim() } : {}), ...(niche === 'custom' ? { nicheText: nicheText.trim() } : {}) },
     }),
     onSuccess: () => {
-      idem.current = crypto.randomUUID();
+      idem.current = newIdempotencyKey();
       setName(''); setTagline(''); setNicheText('');
       void qc.invalidateQueries({ queryKey: ['stores'] });
     },

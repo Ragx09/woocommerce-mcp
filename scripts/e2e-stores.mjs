@@ -107,9 +107,12 @@ try {
   // 3. Orders: 2 in the first store, 1 in the second.
   const orderCounts = [2, 1];
   for (const [i, s] of stores.entries()) {
+    // Each niche has its own catalogue, so buy something this store actually sells (the checkout default is a TATVA product).
+    const products = await fetch(`${url(s)}/wp-json/wc/store/v1/products?per_page=20`).then((r) => r.json()).catch(() => []);
+    const product = products.find?.((p) => p.is_purchasable && p.is_in_stock)?.slug ?? '';
     for (let n = 0; n < orderCounts[i]; n++) {
       let out = '';
-      try { out = execFileSync('scripts/e2e-checkout.sh', { encoding: 'utf8', env: { ...process.env, STORE_URL: url(s), STORE_NS: `store-${s.slug}` } }); }
+      try { out = execFileSync('scripts/e2e-checkout.sh', { encoding: 'utf8', env: { ...process.env, STORE_URL: url(s), STORE_NS: `store-${s.slug}`, PRODUCT_SLUG: product } }); }
       catch (e) { out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
       check(`order ${n + 1}/${orderCounts[i]} placed in ${s.slug}`, /order placed: #\d+/.test(out), /order placed: #(\d+)/.exec(out)?.[1] ?? 'failed');
     }
