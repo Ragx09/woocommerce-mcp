@@ -64,7 +64,7 @@ if (created) {
     product = parse(call.resultPreview);
     check('tool result has the new product id and permalink', Boolean(product?.id && product?.permalink), call.resultPreview.slice(0, 120));
   }
-  check('reply confirms the product', created.reply.includes(NAME) || (product && created.reply.includes(String(product.id))));
+  check('reply confirms the product', created.reply.replace(/\s/gu, ' ').includes(NAME) || (product && created.reply.includes(String(product.id))));
 }
 if (product) {
   const page = await fetch(product.permalink);

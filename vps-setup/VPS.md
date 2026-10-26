@@ -20,14 +20,14 @@ Generic install steps live in [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) §5.
 ## 1. Status
 | Item | State |
 |---|---|
-| VPS obtained (P0-03) | ✗ not yet |
-| Preflight passes | — |
-| k3s + kubeconfig over SSH tunnel (REL-01) | — |
-| Images in k3s containerd (REL-03, D-023) | — |
-| Secrets (REL-06) → Helm install (REL-03) | — |
-| TLS with cert-manager (REL-04) | — |
-| Persistence checks (REL-05) | — |
-| `e2e.sh all` over https (BON-07) | — |
+| VPS obtained (P0-03) | ✓ 2026-10-26 (VM 548201; destroyed between sessions) |
+| Preflight passes | ✓ |
+| k3s + kubeconfig over SSH tunnel (REL-01) | ✓ |
+| Images in k3s containerd (REL-03, D-023) | ✓ |
+| Secrets (REL-06) → Helm install (REL-03) | ✓ |
+| TLS with cert-manager (REL-04) | ✓ Let's Encrypt prod |
+| Persistence checks (REL-05) | ✓ |
+| `e2e.sh all` over https (BON-07) | ✓ 26 passed, 0 failed, 1 skipped |
 
 ## 2. Specs needed
 ### What the stack asks for
@@ -87,7 +87,7 @@ These are not in the table:
 
 ### JarvisLabs specifics (chosen 2026-10-24, from docs.jarvislabs.ai)
 - **No MCP server**, but an official agent-friendly CLI `jl` (`uv tool install jarvislabs`, then `jl setup` with an API token from jarvislabs.ai/settings/api-keys; the token lives in `~/.config/jl/config.toml`, never in the repo).
-- **Create a CPU VM:** `jl ssh-key add ~/.ssh/<key>.pub --name laptop` then `jl create --vm --cpu --vcpus 4 --ram 16 --storage 100 --region IN2 --name woo-mcp-vps --yes --json`. A VM needs ≥1 SSH key and **≥100 GB storage** (auto-bumped). `jl get <id>` shows the public IP. SSH user is `cloud`.
+- **Create a CPU VM:** `jl ssh-key add ~/.ssh/<key>.pub --name laptop` then `jl create --vm --cpu --vcpus 4 --ram 16 --storage 100 --region IN2 --name woo-mcp-vps --yes --json`. A VM needs ≥1 SSH key and **≥100 GB storage** (auto-bumped). `jl get <id>` shows the public IP. SSH user is `ubuntu` (`jl get` shows it; the docs said `cloud`).
 - **Dashboard prices (INR, seen 2026-10-24, region IN2/IN1, fixed 1:4 tiers only):** 2 vCPU/8 GB ₹4.02/h · 4 vCPU/16 GB ₹8.04/h · 8/32 ₹16.07/h (16+ unavailable). 100 GB storage ₹1.296/h. So **2 vCPU/8 GB + 100 GB = ₹5.32/h ≈ ₹128/day ≈ ₹3,880/month**; 4 vCPU/16 GB ≈ ₹9.34/h ≈ ₹6,800/month. Reserved IP ₹475/month. Commitments: 30 d −5 %, 90 d −10 %, 180 d −15 %. GST not shown. Launch needs credits and an SSH key in account settings.
 - **SSH key:** dedicated key `~/.ssh/jarvis_vps` (ed25519, comment `woo-mcp-vps`), private half never leaves the laptop.
 - **Rate formula (USD page):** $0.012/vCPU-h + $0.0032/GB-RAM-h, storage $0.10/GB-month. (4 vCPU / 8 GB is **not** offered: the dashboard has fixed 1:4 tiers only.)
@@ -106,11 +106,11 @@ These are not in the table:
 | Provider / plan | JarvisLabs CPU VM, 2 vCPU / 8 GB, on-demand |
 | Region | IN2 (default in `lib.sh`) |
 | vCPU / RAM / disk | 2 / 8 GB / 100 GB SSD (default in `lib.sh`; override `VPS_VCPUS`/`VPS_RAM`) |
-| Arch | (from preflight) |
-| OS | (from preflight) |
-| Public IPv4 | (changes per VM unless a Reserved IP is attached) |
-| Domain | `<ip>.sslip.io` by default, or `<name>.duckdns.org` → `app.`, `store.`, … |
-| SSH | `vps-setup/ssh.sh` (user `cloud`, key `~/.ssh/jarvis_vps`, known hosts `~/.ssh/known_hosts_vps`) |
+| Arch | x86_64 |
+| OS | Ubuntu 24.04.4 LTS (7.9 GB RAM, 94 GB free) |
+| Public IPv4 | changes per VM (2026-10-26: 217.18.55.234); DuckDNS follows it via `up.sh` |
+| Domain | `woo-commerce-demo.duckdns.org` → `app.`, `store.` (or `<ip>.sslip.io` without DuckDNS) |
+| SSH | `vps-setup/ssh.sh` (user `ubuntu`, key `~/.ssh/jarvis_vps`, known hosts `~/.ssh/known_hosts_vps`) |
 | k3s version | must match the local `k3d version` (script default `v1.35.5+k3s1`) |
 | kube context / file | `vps` / `~/.kube/vps.yaml` (never committed), API via `127.0.0.1:16443` tunnel |
 | cert-manager | chart v1.19.1, issuers `letsencrypt-staging`, `letsencrypt-prod` |
@@ -133,9 +133,9 @@ Each session (billing runs from step 1 to `down.sh`):
 5. `vps-setup/down.sh` (destroy) or `vps-setup/down.sh --pause`. Add a line to §7.
 
 ## 5. Hardening checklist
-- [x] **Security Group `woo-mcp-vps` (IN2) created** (JarvisLabs VMs are open on every port by default): inbound SSH 22 and Ping from my IP (`103.86.107.161/32` on 2026-10-24; update the rule if the home IP changes), TCP 80 and 443 from Anywhere; outbound all. Still to do per VM: attach it; `up.sh` gates on it before installing k3s (probe of 6443: timeout = filtered = attached; connect or "refused" = not attached; `SKIP_SG_CHECK=1` bypasses it if the probe misfires, e.g. a laptop network that blocks outbound 6443 would read as attached). Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
+- [x] **Security Group `woo-mcp-vps` (IN2) created** (JarvisLabs VMs are open on every port by default): inbound SSH 22 and Ping from my IP (`103.86.107.161/32` on 2026-10-24, `103.86.107.144/32` on 2026-10-26; update the rule if the home IP changes — the dashboard's "My current IP" fills it), TCP 80 and 443 from Anywhere; outbound all. Still to do per VM: attach it; `up.sh` gates on it before installing k3s (probe of 6443: timeout = filtered = attached; connect or "refused" = not attached; `SKIP_SG_CHECK=1` bypasses it if the probe misfires, e.g. a laptop network that blocks outbound 6443 would read as attached). Nothing else, so 6443 and the kubelet (10250) stay closed. `up.sh` warns if 6443 answers from the laptop.
 - [ ] No ufw on the VM: the Security Group filters at the network port, and ufw needs extra k3s CIDR rules (`10.42.0.0/16`, `10.43.0.0/16`) to avoid breaking pod networking.
-- [ ] SSH key login only (JarvisLabs default: user `cloud`, no password).
+- [ ] SSH key login only (JarvisLabs default: user `ubuntu`, no password).
 - [ ] VM lifetime is hours, so `unattended-upgrades` and fail2ban are not needed; for a long-lived VM, enable both.
 
 ## 6. Gotchas
@@ -161,3 +161,6 @@ Newest at the bottom. Format: `- YYYY-MM-DD — what was done → result/evidenc
 - 2026-10-24 — `up.sh`: Security Group gate after SSH is up and before k3s (pause + re-check loop), the late 6443 warning is now an error; `VPS_SECURITY_GROUP` in `lib.sh`. Probe tested locally: blackhole 10.255.255.1:6443 → attached (5 s timeout), 127.0.0.1:1 refused → not attached, listening 127.0.0.1:18999 → not attached. `bash -n` OK. Not yet run against a real VM.
 - 2026-10-25 — Credits added: `jl status` balance ₹500.00, 0 running/paused, `jl list`: no instances. Size changed to **2 vCPU / 8 GB** (demo only, 2 stores in total; local k3d measured 630m / 1.2 GiB requested, 114m / 878 MiB used). `lib.sh` default 2/8.
 - 2026-10-26 — Prep without a VM (nothing started, `jl status` 0 running, ₹500): DuckDNS name `woo-commerce-demo` created and `DUCKDNS_DOMAIN`/`DUCKDNS_TOKEN` set in `.env` (domain without the `.duckdns.org` suffix); `getent hosts app.woo-commerce-demo.duckdns.org` and `store.…` both resolve, so subdomains work. **Fixed `up.sh`:** the image upload loop did not include `provisioner`, although `deploy.sh` pins its tag (Stores and hosted servers would have hit ImagePullBackOff on the VM). Images pre-built with `NO_K3D=1 scripts/build-images.sh` (tags in `.images.env`). `.env.example` now lists `DUCKDNS_*`, `ACME_EMAIL`, `GATEWAY_ADMIN_EMAIL`. Plan: two sessions (recording, interview), destroy after each; the name stays the same, data does not.
+- 2026-10-26 — Session 1. Installed `jq` (laptop only, static binary in `~/.local/bin`). Security Group SSH/ICMP source changed to `103.86.107.144/32` (home IP changed). Attaching a group: Instances → VM → **Security** tab → Add group.
+- 2026-10-26 — VM 548188 (151.185.52.41): SSH refused for ~15 min after create; once up, **no outbound at all** (ping, DNS, TCP 443 to 1.1.1.1 all failed; only the VPC gateway answered) → preflight FAIL outbound HTTPS. Destroyed (`down.sh --yes`, ₹2.4).
+- 2026-10-26 — VM 548201 (217.18.55.234): SSH within ~2 min, outbound OK before and after attaching the group, 6443 filtered. SSH user is **`ubuntu`** (`lib.sh` default fixed; docs said `cloud`). Fixes found on the first real run: `install-k3s.sh` waited for a node before it registered; woo-mcp OAuth signature mismatch behind TLS (`X-Forwarded-Proto`); `e2e-checkout.sh` tested the local store. Staging certs → prod certs (Let's Encrypt YR1). `e2e.sh all` 26/0/1, oauth PASS, chat flow 13/13; persistence after deleting mariadb/wordpress/postgres pods OK.

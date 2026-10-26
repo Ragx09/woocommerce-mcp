@@ -20,7 +20,14 @@ export interface StoreInfo { timezone: string; gmtOffsetHours: number }
 export class WooClient {
   private storeInfo?: { value: StoreInfo; at: number };
 
-  constructor(private readonly cfg: Config, private readonly fetchImpl: typeof fetch = fetch) {}
+  // WooCommerce verifies the signature against https:// only when WordPress thinks the request arrived over
+  // TLS. Behind Traefik that comes from X-Forwarded-Proto; our in-cluster call is plain http, so say it here.
+  private readonly forwardedProto: Record<string, string>;
+
+  constructor(private readonly cfg: Config, private readonly fetchImpl: typeof fetch = fetch) {
+    const httpsSigned = new URL(cfg.wooSigningUrl).protocol === 'https:' && new URL(cfg.wooBaseUrl).protocol === 'http:';
+    this.forwardedProto = httpsSigned ? { 'x-forwarded-proto': 'https' } : {};
+  }
 
   async request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, opts: { query?: Record<string, QueryValue | undefined>; body?: unknown } = {}): Promise<T> {
     const route = `/wp-json/wc/v3${path}`;
@@ -55,7 +62,7 @@ export class WooClient {
     try {
       return await this.fetchImpl(url, {
         method,
-        headers: { accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        headers: { accept: 'application/json', ...this.forwardedProto, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(this.cfg.wooTimeoutMs),
         redirect: 'error', // a redirect would mean a mis-set home URL; never follow it with signed params

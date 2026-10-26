@@ -11,7 +11,7 @@ VM_NAME="${VPS_VM_NAME:-woo-mcp-vps}"
 VM_VCPUS="${VPS_VCPUS:-2}" VM_RAM="${VPS_RAM:-8}" VM_STORAGE="${VPS_STORAGE:-100}" VM_REGION="${VPS_REGION:-IN2}"
 SECURITY_GROUP="${VPS_SECURITY_GROUP:-woo-mcp-vps}"   # dashboard-only; attached by hand (vps-setup/VPS.md §5)
 SSH_KEY="${VPS_SSH_KEY:-$HOME/.ssh/jarvis_vps}"
-SSH_USER="${VPS_SSH_USER:-cloud}"
+SSH_USER="${VPS_SSH_USER:-ubuntu}"
 KNOWN_HOSTS="$HOME/.ssh/known_hosts_vps"
 TUNNEL_PORT="${VPS_TUNNEL_PORT:-16443}"
 TUNNEL_SOCK="$HOME/.ssh/vps-tunnel.sock"

@@ -28,6 +28,8 @@ YAML
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" sh -s - server \
   --write-kubeconfig-mode 600
 
+# `wait` fails with "no matching resources" if the node has not registered yet, so wait for it first.
+for _ in $(seq 1 60); do k3s kubectl get nodes -o name 2>/dev/null | grep -q . && break; sleep 3; done
 k3s kubectl wait --for=condition=Ready node --all --timeout=180s
 k3s kubectl get nodes -o wide
 k3s kubectl get storageclass

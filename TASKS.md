@@ -52,7 +52,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 
 ### P0-03 — Confirm VPS availability
 - **Priority:** P0
-- **Status:** Blocked
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** —
 - **Requirements:** REQ-K8S-02
@@ -61,7 +61,7 @@ Exit criterion: scope and environment understood; initial plan reviewed.
 - **Acceptance:** `vps-setup/preflight.sh` run on the VPS exits 0 (RAM ≥3.8 GB, ≥2 CPU, ≥20 GB disk, amd64/arm64, systemd, 80/443 free, outbound HTTPS).
 - **Tests:** TC-P0-03-1: VPS exists → ssh command → prints specs.
 - **Command:** `vps-setup/up.sh` (runs the preflight) or `ssh <alias> 'bash -s' < vps-setup/preflight.sh`
-- **Evidence:** 2026-10-24: provider chosen — JarvisLabs CPU VM 4 vCPU / 16 GB / 100 GB (2026-10-25: changed to 2 vCPU / 8 GB, demo with 2 stores in total; credits ₹500 added, SSH key + Security Group done), on-demand, destroyed between sessions (`vps-setup/VPS.md` §2). `jl` 0.2.17 installed, key `~/.ssh/jarvis_vps` created; waiting for account credits. Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5.
+- **Evidence:** 2026-10-24: provider chosen — JarvisLabs CPU VM 4 vCPU / 16 GB / 100 GB (2026-10-25: changed to 2 vCPU / 8 GB, demo with 2 stores in total; credits ₹500 added, SSH key + Security Group done), on-demand, destroyed between sessions (`vps-setup/VPS.md` §2). `jl` 0.2.17 installed, key `~/.ssh/jarvis_vps` created; waiting for account credits. Blocked: no VPS yet (user will obtain one; decision 2026-10-11). 2026-10-11: preflight script syntax-checked and dry-run on the local WSL host (exit 0) — this proves the script works, not the VPS. Provider guidance in `docs/DEPLOYMENT.md` §5. 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): preflight on the VM: `os=Ubuntu 24.04.4 LTS arch=x86_64 cpus=2 mem_mb=7940 disk_free_gb=94`, all PASS incl. `outbound HTTPS (get.k3s.io)`. (First VM 548188 had no outbound network at all, even DNS; destroyed and replaced.)
 - **Regression risk:** High schedule risk if it slips past Day 5.
 
 ### P0-04 — Obtain LLM and GitHub credentials
@@ -1786,7 +1786,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-01 — k3s on the VPS
 - **Priority:** P0
-- **Status:** Blocked
+- **Status:** Done
 - **Day:** 4
 - **Depends on:** P0-03
 - **Requirements:** REQ-K8S-02
@@ -1795,7 +1795,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** `kubectl get nodes` Ready from the laptop.
 - **Tests:** TC-REL-01-1.
 - **Command:** `kubectl --context vps get nodes`
-- **Evidence:** Blocked on P0-03 (no VPS yet).
+- **Evidence:** 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): `install-k3s.sh` → `jl-vm-548201 Ready control-plane v1.35.5+k3s1`; from the laptop `kubectl --context vps get nodes` over the SSH tunnel 127.0.0.1:16443; 6443 probe from outside times out (Security Group). Fix: wait for the node to register before `kubectl wait` (it failed with "no matching resources found").
 - **Regression risk:** —
 
 ### REL-02 — values-prod finalised
@@ -1814,7 +1814,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 
 ### REL-03 — Same-chart install on the VPS
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** REL-02
 - **Requirements:** REQ-K8S-02
@@ -1823,12 +1823,12 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** TC-VPS-01 passes.
 - **Tests:** TC-VPS-01.
 - **Command:** `scripts/deploy.sh prod`
-- **Evidence:** —
+- **Evidence:** 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): `vps-setup/up.sh --no-vm` → images streamed into containerd (6 × `image ghcr.io/ragx09/… loaded`), `Release "platform" has been upgraded … STATUS: deployed REVISION: 2`, all pods 1/1 Running. Fix needed: woo-mcp signed for `https://store.…` but called WordPress over in-cluster http → "Invalid signature" → readiness 503; WooClient now sends `X-Forwarded-Proto: https` in that case (unit test `test/unit/woo-client.test.ts`, 32/32 pass).
 - **Regression risk:** Image architecture (arm64 VPS) → multi-arch build.
 
 ### REL-04 — TLS with cert-manager
 - **Priority:** P1
-- **Status:** In Progress
+- **Status:** Done
 - **Day:** 7
 - **Depends on:** REL-03
 - **Requirements:** —
@@ -1837,12 +1837,12 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** `curl -I https://app.<domain>` valid cert.
 - **Tests:** TC-REL-04-1.
 - **Command:** `curl -sI https://app.<domain>`
-- **Evidence:** 2026-10-24 (prep, no VPS yet): `vps-setup/up.sh` installs cert-manager chart v1.19.1 (requests/limits from `vps-setup/cert-manager-values.yaml`, verified with `helm template`: 3 Deployments + startupapicheck Job all with resources) and ClusterIssuers `letsencrypt-staging`/`letsencrypt-prod` (HTTP-01, ingressClassName traefik); `TLS_ISSUER=letsencrypt-staging` for the first try. Found and fixed: the chart's default-deny ingress would drop Let's Encrypt's HTTP-01 request to the solver pod → new NetworkPolicy `acme-solver-from-ingress` (Traefik → `acme.cert-manager.io/http01-solver=true`:8089) in `store` and `platform`. `scripts/check-chart.sh` → lint PASS ×2, kubeconform `Valid: 35, Invalid: 0` ×2, `policy: 35 objects, 0 violations` ×2, `PASS only expected keys differ`; k3d rev 2 shows both policies, `scripts/k8s-checks.sh netpol` → `failures: 0`. Found: sslip.io is not on the Public Suffix List (shared Let's Encrypt limit) → DuckDNS option in `up.sh`. Open: real issuance on the VPS.
+- **Evidence:** 2026-10-24 (prep, no VPS yet): `vps-setup/up.sh` installs cert-manager chart v1.19.1 (requests/limits from `vps-setup/cert-manager-values.yaml`, verified with `helm template`: 3 Deployments + startupapicheck Job all with resources) and ClusterIssuers `letsencrypt-staging`/`letsencrypt-prod` (HTTP-01, ingressClassName traefik); `TLS_ISSUER=letsencrypt-staging` for the first try. Found and fixed: the chart's default-deny ingress would drop Let's Encrypt's HTTP-01 request to the solver pod → new NetworkPolicy `acme-solver-from-ingress` (Traefik → `acme.cert-manager.io/http01-solver=true`:8089) in `store` and `platform`. `scripts/check-chart.sh` → lint PASS ×2, kubeconform `Valid: 35, Invalid: 0` ×2, `policy: 35 objects, 0 violations` ×2, `PASS only expected keys differ`; k3d rev 2 shows both policies, `scripts/k8s-checks.sh netpol` → `failures: 0`. Found: sslip.io is not on the Public Suffix List (shared Let's Encrypt limit) → DuckDNS option in `up.sh`. Open: real issuance on the VPS. 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): staging issuer first (orders valid), then `letsencrypt-prod`: `certificate.cert-manager.io/app-tls condition met`, `store-tls condition met`; `openssl s_client` → `issuer=C=US, O=Let's Encrypt, CN=YR1`, `notAfter=Jan 24 12:25:40 2027 GMT`; `curl` without -k: store 200, app 200, /mcp 401, `ssl_verify=0`.
 - **Regression risk:** Rate limits → use staging first.
 
 ### REL-05 — Persistence on the VPS
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** REL-03
 - **Requirements:** REQ-K8S-05
@@ -1851,12 +1851,12 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** Data survives pod deletion.
 - **Tests:** TC-PER-01, TC-PER-02.
 - **Command:** `scripts/k8s-checks.sh store-data --context vps`
-- **Evidence:** —
+- **Evidence:** 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): product 120 (created by the chat flow) before; `kubectl delete pod mariadb-0` (uid 2ae86128… → 384f8d39…), WordPress pod and `postgres-0` deleted and Ready again; product 120 still returned by the Store API; `audit_log` has 49 rows after the Postgres restart. PVCs `data-mariadb-0` 5Gi, `wordpress-data` 5Gi, `data-postgres-0` 1Gi Bound (local-path).
 - **Regression risk:** —
 
 ### REL-06 — Secrets on the VPS
 - **Priority:** P0
-- **Status:** Not Started
+- **Status:** Done
 - **Day:** 6
 - **Depends on:** REL-03
 - **Requirements:** REQ-K8S-09
@@ -1865,7 +1865,7 @@ Exit criterion: deployed, tested, documented, demo-ready and submitted.
 - **Acceptance:** Secrets exist; secret scan clean.
 - **Tests:** TC-SEC-04.
 - **Command:** `scripts/make-secrets.sh --context vps`
-- **Evidence:** —
+- **Evidence:** 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): `scripts/make-secrets.sh --context vps` created the Secrets in the cluster (values never printed; `.env` gitignored); demo users seeded (`created user B … through the invite flow`, `ok user A … signs in`).
 - **Regression risk:** —
 
 ### REL-07 — Authorization boundary review
@@ -2360,7 +2360,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 
 ### BON-07 — VPS deployment with TLS
 - **Priority:** P0
-- **Status:** Blocked
+- **Status:** Done
 - **Day:** 15
 - **Depends on:** P0-03, REL-01, REL-03, REL-04, REL-05, REL-06
 - **Requirements:** REQ-SO-01, REQ-K8S-02
@@ -2369,7 +2369,7 @@ Exit criterion: the multi-store bonus and all nine "Other ways to stand out" ite
 - **Acceptance:** `scripts/e2e.sh all` passes against the VPS over https.
 - **Tests:** TC-E2E-14 on the VPS.
 - **Command:** `BASE=https://app.<domain> scripts/e2e.sh all`
-- **Evidence:** Blocked: no VPS yet (P0-03).
+- **Evidence:** 2026-10-26 (VM 548201, 2 vCPU / 8 GB, IN2, `woo-commerce-demo.duckdns.org`): `APP_ORIGIN=https://app.woo-commerce-demo.duckdns.org STORE_ORIGIN=https://store.woo-commerce-demo.duckdns.org KUBECTL_CONTEXT=vps scripts/e2e.sh all` → `UI-19 chat flow (13/13)`, `storefront order placed for the new product (#121)`, `e2e all: 26 passed, 0 failed, 1 skipped` (TC-E2E-07: no GITHUB_REPO), `e2e oauth` PASS, `PASS scripts/e2e.sh all`. Fixes: `e2e-checkout.sh` now uses STORE_ORIGIN/KUBECTL_CONTEXT (it had tested the local k3d store); chat reply check normalises non-breaking spaces.
 - **Regression risk:** —
 
 ### BON-08 — OAuth on the gateway
