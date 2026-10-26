@@ -214,3 +214,10 @@ When finished, report:
 11. Any remaining manual steps.
 
 **Execution priority:** Inspect first, source and verify images second, download and map assets third, integrate into the storefront fourth, and validate everything last. Complete the work using the existing project architecture, and do not fabricate results for unfinished steps.
+
+## 12. Owner-supplied images (2026-10-26)
+The 12 products with no usable open-licence image and 35 wrong or weak ones were replaced by images the project owner supplied
+(AI-generated illustrations: `tatva_ridgeline_product_images.zip` and `Retail Product Catalog Grid.png`). They are final (no backups).
+Pipeline: `esrgan_upscale.py` (Real-ESRGAN x4plus, CPU), `import_supplied_images.py` + `supplied_images.json` (layout per SKU: 4:5 crop or
+background continued to 4:5, 1000x1250 WebP, manifest entry). The manifest records the licence "AI-generated illustration, supplied by the
+project owner"; they are demo imagery, not verified photographs, and AI-made label text can contain errors.

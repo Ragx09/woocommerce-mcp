@@ -15,7 +15,7 @@ ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'store-as
 IMG = os.path.join(ROOT, 'images')
 # TATVA images were normalised to exact sizes; Ridgeline keeps the source resolution (many open-licence files are
 # ~1024 px), so only the 4:5 / 3:2 ratio is checked there.
-SIZES = {'product': (800, 1000), 'tile': (900, 1125)} if STORE == 'tatva' else {}
+SIZES = {'product': (1000, 1250), 'tile': (900, 1125)} if STORE == 'tatva' else {}  # TATVA's older 800x1000 products were replaced by 1000x1250 supplied ones
 RATIOS = {'product': 0.8, 'tile': 0.8, 'editorial': 1.5}
 m = json.load(open(os.path.join(IMG, 'manifest.json')))
 cat = json.load(open(os.path.join(ROOT, 'catalogue.json')))
@@ -37,12 +37,12 @@ for key, e in m.items():
     if abs(size[0] / size[1] - RATIOS.get(e['role'], size[0] / size[1])) > 0.01:
         problems.append(f'{key}: ratio {size}, expected {RATIOS[e["role"]]}')
     want = SIZES.get(e['role'])
-    if want and size != want:
+    if want and size != want and not (e['role'] == 'product' and size == (800, 1000)):
         problems.append(f'{key}: {size}, expected {want}')
     if e['role'] == 'editorial' and abs(size[0] / size[1] - 1.5) > 0.01:
         problems.append(f'{key}: editorial ratio {size}')
     lic = (e.get('license') or '').lower()
-    if not (lic.startswith('cc0') or 'public domain' in lic):
+    if not (lic.startswith('cc0') or 'public domain' in lic or lic.startswith('ai-generated illustration, supplied by the project owner')):
         problems.append(f'{key}: licence {e.get("license")} requires attribution')
     for f in ('source_page_url', 'asset_url', 'source_repository', 'alt'):
         if not e.get(f):
